@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+
+  memberships   ProjectMember[]
+  assignedTasks Task[]          @relation("TaskAssignee")
+  messages      Message[]
+  mentions      Mention[]
+}
+
+model Project {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  members  ProjectMember[]
+  lists    List[]
+  tasks    Task[]
+  messages Message[]
+}
+
+model ProjectMember {
+  id        String @id @default(uuid())
+  userId    String
+  projectId String
+  stack     String // e.g. "frontend", "backend", "ML", "design"
+
+  user    User    @relation(fields: [userId], references: [id])
+  project Project @relation(fields: [projectId], references: [id])
+}
+
+// A Kanban column. Not fixed — users can create/rename/reorder these.
+model List {
+  id        String   @id @default(uuid())
+  name      String
+  position  Int
+  projectId String
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id])
+  tasks   Task[]
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  position    Int
+  stack       String?
+  listId      String
+  projectId   String
+  assigneeId  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  list     List    @relation(fields: [listId], references: [id])
+  project  Project @relation(fields: [projectId], references: [id])
+  assignee User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
+}
+
+// Chat/comment messages, scoped to a project (extend with taskId later if you want per-task threads)
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  projectId String
+  senderId  String
+  createdAt DateTime @default(now())
+
+  project  Project   @relation(fields: [projectId], references: [id])
+  sender   User      @relation(fields: [senderId], references: [id])
+  mentions Mention[]
+}
+
+// Tracks @mentions of a user inside a message (or a task, if you extend it later)
+model Mention {
+  id          String  @id @default(cuid())
+  messageId   String
+  userId      String // who was mentioned
+  isAiMention Boolean @default(false) // true if this mention was @AI, not a person
+
+  message Message @relation(fields: [messageId], references: [id])
+  user    User?   @relation(fields: [userId], references: [id]) // optional if isAiMention
+}
