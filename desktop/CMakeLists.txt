@@ -12,7 +12,7 @@ pkg_check_modules(LIBGIT2 REQUIRED IMPORTED_TARGET libgit2)
 
 qt_standard_project_setup(REQUIRES 6.2)
 
-qt_add_executable(loopin_desktop
+qt_add_executable(loopin_desktop WIN32
     src/main.cpp
     src/auth/GitHubAuth.cpp
     src/git/GitRepo.cpp
