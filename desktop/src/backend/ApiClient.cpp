@@ -40,6 +40,57 @@ void ApiClient::setBackendUrl(const QString& url) {
     emit backendUrlChanged();
 }
 
+void ApiClient::setProjectId(const QString& p) {
+    if (m_projectId == p) return;
+    m_projectId = p;
+    emit projectIdChanged();
+}
+
+void ApiClient::setUserId(const QString& u) {
+    if (m_userId == u) return;
+    m_userId = u;
+    emit userIdChanged();
+}
+
+void ApiClient::fetchTasks() {
+    if (m_projectId.isEmpty()) return;
+
+    QString urlStr = QString("http://localhost:3000/api/projects/%1/tasks").arg(m_projectId);
+    QNetworkRequest req((QUrl(urlStr)));
+    QNetworkReply* reply = m_nam.get(req);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        if (reply->error() == QNetworkReply::NoError) {
+            QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+            if (doc.isArray()) {
+                emit tasksReady(doc.array());
+            }
+        }
+    });
+}
+
+void ApiClient::reportCommit(const QString& commitSha, const QString& message, const QString& taskId) {
+    if (m_projectId.isEmpty() || m_userId.isEmpty()) return;
+
+    QNetworkRequest req(QUrl("http://localhost:3000/api/commits"));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    QJsonObject body;
+    body["sha"] = commitSha;
+    body["message"] = message;
+    body["projectId"] = m_projectId;
+    body["authorId"] = m_userId;
+    if (!taskId.isEmpty()) {
+        body["taskId"] = taskId;
+    }
+
+    QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson());
+    connect(reply, &QNetworkReply::finished, this, [reply]() {
+        reply->deleteLater();
+    });
+}
+
 void ApiClient::requestCommitGroups(const QJsonArray& changes, const QString& taskId) {
     if (m_aiProvider == "gemini") {
         if (m_geminiApiKey.isEmpty()) {
@@ -205,21 +256,7 @@ void ApiClient::requestCommitGroups(const QJsonArray& changes, const QString& ta
     });
 }
 
-void ApiClient::reportCommit(const QString& commitSha, const QString& message,
-                              const QString& taskId) {
-    if (m_backendUrl.isEmpty()) return;  // nothing to report to in mock mode
 
-    QJsonObject body;
-    body["commit_sha"] = commitSha;
-    body["message"] = message;
-    body["task_id"] = taskId;
-
-    QNetworkRequest req(QUrl(m_backendUrl + "/api/commits/report"));
-    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-
-    QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson());
-    connect(reply, &QNetworkReply::finished, reply, &QNetworkReply::deleteLater);
-}
 
 QJsonArray ApiClient::mockGroups(const QJsonArray& changes) const {
     // Naive stand-in for the real AI grouping step described in your
