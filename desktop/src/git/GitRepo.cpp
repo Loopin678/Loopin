@@ -142,9 +142,11 @@ bool GitRepo::stageAndCommit(const QStringList& files, const QString& message) {
     }
 
     for (const QString& f : files) {
-        // NOTE: deleted files need git_index_remove_bypath instead; for
-        // an MVP we handle the common add/modify case here.
-        git_index_add_bypath(index, f.toUtf8().constData());
+        if (QFile::exists(m_repoPath + "/" + f)) {
+            git_index_add_bypath(index, f.toUtf8().constData());
+        } else {
+            git_index_remove_bypath(index, f.toUtf8().constData());
+        }
     }
     git_index_write(index);
 

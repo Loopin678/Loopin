@@ -1,5 +1,0 @@
-/home/varaa/collab-desktop-client/build/collab_desktop_client_autogen/include/../45VRAGFKHO/moc_DiffModel.cpp.json
-/home/varaa/collab-desktop-client/build/collab_desktop_client_autogen/include/../45VRAGFKHO/moc_GitRepo.cpp.json
-/home/varaa/collab-desktop-client/build/collab_desktop_client_autogen/include/../QMBYO36SBA/moc_GitHubAuth.cpp.json
-/home/varaa/collab-desktop-client/build/collab_desktop_client_autogen/include/../TH4LPNIYRO/moc_ChangeWatcher.cpp.json
-/home/varaa/collab-desktop-client/build/collab_desktop_client_autogen/include/../VU2PALRVTW/moc_ApiClient.cpp.json

@@ -1,8 +1,0 @@
---resource
-/home/varaa/collab-desktop-client/build/.qt/rcc/qmake_App.qrc
---resource
-/home/varaa/collab-desktop-client/build/.qt/rcc/collab_desktop_client_raw_qml_0.qrc
-/App/qml/main.qml
-/App/qml/LoginView.qml
-/App/qml/ChangeInboxView.qml
-/App/qml/CommitReviewView.qml
