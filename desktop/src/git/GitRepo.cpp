@@ -229,7 +229,6 @@ bool GitRepo::pushCurrentBranch(const QString& token, const QString& remoteName)
     if (rc != 0) {
         QString out;
         if (runGit(m_repoPath, {"push", remoteName, currentBranchName()}, &out)) {
-            runGit(m_repoPath, {"fetch", remoteName}, &out);
             emit repoChanged();
             return true;
         }
@@ -238,8 +237,19 @@ bool GitRepo::pushCurrentBranch(const QString& token, const QString& remoteName)
         return false;
     }
     
-    QString out;
-    runGit(m_repoPath, {"fetch", remoteName}, &out);
+    // Manually update the remote tracking branch since git_remote_push doesn't do it automatically
+    QString branch = currentBranchName();
+    if (!branch.isEmpty()) {
+        QString trackingRef = "refs/remotes/" + remoteName + "/" + branch;
+        git_reference* headRefForUpdate = nullptr;
+        if (git_repository_head(&headRefForUpdate, m_repo) == 0) {
+            git_reference* newRef = nullptr;
+            git_reference_create(&newRef, m_repo, trackingRef.toUtf8().constData(), git_reference_target(headRefForUpdate), 1, "update by push");
+            if (newRef) git_reference_free(newRef);
+            git_reference_free(headRefForUpdate);
+        }
+    }
+    
     emit repoChanged();
     return true;
 }
@@ -249,7 +259,6 @@ bool GitRepo::pushCommit(const QString& sha, const QString& remoteName) {
     QString out;
     // git push remote <sha>:<branch>
     if (runGit(m_repoPath, {"push", remoteName, sha + ":" + currentBranchName()}, &out)) {
-        runGit(m_repoPath, {"fetch", remoteName}, &out);
         emit repoChanged();
         return true;
     }
