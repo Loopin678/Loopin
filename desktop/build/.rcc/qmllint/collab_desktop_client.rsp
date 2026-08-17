@@ -1,0 +1,17 @@
+--bare
+-I
+/home/varaa/collab-desktop-client/build
+-I
+/home/varaa/collab-desktop-client/build/App
+-I
+/home/varaa/collab-desktop-client/build
+-I
+/usr/lib64/qt6/qml
+--resource
+/home/varaa/collab-desktop-client/build/.qt/rcc/qmake_App.qrc
+--resource
+/home/varaa/collab-desktop-client/build/.qt/rcc/collab_desktop_client_raw_qml_0.qrc
+/home/varaa/collab-desktop-client/qml/main.qml
+/home/varaa/collab-desktop-client/qml/LoginView.qml
+/home/varaa/collab-desktop-client/qml/ChangeInboxView.qml
+/home/varaa/collab-desktop-client/qml/CommitReviewView.qml

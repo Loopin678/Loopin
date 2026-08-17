@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="/App">
+    <file alias="qmldir">/home/varaa/collab-desktop-client/build/App/qmldir</file>
+  </qresource>
+</RCC>
+

@@ -1,0 +1,8 @@
+module App
+typeinfo collab_desktop_client.qmltypes
+prefer :/App/
+LoginView 1.0 qml/LoginView.qml
+ChangeInboxView 1.0 qml/ChangeInboxView.qml
+CommitReviewView 1.0 qml/CommitReviewView.qml
+depends QtQuick
+

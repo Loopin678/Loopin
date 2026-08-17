@@ -1,0 +1,14 @@
+-I
+/home/varaa/collab-desktop-client/build
+-I
+/home/varaa/collab-desktop-client/build/App
+-I
+/home/varaa/collab-desktop-client/build
+-I
+/usr/lib64/qt6/qml
+--resource
+/home/varaa/collab-desktop-client/build/.qt/rcc/qmake_App.qrc
+--resource
+/home/varaa/collab-desktop-client/build/.qt/rcc/collab_desktop_client_raw_qml_0.qrc
+--module
+App

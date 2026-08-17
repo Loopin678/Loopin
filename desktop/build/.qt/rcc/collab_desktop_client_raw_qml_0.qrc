@@ -1,0 +1,9 @@
+<RCC>
+  <qresource prefix="/App/">
+    <file alias="qml/main.qml">/home/varaa/collab-desktop-client/qml/main.qml</file>
+    <file alias="qml/LoginView.qml">/home/varaa/collab-desktop-client/qml/LoginView.qml</file>
+    <file alias="qml/ChangeInboxView.qml">/home/varaa/collab-desktop-client/qml/ChangeInboxView.qml</file>
+    <file alias="qml/CommitReviewView.qml">/home/varaa/collab-desktop-client/qml/CommitReviewView.qml</file>
+  </qresource>
+</RCC>
+

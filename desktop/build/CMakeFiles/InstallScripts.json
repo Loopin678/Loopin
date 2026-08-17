@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/varaa/collab-desktop-client/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

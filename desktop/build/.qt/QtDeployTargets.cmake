@@ -1,0 +1,2 @@
+set(__QT_DEPLOY_TARGET_collab_desktop_client_FILE /home/varaa/collab-desktop-client/build/collab_desktop_client)
+set(__QT_DEPLOY_TARGET_collab_desktop_client_TYPE EXECUTABLE)
