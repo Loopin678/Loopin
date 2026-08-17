@@ -276,27 +276,51 @@ QStringList GitRepo::branches() const {
     if (!m_repo) return {};
 
     git_branch_iterator* it = nullptr;
-    if (git_branch_iterator_new(&it, m_repo, GIT_BRANCH_LOCAL) != 0)
+    if (git_branch_iterator_new(&it, m_repo, GIT_BRANCH_ALL) != 0)
         return {};
 
-    QStringList list;
+    QStringList localBranches;
+    QStringList remoteBranches;
     git_reference* ref = nullptr;
     git_branch_t type;
     while (git_branch_next(&ref, &type, it) == 0) {
         const char* name = nullptr;
         if (git_branch_name(&name, ref) == 0 && name) {
-            list.append(QString::fromUtf8(name));
+            QString branchName = QString::fromUtf8(name);
+            if (type == GIT_BRANCH_LOCAL) {
+                localBranches.append(branchName);
+            } else if (type == GIT_BRANCH_REMOTE) {
+                if (!branchName.endsWith("/HEAD")) {
+                    remoteBranches.append(branchName);
+                }
+            }
         }
         git_reference_free(ref);
     }
     git_branch_iterator_free(it);
+    
+    QStringList list = localBranches;
+    for (const QString& rb : remoteBranches) {
+        QString localEquiv = rb.section('/', 1); // Extract 'arnav' from 'origin/arnav'
+        if (!localBranches.contains(localEquiv)) {
+            list.append(rb);
+        }
+    }
+    list.sort();
     return list;
 }
 
 bool GitRepo::checkoutBranch(const QString& branchName) {
     if (!m_repo) return false;
     QString out;
-    bool ok = runGit(m_repoPath, {"checkout", branchName}, &out);
+    bool ok;
+    if (branchName.contains('/')) {
+        // Automatically set up tracking for remote branches (e.g. origin/arnav)
+        ok = runGit(m_repoPath, {"checkout", "--track", branchName}, &out);
+    } else {
+        ok = runGit(m_repoPath, {"checkout", branchName}, &out);
+    }
+    
     if (!ok) emit errorOccurred("Checkout failed:\n" + out);
     if (ok) {
         refreshDiff();
