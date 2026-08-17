@@ -64,6 +64,10 @@ public:
     // Sends the file list to Gemini and emits gitignoreReady with the result.
     Q_INVOKABLE void generateGitignore(const QStringList& files);
 
+    // Sends a conflicted file to the AI to intelligently resolve the merge conflicts
+    // based on the user's preference. Emits mergeResolutionReady.
+    Q_INVOKABLE void requestMergeResolution(const QString& filePath, const QString& fileContent, const QString& preference);
+
 signals:
     void backendUrlChanged();
     void aiProviderChanged();
@@ -75,6 +79,7 @@ signals:
     // groups is an array of { "message": string, "files": [string, ...] }
     void commitGroupsReady(const QJsonArray& groups);
     void gitignoreReady(const QString& content);
+    void mergeResolutionReady(const QString& filePath, const QString& resolvedContent);
     void requestFailed(const QString& errorString);
     void tasksReady(const QJsonArray& tasks);
     void projectCommitsReady(const QJsonArray& commits);

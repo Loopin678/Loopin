@@ -429,17 +429,21 @@ QStringList GitRepo::unpushedCommitShas(const QString& remoteName) const {
 
 bool GitRepo::writeFile(const QString& relativePath, const QString& content) {
     if (m_repoPath.isEmpty()) return false;
-    QDir repoDir(m_repoPath);
-    QString fullPath = repoDir.filePath(relativePath);
-    QFile file(fullPath);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        emit errorOccurred("Failed to open file for writing: " + fullPath);
-        return false;
+    QFile f(QDir(m_repoPath).filePath(relativePath));
+    if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        f.write(content.toUtf8());
+        return true;
     }
-    QTextStream out(&file);
-    out << content;
-    file.close();
-    return true;
+    return false;
+}
+
+QString GitRepo::readFile(const QString& relativePath) {
+    if (m_repoPath.isEmpty()) return {};
+    QFile f(QDir(m_repoPath).filePath(relativePath));
+    if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return QString::fromUtf8(f.readAll());
+    }
+    return {};
 }
 
 QVariantList GitRepo::commitHistory(int limit) const {
@@ -618,13 +622,64 @@ bool GitRepo::mergeBranch(const QString& branchName) {
     bool ok = runGit(m_repoPath, {"merge", "--no-edit", branchName}, &out);
     if (!ok) {
         if (out.contains("CONFLICT") || out.contains("Automatic merge failed")) {
-            // Safe Mode for novices: Automatically abort broken merges
-            QString abortOut;
-            runGit(m_repoPath, {"merge", "--abort"}, &abortOut);
-            emit errorOccurred("Merge conflict detected! For your safety, the merge was automatically aborted.\n\nTo merge this branch, you must resolve the conflicts using a full Git client or IDE.\n\nGit output:\n" + out);
+            // Get the list of conflicted files
+            QString diffOut;
+            if (runGit(m_repoPath, {"diff", "--name-only", "--diff-filter=U"}, &diffOut)) {
+                QStringList conflictedFiles;
+                for (const QString& line : diffOut.split('\n', Qt::SkipEmptyParts)) {
+                    conflictedFiles.append(line.trimmed());
+                }
+                emit mergeConflictDetected(conflictedFiles);
+            } else {
+                // Fallback to abort if we can't even list the conflicted files
+                abortMerge();
+                emit errorOccurred("Merge conflict detected, but failed to list conflicted files. Merge automatically aborted.\n\n" + out);
+            }
         } else {
             emit errorOccurred("git merge failed:\n" + out);
         }
+        return false;
+    }
+    refreshDiff();
+    emit repoChanged();
+    return true;
+}
+
+bool GitRepo::abortMerge() {
+    if (!m_repo) return false;
+    QString out;
+    bool ok = runGit(m_repoPath, {"merge", "--abort"}, &out);
+    refreshDiff();
+    emit repoChanged();
+    return ok;
+}
+
+bool GitRepo::resolveConflictFile(const QString& filePath, const QString& content) {
+    if (!m_repo) return false;
+    
+    // Write the new content
+    if (!writeFile(filePath, content)) {
+        emit errorOccurred("Failed to write resolved content to " + filePath);
+        return false;
+    }
+    
+    // Stage the resolved file
+    QString out;
+    if (!runGit(m_repoPath, {"add", filePath}, &out)) {
+        emit errorOccurred("Failed to stage resolved file " + filePath + ":\n" + out);
+        return false;
+    }
+    
+    refreshDiff();
+    return true;
+}
+
+bool GitRepo::commitResolvedMerge() {
+    if (!m_repo) return false;
+    QString out;
+    bool ok = runGit(m_repoPath, {"commit", "--no-edit"}, &out);
+    if (!ok) {
+        emit errorOccurred("Failed to commit resolved merge:\n" + out);
         return false;
     }
     refreshDiff();

@@ -65,11 +65,23 @@ public:
     // Creates a new branch from HEAD and optionally checks it out.
     Q_INVOKABLE bool createBranch(const QString& branchName, bool checkout = true);
 
+    // Aborts an in-progress merge.
+    Q_INVOKABLE bool abortMerge();
+
+    // Resolves a conflicted file with new content.
+    Q_INVOKABLE bool resolveConflictFile(const QString& filePath, const QString& content);
+
+    // Commits a merge after all conflicts are resolved.
+    Q_INVOKABLE bool commitResolvedMerge();
+
     // Returns unpushed commit SHAs that are ahead of remote (not yet pushed).
     Q_INVOKABLE QStringList unpushedCommitShas(const QString& remoteName = "origin") const;
 
     // Writes content to a file relative to the repo root. Returns true on success.
-    Q_INVOKABLE bool writeFile(const QString& relativePath, const QString& content);
+    Q_INVOKABLE bool writeFile(const QString& filePath, const QString& content);
+
+    // Reads content from a file relative to the repo root.
+    Q_INVOKABLE QString readFile(const QString& filePath);
 
     // Returns the last `limit` commits as a list of maps with keys:
     // sha (short), message, author, date
@@ -109,13 +121,14 @@ signals:
     void repoChanged();
     void remotesChanged();
     void diffChanged();
-    void errorOccurred(const QString& message);
-
-    // Async completion signals
-    void checkoutFinished(bool ok, const QString& errorMsg);
-    void fetchFinished(bool ok, const QString& errorMsg);
-    void pullFinished(bool ok, const QString& errorMsg);
-    void pushFinished(bool ok, const QString& errorMsg);
+    void errorOccurred(const QString& errorMessage);
+    void checkoutFinished(bool ok, const QString& errorMessage);
+    void fetchFinished(bool ok, const QString& errorMessage);
+    void pullFinished(bool ok, const QString& errorMessage);
+    void pushFinished(bool ok, const QString& errorMessage);
+    
+    // Emitted when a merge fails due to conflicts. The list contains the paths of conflicted files.
+    void mergeConflictDetected(const QStringList& conflictedFiles);
 
 private:
     git_repository* m_repo = nullptr;

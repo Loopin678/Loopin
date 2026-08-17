@@ -477,3 +477,121 @@ void ApiClient::generateGitignore(const QStringList& files) {
         return;
     }
 }
+void ApiClient::requestMergeResolution(const QString& filePath, const QString& fileContent, const QString& preference) {
+    if (m_aiProvider == "gemini") {
+        if (m_geminiApiKey.isEmpty()) {
+            emit requestFailed("Gemini API key is not configured in settings.");
+            return;
+        }
+
+        QJsonObject systemInstruction;
+        QJsonArray systemParts;
+        QJsonObject systemText;
+        systemText["text"] = "You are a Git merge conflict resolution AI. Given a file containing Git conflict markers (<<<<<<<, =======, >>>>>>>), resolve the conflicts intelligently. The user's preference is: '" + preference + "'. Output ONLY the resolved file content in plain text. Do not use markdown blocks, do not explain. Just the exact code to be written back to the file.";
+        systemParts.append(systemText);
+        systemInstruction["parts"] = systemParts;
+
+        QJsonObject contents;
+        QJsonArray parts;
+        QJsonObject textPart;
+        textPart["text"] = "File: " + filePath + "\n\n" + fileContent;
+        parts.append(textPart);
+        contents["parts"] = parts;
+
+        QJsonObject generationConfig;
+        generationConfig["responseMimeType"] = "text/plain";
+        generationConfig["temperature"] = 0.2;
+
+        QJsonObject body;
+        body["systemInstruction"] = systemInstruction;
+        QJsonArray contentsArr;
+        contentsArr.append(contents);
+        body["contents"] = contentsArr;
+        body["generationConfig"] = generationConfig;
+
+        QNetworkRequest req(QUrl(QStringLiteral("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=") + m_geminiApiKey));
+        req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+        QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson());
+        connect(reply, &QNetworkReply::finished, this, [this, reply, filePath]() {
+            reply->deleteLater();
+            if (reply->error() != QNetworkReply::NoError) {
+                QString errBody = QString::fromUtf8(reply->readAll());
+                emit requestFailed("Gemini Error: " + reply->errorString() + (errBody.isEmpty() ? "" : "\n" + errBody));
+                return;
+            }
+
+            QJsonObject json = QJsonDocument::fromJson(reply->readAll()).object();
+            QJsonArray candidates = json.value("candidates").toArray();
+            if (!candidates.isEmpty()) {
+                QString text = candidates.first().toObject()
+                    .value("content").toObject()
+                    .value("parts").toArray()
+                    .first().toObject()
+                    .value("text").toString();
+                
+                // Remove markdown blocks if AI mistakenly includes them
+                if (text.startsWith("```") && text.contains("\n")) {
+                    text = text.mid(text.indexOf("\n") + 1);
+                    if (text.endsWith("```")) text = text.chopped(3);
+                    if (text.endsWith("```\n")) text = text.chopped(4);
+                }
+                
+                emit mergeResolutionReady(filePath, text);
+            } else {
+                emit requestFailed("AI returned empty response for merge resolution.");
+            }
+        });
+    } else {
+        if (m_aiProvider == "openrouter" && m_openRouterApiKey.isEmpty()) {
+            emit requestFailed("OpenRouter API key is not configured.");
+            return;
+        }
+
+        QJsonObject body;
+        body["model"] = (m_aiProvider == "openrouter") ? "google/gemini-2.5-flash" : "qwen2.5-coder:1.5b";
+        
+        QJsonArray messages;
+        QJsonObject sysMsg;
+        sysMsg["role"] = "system";
+        sysMsg["content"] = "You are a Git merge conflict resolution AI. Given a file containing Git conflict markers (<<<<<<<, =======, >>>>>>>), resolve the conflicts intelligently. The user's preference is: '" + preference + "'. Output ONLY the resolved file content in plain text. Do not use markdown blocks, do not explain. Just the exact code to be written back to the file.";
+        messages.append(sysMsg);
+
+        QJsonObject userMsg;
+        userMsg["role"] = "user";
+        userMsg["content"] = "File: " + filePath + "\n\n" + fileContent;
+        messages.append(userMsg);
+        
+        body["messages"] = messages;
+
+        QNetworkRequest req(QUrl(m_aiProvider == "openrouter" ? "https://openrouter.ai/api/v1/chat/completions" : "http://localhost:11434/api/chat"));
+        req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        if (m_aiProvider == "openrouter") {
+            req.setRawHeader("Authorization", ("Bearer " + m_openRouterApiKey).toUtf8());
+            req.setRawHeader("HTTP-Referer", "https://github.com/loopin");
+        }
+
+        QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson());
+        connect(reply, &QNetworkReply::finished, this, [this, reply, filePath]() {
+            reply->deleteLater();
+            if (reply->error() != QNetworkReply::NoError) {
+                QString errBody = QString::fromUtf8(reply->readAll());
+                emit requestFailed("AI Provider Error: " + reply->errorString() + (errBody.isEmpty() ? "" : "\n" + errBody));
+                return;
+            }
+
+            QJsonObject json = QJsonDocument::fromJson(reply->readAll()).object();
+            QString text = json.value("choices").isArray() 
+                ? json.value("choices").toArray().first().toObject().value("message").toObject().value("content").toString()
+                : json.value("message").toObject().value("content").toString();
+                
+            // Remove markdown blocks if AI mistakenly includes them
+            if (text.startsWith("```") && text.contains("\n")) {
+                text = text.mid(text.indexOf("\n") + 1);
+                if (text.endsWith("```")) text = text.chopped(3);
+                if (text.endsWith("```\n")) text = text.chopped(4);
+            }
+            emit mergeResolutionReady(filePath, text);
+        });
+    }
+}

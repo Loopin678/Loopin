@@ -22,9 +22,34 @@ Item {
     property bool commitBusy: false
     property bool gitignoreBusy: false
     property bool aiOrganizeBusy: false
+    property bool mergeResolveBusy: false
     property string opsStatus: ""
     property bool opsIsError: false
     property var unpushedShas: []
+    
+    // AI Merge Resolution State
+    property var pendingConflicts: []
+    property string currentMergePreference: ""
+
+    function resolveNextConflict() {
+        if (root.pendingConflicts.length === 0) {
+            root.mergeResolveBusy = false
+            var ok = root.repo.commitResolvedMerge()
+            root.opsStatus = ok ? "Merge resolved and committed!" : "Merge resolved but commit failed"
+            root.opsIsError = !ok
+            return
+        }
+        var filePath = root.pendingConflicts.shift()
+        var content = root.repo.readFile(filePath)
+        if (content === "") {
+            root.opsStatus = "Failed to read conflicted file: " + filePath
+            root.opsIsError = true
+            root.repo.abortMerge()
+            return
+        }
+        root.opsStatus = "Resolving " + filePath + " using AI..."
+        root.api.requestMergeResolution(filePath, content, root.currentMergePreference)
+    }
 
     function refreshUnpushed() {
         if (root.repo.isOpen && root.repo.remotes.length > 0)
@@ -75,6 +100,10 @@ Item {
             root.opsStatus = ok ? "Push complete" : "Push failed"
             root.opsIsError = !ok
         }
+        function onMergeConflictDetected(files) {
+            mergeConflictDialog.conflictedFiles = files
+            mergeConflictDialog.open()
+        }
     }
 
     Connections {
@@ -88,9 +117,24 @@ Item {
             gitignorePreview.text = content
             gitignoreDialog.open()
         }
+        function onMergeResolutionReady(filePath, resolvedContent) {
+            var ok = root.repo.resolveConflictFile(filePath, resolvedContent)
+            if (ok) {
+                resolveNextConflict()
+            } else {
+                root.mergeResolveBusy = false
+                root.opsStatus = "Failed to save resolved file: " + filePath
+                root.opsIsError = true
+                root.repo.abortMerge()
+            }
+        }
         function onRequestFailed(errorString) {
             root.aiOrganizeBusy = false
             root.gitignoreBusy = false
+            if (root.mergeResolveBusy) {
+                root.mergeResolveBusy = false
+                root.repo.abortMerge()
+            }
             root.opsStatus = "AI Request Failed: " + errorString
             root.opsIsError = true
         }
@@ -183,6 +227,92 @@ Item {
                             }
                         }
                         newBranchNameField.text = ""
+                    }
+                }
+
+                Dialog {
+                    id: mergeConflictDialog
+                    title: "Merge Conflict Detected"
+                    x: Math.round((root.width - width) / 2)
+                    y: Math.round((root.height - height) / 2)
+                    width: 450
+                    modal: true
+                    
+                    property var conflictedFiles: []
+                    
+                    ColumnLayout {
+                        anchors.fill: parent
+                        spacing: 12
+                        
+                        Label {
+                            text: "Git encountered conflicts while merging. How would you like to resolve them?"
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                            font.pixelSize: 14
+                        }
+                        
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 100
+                            color: Theme.bg
+                            border.color: Theme.border
+                            
+                            ScrollView {
+                                anchors.fill: parent
+                                anchors.margins: 4
+                                ListView {
+                                    model: mergeConflictDialog.conflictedFiles
+                                    delegate: Label { text: modelData; font.family: "monospace" }
+                                }
+                            }
+                        }
+                        
+                        RowLayout {
+                            Layout.alignment: Qt.AlignRight
+                            spacing: 8
+                            
+                            Button {
+                                text: "Keep My Changes"
+                                onClicked: {
+                                    root.currentMergePreference = "Keep the changes from my current branch and discard the incoming changes from the other branch."
+                                    root.pendingConflicts = mergeConflictDialog.conflictedFiles.slice()
+                                    root.mergeResolveBusy = true
+                                    mergeConflictDialog.close()
+                                    root.resolveNextConflict()
+                                }
+                            }
+                            Button {
+                                text: "Keep Their Changes"
+                                onClicked: {
+                                    root.currentMergePreference = "Keep the incoming changes from the other branch and discard my changes."
+                                    root.pendingConflicts = mergeConflictDialog.conflictedFiles.slice()
+                                    root.mergeResolveBusy = true
+                                    mergeConflictDialog.close()
+                                    root.resolveNextConflict()
+                                }
+                            }
+                            Button {
+                                text: "Use AI (Intelligent)"
+                                highlighted: true
+                                font.bold: true
+                                onClicked: {
+                                    root.currentMergePreference = "Intelligently merge both sets of changes. If they add different features, keep both. If they conflict logically, keep the one that makes more sense in the context of the file."
+                                    root.pendingConflicts = mergeConflictDialog.conflictedFiles.slice()
+                                    root.mergeResolveBusy = true
+                                    mergeConflictDialog.close()
+                                    root.resolveNextConflict()
+                                }
+                            }
+                            Button {
+                                text: "Abort Merge"
+                                onClicked: {
+                                    root.repo.abortMerge()
+                                    root.opsStatus = "Merge aborted"
+                                    root.opsIsError = true
+                                    mergeConflictDialog.close()
+                                }
+                            }
+                        }
                     }
                 }
 
