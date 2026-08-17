@@ -116,7 +116,6 @@ Item {
                     enabled: root.repo.isOpen
                     implicitWidth: 140; font.pixelSize: 12
                     font.bold: true
-                    // Sync the displayed text with the actual current branch
                     displayText: root.repo.isOpen && root.repo.currentBranchName !== "" ? root.repo.currentBranchName : "No branch"
                     
                     onActivated: function(index) {
@@ -126,6 +125,32 @@ Item {
                             root.opsStatus = ok ? "Switched to " + selectedBranch : "Checkout failed"
                             root.opsIsError = !ok
                             if (ok) refreshAll()
+                        }
+                    }
+                }
+
+                Button {
+                    text: "Merge..."
+                    enabled: root.repo.isOpen && root.repo.branches.length > 1
+                    onClicked: mergeMenu.open()
+                    
+                    Menu {
+                        id: mergeMenu
+                        y: parent.height
+                        Instantiator {
+                            model: root.repo.isOpen ? root.repo.branches : []
+                            MenuItem {
+                                text: modelData
+                                visible: modelData !== root.repo.currentBranchName
+                                onClicked: {
+                                    var ok = root.repo.mergeBranch(modelData)
+                                    root.opsStatus = ok ? "Merged " + modelData : "Merge failed"
+                                    root.opsIsError = !ok
+                                    if (ok) refreshAll()
+                                }
+                            }
+                            onObjectAdded: function(index, object) { mergeMenu.insertItem(index, object) }
+                            onObjectRemoved: function(index, object) { mergeMenu.removeItem(object) }
                         }
                     }
                 }
@@ -441,9 +466,28 @@ Item {
                                 Rectangle { height: 1; width: parent.width; anchors.bottom: parent.bottom; color: Theme.divider }
                                 Rectangle { width: 3; height: parent.height; color: parent.isUnpushed ? Theme.warning : "transparent" }
 
+                                MouseArea {
+                                    anchors.fill: parent
+                                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                    hoverEnabled: true
+                                    onEntered: parent.color = Theme.rowHover
+                                    onExited: parent.color = isUnpushed ? (Theme.dark ? "#2a2518" : "#fff8e8") : (index % 2 === 0 ? Theme.rowBase : Theme.rowAlt)
+                                    
+                                    onClicked: function(mouse) {
+                                        if (mouse.button === Qt.LeftButton) {
+                                            commitDetailsDialog.showCommit(modelData.sha, modelData.message)
+                                        } else if (mouse.button === Qt.RightButton) {
+                                            commitContextMenu.sha = modelData.sha
+                                            commitContextMenu.popup()
+                                        }
+                                    }
+                                }
+
                                 RowLayout {
                                     anchors { fill: parent; leftMargin: 14; rightMargin: 12; topMargin: 6; bottomMargin: 6 }
                                     spacing: 10
+                                    // Pass through clicks to the MouseArea behind it
+                                    enabled: false
 
                                     Rectangle {
                                         width: 58; height: 22; radius: 4; color: Theme.shaBg
@@ -607,16 +651,35 @@ Item {
                                 font.bold: true; font.pixelSize: 14; color: Theme.textPrimary
                             }
                             Text {
-                                text: root.repo.isOpen
-                                    ? "Path: " + root.repo.repoPath
-                                      + "\nBranch: " + root.repo.currentBranchName()
-                                      + "\nRemotes: " + (root.repo.remotes.length > 0 ? root.repo.remotes.join(", ") : "none")
-                                      + "\nChanged files: " + root.repo.diffModel.count
-                                      + "\nUnpushed commits: " + root.unpushedShas.length
-                                    : "No repository open."
+                                id: repoInfoText
+                                text: "No repository open."
                                 wrapMode: Text.WordWrap; Layout.fillWidth: true
                                 color: Theme.textSecondary; font.pixelSize: 12
                                 lineHeight: 1.4
+
+                                function updateInfo() {
+                                    if (!root.repo.isOpen) {
+                                        text = "No repository open."
+                                    } else {
+                                        var rems = root.repo.remotes
+                                        text = "Path: " + root.repo.repoPath
+                                             + "\nBranch: " + root.repo.currentBranchName
+                                             + "\nRemotes: " + (rems && rems.length > 0 ? rems.join(", ") : "none")
+                                             + "\nChanged files: " + root.repo.diffModel.count
+                                             + "\nUnpushed commits: " + root.unpushedShas.length
+                                    }
+                                }
+
+                                Connections {
+                                    target: root
+                                    function onUnpushedShasChanged() { repoInfoText.updateInfo() }
+                                }
+                                Connections {
+                                    target: root.repo
+                                    function onRepoChanged() { repoInfoText.updateInfo() }
+                                    function onDiffChanged() { repoInfoText.updateInfo() }
+                                }
+                                Component.onCompleted: updateInfo()
                             }
                         }
                     }
@@ -677,6 +740,103 @@ Item {
                 root.repo.refreshDiff()
             } else {
                 console.log("Failed to save .gitignore")
+            }
+        }
+    }
+
+    // ── Commit Context Menu ───────────────────────────────────────────
+    Menu {
+        id: commitContextMenu
+        property string sha: ""
+        
+        MenuItem {
+            text: "Revert Commit..."
+            onClicked: {
+                var ok = root.repo.revertCommit(commitContextMenu.sha)
+                root.opsStatus = ok ? "Reverted " + commitContextMenu.sha : "Revert failed"
+                root.opsIsError = !ok
+            }
+        }
+        MenuItem {
+            text: "Reset to Here (Soft)"
+            onClicked: {
+                var ok = root.repo.resetToCommit(commitContextMenu.sha, false)
+                root.opsStatus = ok ? "Soft reset to " + commitContextMenu.sha : "Reset failed"
+                root.opsIsError = !ok
+            }
+        }
+        MenuItem {
+            text: "Reset to Here (Hard)"
+            onClicked: hardResetConfirm.popup()
+        }
+    }
+
+    Dialog {
+        id: hardResetConfirm
+        title: "Hard Reset?"
+        standardButtons: Dialog.Yes | Dialog.No
+        modal: true
+        anchors.centerIn: parent
+        Text {
+            text: "Are you sure you want to hard reset to " + commitContextMenu.sha + "?\nAll uncommitted changes in your working directory WILL BE DESTROYED."
+            color: Theme.warning
+            font.bold: true
+            font.pixelSize: 13
+        }
+        onAccepted: {
+            var ok = root.repo.resetToCommit(commitContextMenu.sha, true)
+            root.opsStatus = ok ? "Hard reset to " + commitContextMenu.sha : "Hard reset failed"
+            root.opsIsError = !ok
+        }
+    }
+
+    // ── Commit Details Dialog ──────────────────────────────────────────
+    Dialog {
+        id: commitDetailsDialog
+        title: "Commit Details"
+        standardButtons: Dialog.Close
+        modal: true
+        width: 700; height: 500
+        anchors.centerIn: parent
+
+        property string currentSha: ""
+        property string commitMsg: ""
+
+        function showCommit(sha, msg) {
+            currentSha = sha
+            commitMsg = msg
+            var patch = root.repo.getCommitDiff(sha)
+            commitDiffText.text = patch ? patch : "No diff available."
+            open()
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 12
+
+            Text {
+                text: "Commit: " + commitDetailsDialog.currentSha
+                font.family: "Courier New"; font.pixelSize: 14; font.bold: true
+                color: Theme.textPrimary
+            }
+            Text {
+                text: commitDetailsDialog.commitMsg
+                font.pixelSize: 14; color: Theme.textSecondary
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+            
+            ScrollView {
+                Layout.fillWidth: true; Layout.fillHeight: true
+                clip: true
+                TextArea {
+                    id: commitDiffText
+                    readOnly: true
+                    font.family: "Courier New"
+                    font.pixelSize: 12
+                    color: Theme.textPrimary
+                    background: Rectangle { color: Theme.surface2; radius: 4 }
+                }
             }
         }
     }
