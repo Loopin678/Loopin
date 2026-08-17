@@ -21,6 +21,8 @@ ApplicationWindow {
         property string aiProvider: "ollama"
         property string geminiApiKey: ""
         property string openRouterApiKey: ""
+        property string projectId: ""
+        property string userId: ""
     }
 
     // C++ objects, instantiated once for the app's lifetime.
@@ -36,15 +38,26 @@ ApplicationWindow {
         aiProvider: settings.aiProvider
         geminiApiKey: settings.geminiApiKey
         openRouterApiKey: settings.openRouterApiKey
+        projectId: settings.projectId
+        userId: settings.userId
 
         onAiProviderChanged: settings.aiProvider = aiProvider
         onGeminiApiKeyChanged: settings.geminiApiKey = geminiApiKey
         onOpenRouterApiKeyChanged: settings.openRouterApiKey = openRouterApiKey
+        onProjectIdChanged: {
+            settings.projectId = projectId
+        }
+        onUserIdChanged: settings.userId = userId
+
+        onTasksReady: function(tasksList) {
+            window.availableTasks = tasksList
+        }
     }
     ChangeWatcher { id: changeWatcher }
 
     property string githubToken: ""
     property string currentTaskId: "TASK-DEMO-1"
+    property var availableTasks: []
 
     StackView {
         id: stack
@@ -79,6 +92,9 @@ ApplicationWindow {
                         repo.refreshDiff()
                         watcher.start(2000)
                     }
+                }
+                if (settings.projectId !== "") {
+                    apiClient.fetchTasks()
                 }
             }
 

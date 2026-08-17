@@ -22,6 +22,8 @@ class ApiClient : public QObject {
     Q_PROPERTY(QString aiProvider READ aiProvider WRITE setAiProvider NOTIFY aiProviderChanged)
     Q_PROPERTY(QString geminiApiKey READ geminiApiKey WRITE setGeminiApiKey NOTIFY geminiApiKeyChanged)
     Q_PROPERTY(QString openRouterApiKey READ openRouterApiKey WRITE setOpenRouterApiKey NOTIFY openRouterApiKeyChanged)
+    Q_PROPERTY(QString projectId READ projectId WRITE setProjectId NOTIFY projectIdChanged)
+    Q_PROPERTY(QString userId READ userId WRITE setUserId NOTIFY userIdChanged)
 
 public:
     explicit ApiClient(QObject* parent = nullptr);
@@ -37,6 +39,15 @@ public:
 
     QString openRouterApiKey() const { return m_openRouterApiKey; }
     void setOpenRouterApiKey(const QString& k);
+
+    QString projectId() const { return m_projectId; }
+    void setProjectId(const QString& p);
+
+    QString userId() const { return m_userId; }
+    void setUserId(const QString& u);
+
+    // Fetch tasks from local backend for the current projectId
+    Q_INVOKABLE void fetchTasks();
 
     // `changes` should be DiffModel::toJson(). Emits commitGroupsReady
     // asynchronously (or synchronously-via-event-loop in mock mode).
@@ -55,12 +66,14 @@ signals:
     void aiProviderChanged();
     void geminiApiKeyChanged();
     void openRouterApiKeyChanged();
+    void projectIdChanged();
+    void userIdChanged();
 
     // groups is an array of { "message": string, "files": [string, ...] }
     void commitGroupsReady(const QJsonArray& groups);
-
-    void requestFailed(const QString& error);
     void gitignoreReady(const QString& content);
+    void requestFailed(const QString& errorString);
+    void tasksReady(const QJsonArray& tasks);
 
 private:
     QJsonArray mockGroups(const QJsonArray& changes) const;
@@ -70,4 +83,6 @@ private:
     QString m_aiProvider = "ollama";
     QString m_geminiApiKey;
     QString m_openRouterApiKey;
+    QString m_projectId;
+    QString m_userId;
 };
