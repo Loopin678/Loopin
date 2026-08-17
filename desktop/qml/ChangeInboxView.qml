@@ -326,13 +326,25 @@ Item {
                                         text: model.filePath; color: Theme.textPrimary
                                         Layout.fillWidth: true; elide: Text.ElideMiddle; font.pixelSize: 12
                                     }
+                                    // Per-file stash button
+                                    Button {
+                                        text: "Stash"
+                                        font.pixelSize: 11
+                                        topPadding: 4; bottomPadding: 4; leftPadding: 8; rightPadding: 8
+                                        onClicked: {
+                                            root.repo.stashFile(model.filePath)
+                                        }
+                                        ToolTip.visible: hovered
+                                        ToolTip.text: "Stash changes for this file"
+                                    }
                                     // Per-file discard button
                                     Button {
                                         text: "Discard"
                                         font.pixelSize: 11
                                         topPadding: 4; bottomPadding: 4; leftPadding: 8; rightPadding: 8
                                         onClicked: {
-                                            root.repo.discardFileChanges(model.filePath)
+                                            singleDiscardConfirm.targetFile = model.filePath
+                                            singleDiscardConfirm.open()
                                         }
                                         ToolTip.visible: hovered
                                         ToolTip.text: "Revert this file"
@@ -928,7 +940,7 @@ Item {
         anchors.centerIn: parent
 
         Text {
-            text: "This will revert selected files to their last committed state.\nThis cannot be undone."
+            text: "Are you sure you want to discard your changes to these files?\n\nDid you mean to stash them instead? Discarding will permanently delete your uncommitted work and cannot be undone."
             color: Theme.textPrimary
             wrapMode: Text.WordWrap
         }
@@ -939,6 +951,28 @@ Item {
                 root.repo.discardFileChanges(files[i])
             }
             refreshAll()
+        }
+    }
+
+    Dialog {
+        id: singleDiscardConfirm
+        property string targetFile: ""
+        title: "Discard Changes?"
+        standardButtons: Dialog.Yes | Dialog.No
+        modal: true
+        anchors.centerIn: parent
+
+        Text {
+            text: "Are you sure you want to discard your changes to '" + singleDiscardConfirm.targetFile + "'?\n\nDid you mean to stash them instead? Discarding will permanently delete your uncommitted work and cannot be undone."
+            color: Theme.textPrimary
+            wrapMode: Text.WordWrap
+        }
+
+        onAccepted: {
+            if (targetFile !== "") {
+                root.repo.discardFileChanges(targetFile)
+                refreshAll()
+            }
         }
     }
 
