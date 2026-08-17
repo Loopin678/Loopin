@@ -50,6 +50,9 @@ public:
     // credential. Falls back to system git on failure (handles SSH remotes).
     Q_INVOKABLE bool pushCurrentBranch(const QString& token, const QString& remoteName = "origin");
 
+    // Pushes specifically up to the given commit SHA.
+    Q_INVOKABLE bool pushCommit(const QString& sha, const QString& remoteName = "origin");
+
     // Fetches from `remoteName` using system git (handles SSH + HTTPS).
     Q_INVOKABLE bool fetchRemote(const QString& remoteName = "origin");
 

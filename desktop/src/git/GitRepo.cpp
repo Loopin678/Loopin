@@ -227,20 +227,27 @@ bool GitRepo::pushCurrentBranch(const QString& token, const QString& remoteName)
     git_remote_free(remote);
 
     if (rc != 0) {
-        QProcess proc;
-        proc.setWorkingDirectory(m_repoPath);
-        proc.setProgram("git");
-        proc.setArguments({"push", remoteName, currentBranchName()});
-        proc.start();
-        proc.waitForFinished();
-        if (proc.exitStatus() == QProcess::NormalExit && proc.exitCode() == 0) {
+        QString out;
+        if (runGit(m_repoPath, {"push", remoteName, currentBranchName()}, &out)) {
             return true;
         }
 
-        emit errorOccurred(QString("libgit2 push failed: ") + lastErrorMessage() + "\nSystem git push also failed.");
+        emit errorOccurred(QString("Push failed:\n") + out.trimmed());
         return false;
     }
     return true;
+}
+
+bool GitRepo::pushCommit(const QString& sha, const QString& remoteName) {
+    if (!m_repo) return false;
+    QString out;
+    // git push remote <sha>:<branch>
+    if (runGit(m_repoPath, {"push", remoteName, sha + ":" + currentBranchName()}, &out)) {
+        emit repoChanged();
+        return true;
+    }
+    emit errorOccurred(QString("Push commit failed:\n") + out.trimmed());
+    return false;
 }
 
 QString GitRepo::currentBranchName() const {
