@@ -42,9 +42,9 @@ public:
     // Recomputes the working-directory-vs-HEAD diff and refreshes diffModel().
     Q_INVOKABLE void refreshDiff();
 
-    // Stages exactly `files` (relative paths within the repo) and creates
-    // a single commit with `message`. Returns true on success.
-    Q_INVOKABLE bool stageAndCommit(const QStringList& files, const QString& message);
+    // Stages the listed files and creates a commit with the given message.
+    // Returns the commit SHA on success, or an empty string on failure.
+    Q_INVOKABLE QString stageAndCommit(const QStringList& files, const QString& message);
 
     // Pushes the current branch to `remoteName` using `token` as an OAuth
     // credential. Falls back to system git on failure (handles SSH remotes).

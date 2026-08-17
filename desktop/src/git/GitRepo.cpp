@@ -132,13 +132,13 @@ void GitRepo::refreshDiff() {
     }
 }
 
-bool GitRepo::stageAndCommit(const QStringList& files, const QString& message) {
-    if (!m_repo || files.isEmpty()) return false;
+QString GitRepo::stageAndCommit(const QStringList& files, const QString& message) {
+    if (!m_repo || files.isEmpty()) return QString();
 
     git_index* index = nullptr;
     if (git_repository_index(&index, m_repo) != 0) {
         emit errorOccurred(lastErrorMessage());
-        return false;
+        return QString();
     }
 
     for (const QString& f : files) {
@@ -157,7 +157,7 @@ bool GitRepo::stageAndCommit(const QStringList& files, const QString& message) {
     git_tree* tree = nullptr;
     if (git_tree_lookup(&tree, m_repo, &treeId) != 0) {
         emit errorOccurred(lastErrorMessage());
-        return false;
+        return QString();
     }
 
     git_signature* sig = nullptr;
@@ -188,11 +188,13 @@ bool GitRepo::stageAndCommit(const QStringList& files, const QString& message) {
 
     if (rc != 0) {
         emit errorOccurred(lastErrorMessage());
-        return false;
+        return QString();
     }
 
     refreshDiff();
-    return true;
+    char oid_str[GIT_OID_HEXSZ + 1];
+    git_oid_tostr(oid_str, sizeof(oid_str), &commitId);
+    return QString::fromUtf8(oid_str);
 }
 
 bool GitRepo::pushCurrentBranch(const QString& token, const QString& remoteName) {
