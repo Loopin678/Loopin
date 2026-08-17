@@ -5,11 +5,15 @@ import App
 
 ApplicationWindow {
     id: window
-    width: 900
-    height: 650
+    width: 950
+    height: 700
     visible: true
     title: "Loopin"
     color: Theme.bg
+
+    // Global application typography
+    font.family: "Segoe UI, Inter, Roboto, sans-serif"
+    font.pixelSize: 13
 
     Settings {
         id: settings

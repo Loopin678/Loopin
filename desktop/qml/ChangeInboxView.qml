@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
+import QtQml
 import App
 
 Item {
@@ -19,6 +20,7 @@ Item {
     property bool pushBusy: false
     property bool commitBusy: false
     property bool gitignoreBusy: false
+    property bool aiOrganizeBusy: false
     property string opsStatus: ""
     property bool opsIsError: false
     property var unpushedShas: []
@@ -53,15 +55,20 @@ Item {
 
     Connections {
         target: root.api
-        function onCommitGroupsReady(groups) { root.groupsReady(groups) }
+        function onCommitGroupsReady(groups) { 
+            root.aiOrganizeBusy = false
+            root.groupsReady(groups) 
+        }
         function onGitignoreReady(content) {
             root.gitignoreBusy = false
             gitignorePreview.text = content
             gitignoreDialog.open()
         }
-        function onRequestFailed(error) {
+        function onRequestFailed(errorString) {
+            root.aiOrganizeBusy = false
             root.gitignoreBusy = false
-            console.log("API error:", error)
+            root.opsStatus = "AI Request Failed: " + errorString
+            root.opsIsError = true
         }
     }
 
@@ -196,8 +203,8 @@ Item {
                     id: fetchTimer; interval: 50; repeat: false
                     onTriggered: {
                         var ok = root.repo.fetchRemote(remotePicker.currentText)
-                        root.opsStatus = ok ? "Fetched." : "Fetch failed."
-                        root.opsIsError = !ok; root.fetchBusy = false; refreshAll()
+                        if (ok) { root.opsStatus = "Fetched."; root.opsIsError = false }
+                        root.fetchBusy = false; refreshAll()
                     }
                 }
 
@@ -210,8 +217,8 @@ Item {
                     id: pullTimer; interval: 50; repeat: false
                     onTriggered: {
                         var ok = root.repo.pullRemote(remotePicker.currentText)
-                        root.opsStatus = ok ? "Pulled." : "Pull failed."
-                        root.opsIsError = !ok; root.pullBusy = false; refreshAll()
+                        if (ok) { root.opsStatus = "Pulled."; root.opsIsError = false }
+                        root.pullBusy = false; refreshAll()
                     }
                 }
 
@@ -224,8 +231,8 @@ Item {
                     id: pushTimer; interval: 50; repeat: false
                     onTriggered: {
                         var ok = root.repo.pushCurrentBranch(root.githubToken, remotePicker.currentText)
-                        root.opsStatus = ok ? "Pushed." : "Push failed."
-                        root.opsIsError = !ok; root.pushBusy = false; refreshAll()
+                        if (ok) { root.opsStatus = "Pushed."; root.opsIsError = false }
+                        root.pushBusy = false; refreshAll()
                     }
                 }
             }
@@ -247,7 +254,7 @@ Item {
             // ═══════ TAB 0: Changes ═══════════════════════════════════════
             Item {
                 ColumnLayout {
-                    anchors.fill: parent; anchors.margins: 12; spacing: 8
+                    anchors.fill: parent; anchors.margins: 16; spacing: 12
 
                     RowLayout {
                         Layout.fillWidth: true
@@ -280,28 +287,38 @@ Item {
                         border.color: Theme.border; border.width: 1; clip: true
 
                         ListView {
-                            anchors.fill: parent; anchors.margins: 2; clip: true
+                            anchors.fill: parent; anchors.margins: 4; clip: true
                             model: root.repo.diffModel
 
                             delegate: Rectangle {
-                                width: ListView.view.width; height: 34
+                                width: ListView.view.width; height: 38
                                 color: index % 2 === 0 ? Theme.rowBase : Theme.rowAlt
+                                Rectangle { height: 1; width: parent.width; anchors.bottom: parent.bottom; color: Theme.divider }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onEntered: parent.color = Theme.rowHover
+                                    onExited: parent.color = index % 2 === 0 ? Theme.rowBase : Theme.rowAlt
+                                    onClicked: root.repo.diffModel.setSelected(index, !model.selected)
+                                }
 
                                 RowLayout {
-                                    anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
-                                    spacing: 6
+                                    anchors { fill: parent; leftMargin: 12; rightMargin: 12 }
+                                    spacing: 8
+                                    
                                     CheckBox {
                                         checked: model.selected
                                         onToggled: root.repo.diffModel.setSelected(index, checked)
                                     }
                                     Rectangle {
-                                        width: 64; height: 18; radius: 3
-                                        color: model.changeType === "added" ? "#1a7a3e"
-                                             : model.changeType === "deleted" ? "#7a1a1a" : "#7a4a1a"
+                                        width: 64; height: 20; radius: 4
+                                        color: model.changeType === "added" ? Theme.success
+                                             : model.changeType === "deleted" ? Theme.danger : Theme.warning
                                         Text {
                                             anchors.centerIn: parent
                                             text: model.changeType; color: "white"
-                                            font.pixelSize: 10; font.bold: true
+                                            font.pixelSize: 11; font.bold: true
                                         }
                                     }
                                     Text {
@@ -311,7 +328,8 @@ Item {
                                     // Per-file discard button
                                     Button {
                                         text: "Discard"
-                                        flat: true; font.pixelSize: 10
+                                        font.pixelSize: 11
+                                        topPadding: 4; bottomPadding: 4; leftPadding: 8; rightPadding: 8
                                         onClicked: {
                                             root.repo.discardFileChanges(model.filePath)
                                         }
@@ -347,9 +365,13 @@ Item {
                     RowLayout {
                         spacing: 8
                         Button {
-                            text: "AI Organise & Review"
-                            enabled: root.repo.isOpen && root.repo.diffModel.count > 0
-                            onClicked: root.api.requestCommitGroups(root.repo.diffModel.toJson(), root.taskId)
+                            text: root.aiOrganizeBusy ? "Organising..." : "AI Organise & Review"
+                            enabled: root.repo.isOpen && root.repo.diffModel.count > 0 && !root.aiOrganizeBusy
+                            onClicked: {
+                                root.aiOrganizeBusy = true
+                                root.opsStatus = ""
+                                root.api.requestCommitGroups(root.repo.diffModel.toJson(), root.taskId)
+                            }
                             ToolTip.visible: hovered
                             ToolTip.text: "AI groups files into logical commits with professional messages"
                         }
@@ -398,7 +420,11 @@ Item {
                                 var ok = root.repo.stageAndCommit(files, msg)
                                 if (!ok) { commitStatus.text = "Commit failed."; root.commitBusy = false; return }
                                 var pushed = root.repo.pushCurrentBranch(root.githubToken, remotePicker.currentText)
-                                commitStatus.text = pushed ? "Committed & pushed!" : "Committed locally, but push failed."
+                                if (pushed) {
+                                    commitStatus.text = "Committed & pushed!"
+                                } else {
+                                    commitStatus.text = "Committed locally, but push failed. See top right for details."
+                                }
                                 root.commitBusy = false
                                 if (ok) { manualMsgField.text = ""; refreshAll() }
                             }
@@ -421,7 +447,7 @@ Item {
             // ═══════ TAB 1: History ═══════════════════════════════════════
             Item {
                 ColumnLayout {
-                    anchors.fill: parent; anchors.margins: 12; spacing: 8
+                    anchors.fill: parent; anchors.margins: 16; spacing: 12
 
                     RowLayout {
                         Layout.fillWidth: true
@@ -454,9 +480,10 @@ Item {
                         ListView {
                             id: historyList; anchors.fill: parent; clip: true
                             model: root.repo.isOpen ? root.repo.commitHistory(50) : []
+                            boundsBehavior: Flickable.StopAtBounds
 
                             delegate: Rectangle {
-                                width: ListView.view.width; height: 52
+                                width: ListView.view.width; height: 60
                                 property bool isUnpushed: root.unpushedShas.indexOf(modelData.sha) >= 0
 
                                 color: isUnpushed
@@ -478,6 +505,7 @@ Item {
                                             commitDetailsDialog.showCommit(modelData.sha, modelData.message)
                                         } else if (mouse.button === Qt.RightButton) {
                                             commitContextMenu.sha = modelData.sha
+                                            commitContextMenu.isUnpushed = parent.isUnpushed
                                             commitContextMenu.popup()
                                         }
                                     }
@@ -503,9 +531,11 @@ Item {
                                     Text { text: modelData.message; color: Theme.textPrimary; Layout.fillWidth: true; elide: Text.ElideRight; font.pixelSize: 13 }
 
                                     Column {
-                                        spacing: 2
-                                        Text { text: modelData.author; font.pixelSize: 11; color: Theme.textSecondary; horizontalAlignment: Text.AlignRight; width: 130; elide: Text.ElideRight }
-                                        Text { text: modelData.date; font.pixelSize: 10; color: Theme.textMuted; horizontalAlignment: Text.AlignRight }
+                                        spacing: 4
+                                        Layout.minimumWidth: 140
+                                        Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                                        Text { text: modelData.author; font.pixelSize: 12; color: Theme.textSecondary; horizontalAlignment: Text.AlignRight; width: 140; elide: Text.ElideRight }
+                                        Text { text: modelData.date; font.pixelSize: 11; color: Theme.textMuted; horizontalAlignment: Text.AlignRight; width: 140 }
                                     }
                                 }
                             }
@@ -637,13 +667,14 @@ Item {
 
                     // Repo info
                     Rectangle {
-                        Layout.fillWidth: true; height: infoCol.implicitHeight + 32
+                        Layout.fillWidth: true
+                        implicitHeight: infoCol.implicitHeight + 32
                         color: Theme.surface; radius: 8
                         border.color: Theme.border; border.width: 1
 
                         ColumnLayout {
                             id: infoCol
-                            anchors { fill: parent; margins: 16 }
+                            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 16 }
                             spacing: 8
 
                             Text {
@@ -748,7 +779,22 @@ Item {
     Menu {
         id: commitContextMenu
         property string sha: ""
-        
+        property bool isUnpushed: false
+
+        Instantiator {
+            active: commitContextMenu.isUnpushed
+            MenuItem {
+                text: "Push up to Here"
+                onClicked: {
+                    var ok = root.repo.pushCommit(commitContextMenu.sha, remotePicker.currentText)
+                    if (ok) { root.opsStatus = "Pushed " + commitContextMenu.sha; root.opsIsError = false }
+                    refreshAll()
+                }
+            }
+            onObjectAdded: function(index, object) { commitContextMenu.insertItem(0, object) }
+            onObjectRemoved: function(index, object) { commitContextMenu.removeItem(object) }
+        }
+
         MenuItem {
             text: "Revert Commit..."
             onClicked: {
