@@ -52,12 +52,27 @@ ApplicationWindow {
         onTasksReady: function(tasksList) {
             window.availableTasks = tasksList
         }
+        onProjectCommitsReady: function(commitsList) {
+            var map = {}
+            for (var i = 0; i < commitsList.length; i++) {
+                var c = commitsList[i]
+                var tIds = []
+                if (c.tasks) {
+                    for (var j = 0; j < c.tasks.length; j++) {
+                        tIds.push(c.tasks[j].id)
+                    }
+                }
+                map[c.id] = tIds
+            }
+            window.linkedCommits = map
+        }
     }
     ChangeWatcher { id: changeWatcher }
 
     property string githubToken: ""
     property string currentTaskId: "TASK-DEMO-1"
     property var availableTasks: []
+    property var linkedCommits: ({})
 
     StackView {
         id: stack
@@ -95,6 +110,7 @@ ApplicationWindow {
                 }
                 if (settings.projectId !== "") {
                     apiClient.fetchTasks()
+                    apiClient.fetchProjectCommits()
                 }
             }
 

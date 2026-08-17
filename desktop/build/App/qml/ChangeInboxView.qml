@@ -550,7 +550,29 @@ Item {
                                         Text { id: statusLabel; anchors.centerIn: parent; text: parent.parent.parent.isUnpushed ? "local" : "pushed"; color: "white"; font.pixelSize: 9; font.bold: true }
                                     }
 
-                                    Text { text: modelData.message; color: Theme.textPrimary; Layout.fillWidth: true; elide: Text.ElideRight; font.pixelSize: 13 }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        Text { text: modelData.message; color: Theme.textPrimary; elide: Text.ElideRight; font.pixelSize: 13; Layout.fillWidth: true }
+                                        Text { 
+                                            text: {
+                                                var tIds = window.linkedCommits[modelData.sha]
+                                                if (!tIds || tIds.length === 0) return ""
+                                                var titles = []
+                                                for (var k = 0; k < tIds.length; k++) {
+                                                    var found = false
+                                                    for (var i = 0; i < window.availableTasks.length; i++) {
+                                                        if (window.availableTasks[i].id === tIds[k]) {
+                                                            titles.push(window.availableTasks[i].title)
+                                                            found = true; break;
+                                                        }
+                                                    }
+                                                    if (!found) titles.push(tIds[k].substring(0,8))
+                                                }
+                                                return "Tasks: " + titles.join(", ")
+                                            }
+                                            color: Theme.accent; font.pixelSize: 11; visible: text !== ""
+                                        }
+                                    }
 
                                     Column {
                                         spacing: 4
@@ -980,6 +1002,13 @@ Item {
             }
         }
         MenuItem {
+            text: "Link to Task..."
+            onClicked: {
+                editTaskDialog.targetSha = commitContextMenu.sha
+                editTaskDialog.open()
+            }
+        }
+        MenuItem {
             text: "Reset to Here (Soft)"
             onClicked: {
                 var ok = root.repo.resetToCommit(commitContextMenu.sha, false)
@@ -1096,6 +1125,143 @@ Item {
                     }
                 }
             }
+        }
+    }
+
+    // ── Edit Task Dialog ───────────────────────────────────────────────
+    Dialog {
+        id: editTaskDialog
+        title: "Link Commit to Task"
+        standardButtons: Dialog.Save | Dialog.Cancel
+        modal: true
+        anchors.centerIn: parent
+        width: 400
+        height: 380
+
+        background: Rectangle {
+            color: Theme.bg
+            border.color: Theme.border
+            radius: 8
+        }
+
+        property string targetSha: ""
+        property var filteredTasks: window.availableTasks
+
+        function updateModel() {
+            var term = historyTaskSearch.text.toLowerCase()
+            if (term === "") {
+                filteredTasks = window.availableTasks
+            } else {
+                var res = []
+                if (window.availableTasks) {
+                    for (var i = 0; i < window.availableTasks.length; i++) {
+                        if (window.availableTasks[i].title.toLowerCase().indexOf(term) >= 0) {
+                            res.push(window.availableTasks[i])
+                        }
+                    }
+                }
+                filteredTasks = res
+            }
+            historyTaskPicker.model = null
+            historyTaskPicker.model = filteredTasks
+        }
+
+        onAboutToShow: {
+            historyTaskSearch.text = ""
+            updateModel()
+        }
+
+        ColumnLayout {
+            spacing: 12
+            anchors.fill: parent
+            Text {
+                text: "Select tasks for commit " + editTaskDialog.targetSha.substring(0, 8) + ":"
+                color: Theme.textPrimary
+            }
+            TextField {
+                id: historyTaskSearch
+                Layout.fillWidth: true
+                placeholderText: "Search tasks..."
+                color: Theme.textPrimary
+                background: Rectangle { color: Theme.surface; border.color: Theme.border; radius: 4 }
+                onTextChanged: editTaskDialog.updateModel()
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                color: Theme.surface2; border.color: Theme.border; border.width: 1; radius: 4
+                clip: true
+
+                ListView {
+                    id: historyTaskPicker
+                    anchors.fill: parent; anchors.margins: 4
+                    model: editTaskDialog.filteredTasks
+                    boundsBehavior: Flickable.StopAtBounds
+                    delegate: CheckBox {
+                        width: ListView.view.width
+                        text: modelData.title
+                        property string taskId: modelData.id
+                        checked: {
+                            var tIds = window.linkedCommits[editTaskDialog.targetSha] || []
+                            return tIds.indexOf(modelData.id) >= 0
+                        }
+                        
+                        indicator: Rectangle {
+                            implicitWidth: 16
+                            implicitHeight: 16
+                            x: parent.leftPadding
+                            y: parent.height / 2 - height / 2
+                            radius: 3
+                            color: parent.checked ? Theme.accent : "transparent"
+                            border.color: parent.checked ? Theme.accent : Theme.border
+                            
+                            Text {
+                                text: "✔"
+                                visible: parent.parent.checked
+                                color: "white"
+                                anchors.centerIn: parent
+                                font.pixelSize: 10
+                            }
+                        }
+
+                        contentItem: Text {
+                            text: parent.text
+                            font.pixelSize: 13
+                            color: Theme.textPrimary
+                            verticalAlignment: Text.AlignVCenter
+                            leftPadding: parent.indicator.width + parent.spacing
+                        }
+                    }
+                }
+            }
+        }
+
+        onAccepted: {
+            var selectedIds = []
+            for (var i = 0; i < historyTaskPicker.contentItem.children.length; i++) {
+                var child = historyTaskPicker.contentItem.children[i]
+                if (child && child.checked) {
+                    selectedIds.push(child.taskId)
+                }
+            }
+
+            // Optimistic update so the UI reacts instantly
+            var currentMap = window.linkedCommits || {}
+            currentMap[targetSha] = selectedIds
+            var newMap = {}
+            for (var key in currentMap) { newMap[key] = currentMap[key] }
+            window.linkedCommits = newMap
+
+            root.api.reportCommit(targetSha, "(History Task Update)", selectedIds)
+            refreshLinkedTimer.start()
+        }
+    }
+
+    Timer {
+        id: refreshLinkedTimer
+        interval: 300
+        onTriggered: {
+            root.api.fetchProjectCommits()
         }
     }
 
