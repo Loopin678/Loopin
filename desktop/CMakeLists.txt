@@ -51,3 +51,24 @@ target_link_libraries(loopin_desktop PRIVATE
     qt6keychain
     PkgConfig::LIBGIT2
 )
+
+# CLI Target
+qt_add_executable(loopin_cli
+    src_cli/main.cpp
+    src/git/GitRepo.cpp
+    src/git/DiffModel.cpp
+    src/backend/ApiClient.cpp
+)
+
+target_include_directories(loopin_cli PRIVATE
+    src
+    src/git
+    src/backend
+)
+
+target_link_libraries(loopin_cli PRIVATE
+    Qt6::Core
+    Qt6::Network
+    Qt6::Qml
+    PkgConfig::LIBGIT2
+)
