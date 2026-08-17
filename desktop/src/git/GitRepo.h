@@ -20,6 +20,8 @@ class GitRepo : public QObject {
 
     Q_PROPERTY(bool isOpen READ isOpen NOTIFY repoChanged)
     Q_PROPERTY(QString repoPath READ repoPath NOTIFY repoChanged)
+    Q_PROPERTY(QString currentBranchName READ currentBranchName NOTIFY repoChanged)
+    Q_PROPERTY(QStringList branches READ branches NOTIFY repoChanged)
     Q_PROPERTY(QStringList remotes READ remotes NOTIFY remotesChanged)
     Q_PROPERTY(DiffModel* diffModel READ diffModel CONSTANT)
 
@@ -29,6 +31,8 @@ public:
 
     bool isOpen() const { return m_repo != nullptr; }
     QString repoPath() const { return m_repoPath; }
+    QString currentBranchName() const;
+    QStringList branches() const;
     DiffModel* diffModel() const { return m_diffModel; }
     QStringList remotes() const;
 
@@ -52,7 +56,8 @@ public:
     // Pulls (fetch + merge) from `remoteName` using system git.
     Q_INVOKABLE bool pullRemote(const QString& remoteName = "origin");
 
-    Q_INVOKABLE QString currentBranchName() const;
+    // Checkouts an existing branch.
+    Q_INVOKABLE bool checkoutBranch(const QString& branchName);
 
     // Returns short SHAs of commits that are ahead of remote (not yet pushed).
     Q_INVOKABLE QStringList unpushedCommitShas(const QString& remoteName = "origin") const;

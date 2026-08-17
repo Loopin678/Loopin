@@ -109,15 +109,24 @@ Item {
                 anchors { fill: parent; leftMargin: 12; rightMargin: 12 }
                 spacing: 6
 
-                // Branch badge
-                Rectangle {
-                    radius: 4; color: Theme.accent
-                    width: branchLabel.implicitWidth + 16; height: 24
-                    visible: root.repo.isOpen
-                    Text {
-                        id: branchLabel; anchors.centerIn: parent
-                        text: root.repo.isOpen ? root.repo.currentBranchName() : ""
-                        color: "white"; font.pixelSize: 12; font.bold: true
+                // Branch picker
+                ComboBox {
+                    id: branchPicker
+                    model: root.repo.isOpen ? root.repo.branches : []
+                    enabled: root.repo.isOpen
+                    implicitWidth: 140; font.pixelSize: 12
+                    font.bold: true
+                    // Sync the displayed text with the actual current branch
+                    displayText: root.repo.isOpen && root.repo.currentBranchName !== "" ? root.repo.currentBranchName : "No branch"
+                    
+                    onActivated: function(index) {
+                        var selectedBranch = model[index]
+                        if (selectedBranch !== root.repo.currentBranchName) {
+                            var ok = root.repo.checkoutBranch(selectedBranch)
+                            root.opsStatus = ok ? "Switched to " + selectedBranch : "Checkout failed"
+                            root.opsIsError = !ok
+                            if (ok) refreshAll()
+                        }
                     }
                 }
 

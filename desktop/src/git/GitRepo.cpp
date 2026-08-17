@@ -26,6 +26,9 @@ int credentialsAcquire(git_credential** out,
 
 }  // namespace
 
+// ── Helper: run a git sub-command in the repo working dir ─────────────────
+static bool runGit(const QString& workDir, const QStringList& args, QString* output = nullptr);
+
 GitRepo::GitRepo(QObject* parent)
     : QObject(parent), m_diffModel(new DiffModel(this)) {}
 
@@ -253,8 +256,41 @@ QString GitRepo::currentBranchName() const {
     return name;
 }
 
+QStringList GitRepo::branches() const {
+    if (!m_repo) return {};
+
+    git_branch_iterator* it = nullptr;
+    if (git_branch_iterator_new(&it, m_repo, GIT_BRANCH_LOCAL) != 0)
+        return {};
+
+    QStringList list;
+    git_reference* ref = nullptr;
+    git_branch_t type;
+    while (git_branch_next(&ref, &type, it) == 0) {
+        const char* name = nullptr;
+        if (git_branch_name(&name, ref) == 0 && name) {
+            list.append(QString::fromUtf8(name));
+        }
+        git_reference_free(ref);
+    }
+    git_branch_iterator_free(it);
+    return list;
+}
+
+bool GitRepo::checkoutBranch(const QString& branchName) {
+    if (!m_repo) return false;
+    QString out;
+    bool ok = runGit(m_repoPath, {"checkout", branchName}, &out);
+    if (!ok) emit errorOccurred("Checkout failed:\n" + out);
+    if (ok) {
+        refreshDiff();
+        emit repoChanged();
+    }
+    return ok;
+}
+
 // ── Helper: run a git sub-command in the repo working dir ─────────────────
-static bool runGit(const QString& workDir, const QStringList& args, QString* output = nullptr) {
+static bool runGit(const QString& workDir, const QStringList& args, QString* output) {
     QProcess proc;
     proc.setWorkingDirectory(workDir);
     proc.setProgram("git");
