@@ -461,12 +461,12 @@ Item {
                             spacing: 12
                             RowLayout {
                                 spacing: 4
-                                Rectangle { width: 10; height: 10; radius: 2; color: Theme.danger; Layout.alignment: Qt.AlignVCenter }
+                                Rectangle { Layout.preferredWidth: 10; Layout.preferredHeight: 10; radius: 2; color: Theme.danger; Layout.alignment: Qt.AlignVCenter }
                                 Text { text: "Unpushed"; font.pixelSize: 11; color: Theme.textSecondary; Layout.alignment: Qt.AlignVCenter }
                             }
                             RowLayout {
                                 spacing: 4
-                                Rectangle { width: 10; height: 10; radius: 2; color: Theme.success; Layout.alignment: Qt.AlignVCenter }
+                                Rectangle { Layout.preferredWidth: 10; Layout.preferredHeight: 10; radius: 2; color: Theme.success; Layout.alignment: Qt.AlignVCenter }
                                 Text { text: "Pushed"; font.pixelSize: 11; color: Theme.textSecondary; Layout.alignment: Qt.AlignVCenter }
                             }
                         }
@@ -488,45 +488,50 @@ Item {
                         }
                     }
 
-                    Rectangle {
+                    ListView {
+                        id: historyList
                         Layout.fillWidth: true; Layout.fillHeight: true
-                        color: Theme.surface; radius: 6
-                        border.color: Theme.border; border.width: 1; clip: true
+                        clip: true
+                        model: root.repo.isOpen ? root.repo.commitHistory(50) : []
+                        boundsBehavior: Flickable.StopAtBounds
+                        spacing: 8
 
-                        ListView {
-                            id: historyList; anchors.fill: parent; clip: true
-                            model: root.repo.isOpen ? root.repo.commitHistory(50) : []
-                            boundsBehavior: Flickable.StopAtBounds
+                        delegate: Rectangle {
+                            width: ListView.view.width - 4; x: 2
+                            height: 60
+                            radius: 6
+                            border.color: Theme.border
+                            border.width: 1
 
-                            delegate: Rectangle {
-                                width: ListView.view.width; height: 60
-                                property bool isUnpushed: root.unpushedShas.indexOf(modelData.sha) >= 0
+                            property bool isUnpushed: root.unpushedShas.indexOf(modelData.sha) >= 0
 
-                                color: isUnpushed
-                                    ? (Theme.dark ? "#2d1618" : "#ffebe9")
-                                    : (index % 2 === 0 ? Theme.rowBase : Theme.rowAlt)
+                            color: isUnpushed
+                                ? (Theme.dark ? "#2d1618" : "#ffebe9")
+                                : Theme.surface2
 
-                                Rectangle { height: 1; width: parent.width; anchors.bottom: parent.bottom; color: Theme.border }
-                                Rectangle { width: 3; height: parent.height; color: parent.isUnpushed ? Theme.danger : "transparent" }
+                            Rectangle { 
+                                width: 4; height: parent.height - 2; y: 1; x: 1
+                                color: parent.isUnpushed ? Theme.danger : "transparent"
+                                radius: 4
+                            }
 
-                                MouseArea {
-                                    anchors.fill: parent
-                                    acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                    hoverEnabled: true
-                                    onEntered: parent.color = Theme.rowHover
-                                    onExited: parent.color = isUnpushed ? (Theme.dark ? "#2d1618" : "#ffebe9") : (index % 2 === 0 ? Theme.rowBase : Theme.rowAlt)
-                                    
-                                    
-                                    onClicked: function(mouse) {
-                                        if (mouse.button === Qt.LeftButton) {
-                                            commitDetailsDialog.showCommit(modelData.sha, modelData.message)
-                                        } else if (mouse.button === Qt.RightButton) {
-                                            commitContextMenu.sha = modelData.sha
-                                            commitContextMenu.isUnpushed = parent.isUnpushed
-                                            commitContextMenu.popup()
-                                        }
+                            MouseArea {
+                                anchors.fill: parent
+                                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                hoverEnabled: true
+                                onEntered: parent.color = parent.isUnpushed ? (Theme.dark ? "#3a1c1f" : "#ffd4d8") : Theme.rowHover
+                                onExited: parent.color = parent.isUnpushed ? (Theme.dark ? "#2d1618" : "#ffebe9") : Theme.surface2
+                                
+                                onClicked: function(mouse) {
+                                    if (mouse.button === Qt.LeftButton) {
+                                        commitDetailsDialog.showCommit(modelData.sha, modelData.message)
+                                    } else if (mouse.button === Qt.RightButton) {
+                                        commitContextMenu.sha = modelData.sha
+                                        commitContextMenu.isUnpushed = parent.isUnpushed
+                                        commitContextMenu.popup()
                                     }
                                 }
+                            }
 
                                 RowLayout {
                                     anchors { fill: parent; leftMargin: 14; rightMargin: 12; topMargin: 6; bottomMargin: 6 }
@@ -541,7 +546,7 @@ Item {
 
                                     Rectangle {
                                         width: statusLabel.implicitWidth + 12; height: 18; radius: 3
-                                        color: parent.parent.isUnpushed ? Theme.warning : Theme.success
+                                        color: parent.parent.isUnpushed ? Theme.danger : Theme.success
                                         Text { id: statusLabel; anchors.centerIn: parent; text: parent.parent.parent.isUnpushed ? "local" : "pushed"; color: "white"; font.pixelSize: 9; font.bold: true }
                                     }
 
@@ -559,7 +564,6 @@ Item {
 
                             Text { anchors.centerIn: parent; visible: historyList.count === 0; text: root.repo.isOpen ? "No commits yet." : "Open a repository to see history."; color: Theme.textMuted }
                         }
-                    }
                 }
             }
 
