@@ -1,8 +1,9 @@
 module App
-typeinfo collab_desktop_client.qmltypes
+typeinfo loopin_desktop.qmltypes
 prefer :/App/
 LoginView 1.0 qml/LoginView.qml
 ChangeInboxView 1.0 qml/ChangeInboxView.qml
 CommitReviewView 1.0 qml/CommitReviewView.qml
+Theme 1.0 qml/Theme.qml
 depends QtQuick
 

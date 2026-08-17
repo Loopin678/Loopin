@@ -1,0 +1,92 @@
+# C++ / Compiled files
+*.o
+*.obj
+*.co
+*.gch
+*.pch
+*.d
+*.slo
+*.lo
+*.la
+*.lai
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+*.app
+*.manifest
+
+# CMake & Ninja
+CMakeCache.txt
+CMakeFiles/
+CMakeConfigureLog.yaml
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+.ninja_deps
+.ninja_log
+*.ninja
+desktop/*
+
+# Qt / QML
+*autogen/
+.qt/
+.rcc/
+*.qmltypes
+*.qmlcache
+*.aotstats
+
+# Project Build Directories
+/[Dd]esktop/build/
+[Bb]uild/
+
+# Node.js
+node_modules/
+jspm_packages/
+.npm
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+
+# Build outputs (JS/TS)
+dist/
+out/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.backup
+*.env
+
+# Databases / Prisma
+*.db
+*.db-journal
+
+# AI Agents & Editors (Claude, Windsurf, VS Code, etc.)
+.agents/
+.claude/
+.windsurf/
+skills-lock.json
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini

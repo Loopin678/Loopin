@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Dialogs
 import App
 
 Item {
@@ -9,104 +10,688 @@ Item {
     property var api
     property var watcher
     property string taskId
+    property string githubToken: ""
     signal groupsReady(var groups)
 
-    Column {
-        anchors.fill: parent
-        anchors.margins: 16
-        spacing: 12
+    // Loading states
+    property bool fetchBusy: false
+    property bool pullBusy: false
+    property bool pushBusy: false
+    property bool commitBusy: false
+    property bool gitignoreBusy: false
+    property string opsStatus: ""
+    property bool opsIsError: false
+    property var unpushedShas: []
 
-        RowLayout {
-            width: parent.width
-            spacing: 8
+    function refreshUnpushed() {
+        if (root.repo.isOpen && root.repo.remotes.length > 0)
+            root.unpushedShas = root.repo.unpushedCommitShas(remotePicker.currentText)
+        else
+            root.unpushedShas = []
+    }
 
-            TextField {
-                id: pathField
-                Layout.fillWidth: true
-                placeholderText: "Path to local git repository, e.g. /home/you/my-project"
-            }
-            Button {
-                text: "Open"
-                onClicked: {
-                    if (root.repo.openRepository(pathField.text)) {
-                        root.repo.refreshDiff()
-                        root.watcher.start(2000)
-                    }
-                }
-            }
-        }
-
-        Text {
-            text: root.repo.isOpen
-                ? ("Repo: " + root.repo.repoPath + "  (branch: " + root.repo.currentBranchName() + ")")
-                : "No repository open"
-            font.italic: true
-        }
-
-        Text {
-            text: "Task: " + root.taskId
-            color: "#555"
-        }
-
-        Text {
-            text: "Changed files (" + root.repo.diffModel.count + ")"
-            font.bold: true
-        }
-
-        ListView {
-            width: parent.width
-            height: 320
-            clip: true
-            model: root.repo.diffModel
-            delegate: RowLayout {
-                width: ListView.view.width
-                spacing: 8
-
-                CheckBox {
-                    checked: model.selected
-                    onToggled: root.repo.diffModel.setSelected(index, checked)
-                }
-                Text {
-                    text: model.changeType
-                    color: "#888"
-                    Layout.preferredWidth: 80
-                }
-                Text {
-                    text: model.filePath
-                    Layout.fillWidth: true
-                    elide: Text.ElideMiddle
-                }
-            }
-        }
-
-        RowLayout {
-            spacing: 12
-            Button {
-                text: "Refresh now"
-                onClicked: root.repo.refreshDiff()
-            }
-            Button {
-                text: "Organize Changes"
-                enabled: root.repo.isOpen && root.repo.diffModel.count > 0
-                onClicked: root.api.requestCommitGroups(root.repo.diffModel.toJson(), root.taskId)
-            }
+    function refreshAll() {
+        if (root.repo.isOpen) {
+            root.repo.refreshDiff()
+            historyList.model = root.repo.commitHistory(50)
+            stashListView.model = root.repo.stashList()
+            refreshUnpushed()
         }
     }
 
     Connections {
-        target: root.watcher
-        function onTick() {
-            if (root.repo.isOpen) root.repo.refreshDiff()
+        target: root.repo
+        // Only updates the file list (DiffModel). Does not spawn QProcesses or history lookups!
+        function onDiffChanged()  { }
+        // Triggers on full repo updates (commits, fetch, pull, push, stash)
+        function onRepoChanged()  { 
+            historyList.model = root.repo.commitHistory(50); 
+            stashListView.model = root.repo.stashList(); 
+            refreshUnpushed() 
         }
     }
 
     Connections {
         target: root.api
-        function onCommitGroupsReady(groups) {
-            root.groupsReady(groups)
+        function onCommitGroupsReady(groups) { root.groupsReady(groups) }
+        function onGitignoreReady(content) {
+            root.gitignoreBusy = false
+            gitignorePreview.text = content
+            gitignoreDialog.open()
         }
         function onRequestFailed(error) {
+            root.gitignoreBusy = false
             console.log("API error:", error)
+        }
+    }
+
+    Rectangle { anchors.fill: parent; color: Theme.bg }
+
+    ColumnLayout {
+        anchors.fill: parent
+        spacing: 0
+
+        // ── Repo header bar ────────────────────────────────────────────
+        Rectangle {
+            Layout.fillWidth: true; height: 48
+            color: Theme.surface
+            Rectangle { height: 1; width: parent.width; anchors.bottom: parent.bottom; color: Theme.border }
+
+            RowLayout {
+                anchors { fill: parent; leftMargin: 12; rightMargin: 12 }
+                spacing: 8
+                TextField {
+                    id: pathField; Layout.fillWidth: true
+                    placeholderText: "Path to git repository..."
+                    font.pixelSize: 12
+                }
+                Button { text: "Browse"; onClicked: folderDialog.open() }
+                Button {
+                    text: "Open"
+                    onClicked: {
+                        if (root.repo.openRepository(pathField.text)) {
+                            root.repo.refreshDiff()
+                            root.watcher.start(2000)
+                            refreshAll()
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Branch + Git operations bar ────────────────────────────────
+        Rectangle {
+            Layout.fillWidth: true; height: 44
+            color: Theme.surface2
+            Rectangle { height: 1; width: parent.width; anchors.bottom: parent.bottom; color: Theme.border }
+
+            RowLayout {
+                anchors { fill: parent; leftMargin: 12; rightMargin: 12 }
+                spacing: 6
+
+                // Branch badge
+                Rectangle {
+                    radius: 4; color: Theme.accent
+                    width: branchLabel.implicitWidth + 16; height: 24
+                    visible: root.repo.isOpen
+                    Text {
+                        id: branchLabel; anchors.centerIn: parent
+                        text: root.repo.isOpen ? root.repo.currentBranchName() : ""
+                        color: "white"; font.pixelSize: 12; font.bold: true
+                    }
+                }
+
+                // Unpushed count badge
+                Rectangle {
+                    radius: 4; color: Theme.warning
+                    width: unpushedLabel.implicitWidth + 14; height: 24
+                    visible: root.unpushedShas.length > 0
+                    Text {
+                        id: unpushedLabel; anchors.centerIn: parent
+                        text: root.unpushedShas.length + " unpushed"
+                        color: "white"; font.pixelSize: 11; font.bold: true
+                    }
+                }
+
+                Item { Layout.fillWidth: true }
+
+                // Remote picker
+                ComboBox {
+                    id: remotePicker
+                    model: root.repo.isOpen ? root.repo.remotes : []
+                    enabled: root.repo.isOpen && !root.fetchBusy && !root.pullBusy && !root.pushBusy
+                    implicitWidth: 120; font.pixelSize: 12
+                    displayText: (root.repo.isOpen && root.repo.remotes.length > 0) ? currentText : "No remotes"
+                    onCurrentTextChanged: refreshUnpushed()
+                }
+
+                // Status
+                Text {
+                    text: root.opsStatus
+                    color: root.opsIsError ? Theme.danger : Theme.success
+                    font.pixelSize: 11; font.bold: true
+                    visible: text.length > 0
+                }
+
+                Button {
+                    text: root.fetchBusy ? "Fetching..." : "Fetch"
+                    enabled: root.repo.isOpen && root.repo.remotes.length > 0 && !root.fetchBusy
+                    onClicked: { root.fetchBusy = true; root.opsStatus = ""; fetchTimer.start() }
+                }
+                Timer {
+                    id: fetchTimer; interval: 50; repeat: false
+                    onTriggered: {
+                        var ok = root.repo.fetchRemote(remotePicker.currentText)
+                        root.opsStatus = ok ? "Fetched." : "Fetch failed."
+                        root.opsIsError = !ok; root.fetchBusy = false; refreshAll()
+                    }
+                }
+
+                Button {
+                    text: root.pullBusy ? "Pulling..." : "Pull"
+                    enabled: root.repo.isOpen && root.repo.remotes.length > 0 && !root.pullBusy
+                    onClicked: { root.pullBusy = true; root.opsStatus = ""; pullTimer.start() }
+                }
+                Timer {
+                    id: pullTimer; interval: 50; repeat: false
+                    onTriggered: {
+                        var ok = root.repo.pullRemote(remotePicker.currentText)
+                        root.opsStatus = ok ? "Pulled." : "Pull failed."
+                        root.opsIsError = !ok; root.pullBusy = false; refreshAll()
+                    }
+                }
+
+                Button {
+                    text: root.pushBusy ? "Pushing..." : "Push"
+                    enabled: root.repo.isOpen && root.repo.remotes.length > 0 && !root.pushBusy
+                    onClicked: { root.pushBusy = true; root.opsStatus = ""; pushTimer.start() }
+                }
+                Timer {
+                    id: pushTimer; interval: 50; repeat: false
+                    onTriggered: {
+                        var ok = root.repo.pushCurrentBranch(root.githubToken, remotePicker.currentText)
+                        root.opsStatus = ok ? "Pushed." : "Push failed."
+                        root.opsIsError = !ok; root.pushBusy = false; refreshAll()
+                    }
+                }
+            }
+        }
+
+        // ── Tabs ────────────────────────────────────────────────────────
+        TabBar {
+            id: tabBar; Layout.fillWidth: true
+            TabButton { text: "Changes (" + root.repo.diffModel.count + ")" }
+            TabButton { text: "History" }
+            TabButton { text: "Stash (" + stashListView.count + ")" }
+            TabButton { text: "Tools" }
+        }
+
+        StackLayout {
+            Layout.fillWidth: true; Layout.fillHeight: true
+            currentIndex: tabBar.currentIndex
+
+            // ═══════ TAB 0: Changes ═══════════════════════════════════════
+            Item {
+                ColumnLayout {
+                    anchors.fill: parent; anchors.margins: 12; spacing: 8
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            text: "Changed files"
+                            font.bold: true; color: Theme.textPrimary; Layout.fillWidth: true
+                        }
+                        Button {
+                            text: "Select All"; flat: true
+                            onClicked: { for (var i = 0; i < root.repo.diffModel.count; i++) root.repo.diffModel.setSelected(i, true) }
+                        }
+                        Button {
+                            text: "Deselect All"; flat: true
+                            onClicked: { for (var i = 0; i < root.repo.diffModel.count; i++) root.repo.diffModel.setSelected(i, false) }
+                        }
+                        Button {
+                            text: "Discard Selected"
+                            enabled: root.repo.isOpen && root.repo.diffModel.count > 0
+                            onClicked: discardConfirm.open()
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Revert selected files to their last committed state"
+                        }
+                        Button { text: "Refresh"; onClicked: root.repo.refreshDiff() }
+                    }
+
+                    // File list
+                    Rectangle {
+                        Layout.fillWidth: true; Layout.fillHeight: true
+                        color: Theme.surface; radius: 6
+                        border.color: Theme.border; border.width: 1; clip: true
+
+                        ListView {
+                            anchors.fill: parent; anchors.margins: 2; clip: true
+                            model: root.repo.diffModel
+
+                            delegate: Rectangle {
+                                width: ListView.view.width; height: 34
+                                color: index % 2 === 0 ? Theme.rowBase : Theme.rowAlt
+
+                                RowLayout {
+                                    anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
+                                    spacing: 6
+                                    CheckBox {
+                                        checked: model.selected
+                                        onToggled: root.repo.diffModel.setSelected(index, checked)
+                                    }
+                                    Rectangle {
+                                        width: 64; height: 18; radius: 3
+                                        color: model.changeType === "added" ? "#1a7a3e"
+                                             : model.changeType === "deleted" ? "#7a1a1a" : "#7a4a1a"
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: model.changeType; color: "white"
+                                            font.pixelSize: 10; font.bold: true
+                                        }
+                                    }
+                                    Text {
+                                        text: model.filePath; color: Theme.textPrimary
+                                        Layout.fillWidth: true; elide: Text.ElideMiddle; font.pixelSize: 12
+                                    }
+                                    // Per-file discard button
+                                    Button {
+                                        text: "Discard"
+                                        flat: true; font.pixelSize: 10
+                                        onClicked: {
+                                            root.repo.discardFileChanges(model.filePath)
+                                        }
+                                        ToolTip.visible: hovered
+                                        ToolTip.text: "Revert this file"
+                                    }
+                                }
+                            }
+
+                            Text {
+                                anchors.centerIn: parent
+                                visible: root.repo.diffModel.count === 0
+                                text: root.repo.isOpen ? "Working tree clean." : "Open a repository to see changes."
+                                color: Theme.textMuted
+                            }
+                        }
+                    }
+
+                    // Commit message
+                    TextField {
+                        id: manualMsgField; Layout.fillWidth: true
+                        placeholderText: "Commit message (leave blank to let AI write it)"
+                        font.pixelSize: 12
+                    }
+
+                    // Commit status
+                    Text {
+                        id: commitStatus; text: ""
+                        color: commitStatus.text.indexOf("failed") >= 0 || commitStatus.text.indexOf("No ") >= 0 || commitStatus.text.indexOf("Enter") >= 0 ? Theme.danger : Theme.success
+                        font.pixelSize: 12; font.bold: true; visible: text.length > 0
+                    }
+
+                    RowLayout {
+                        spacing: 8
+                        Button {
+                            text: "AI Organise & Review"
+                            enabled: root.repo.isOpen && root.repo.diffModel.count > 0
+                            onClicked: root.api.requestCommitGroups(root.repo.diffModel.toJson(), root.taskId)
+                            ToolTip.visible: hovered
+                            ToolTip.text: "AI groups files into logical commits with professional messages"
+                        }
+                        Button {
+                            text: root.commitBusy ? "Committing..." : "Commit Selected"
+                            enabled: root.repo.isOpen && root.repo.diffModel.count > 0 && !root.commitBusy
+                            onClicked: {
+                                var files = root.repo.diffModel.selectedFilePaths()
+                                if (files.length === 0) { commitStatus.text = "No files selected."; return }
+                                var msg = manualMsgField.text.trim()
+                                if (msg === "") { commitStatus.text = "Enter a commit message."; return }
+                                root.commitBusy = true; commitStatus.text = ""; commitTimer.start()
+                            }
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Commit selected files locally"
+                        }
+                        Timer {
+                            id: commitTimer; interval: 50; repeat: false
+                            onTriggered: {
+                                var files = root.repo.diffModel.selectedFilePaths()
+                                var msg = manualMsgField.text.trim()
+                                var ok = root.repo.stageAndCommit(files, msg)
+                                commitStatus.text = ok ? "Committed!" : "Commit failed."
+                                root.commitBusy = false
+                                if (ok) { manualMsgField.text = ""; refreshAll() }
+                            }
+                        }
+                        Button {
+                            text: "Commit & Push"
+                            enabled: root.repo.isOpen && root.repo.diffModel.count > 0 && !root.commitBusy && !root.pushBusy
+                            onClicked: {
+                                var files = root.repo.diffModel.selectedFilePaths()
+                                if (files.length === 0) { commitStatus.text = "No files selected."; return }
+                                var msg = manualMsgField.text.trim()
+                                if (msg === "") { commitStatus.text = "Enter a commit message."; return }
+                                root.commitBusy = true; commitStatus.text = ""; commitPushTimer.start()
+                            }
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Commit and immediately push to remote"
+                        }
+                        Timer {
+                            id: commitPushTimer; interval: 50; repeat: false
+                            onTriggered: {
+                                var files = root.repo.diffModel.selectedFilePaths()
+                                var msg = manualMsgField.text.trim()
+                                var ok = root.repo.stageAndCommit(files, msg)
+                                if (!ok) { commitStatus.text = "Commit failed."; root.commitBusy = false; return }
+                                var pushed = root.repo.pushCurrentBranch(root.githubToken, remotePicker.currentText)
+                                commitStatus.text = pushed ? "Committed & pushed!" : "Committed locally, but push failed."
+                                root.commitBusy = false
+                                if (ok) { manualMsgField.text = ""; refreshAll() }
+                            }
+                        }
+                        Button {
+                            text: "Stash All"
+                            enabled: root.repo.isOpen && root.repo.diffModel.count > 0
+                            onClicked: {
+                                var ok = root.repo.stashChanges("Quick stash")
+                                commitStatus.text = ok ? "Changes stashed." : "Stash failed."
+                                if (ok) refreshAll()
+                            }
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Stash all working-directory changes"
+                        }
+                    }
+                }
+            }
+
+            // ═══════ TAB 1: History ═══════════════════════════════════════
+            Item {
+                ColumnLayout {
+                    anchors.fill: parent; anchors.margins: 12; spacing: 8
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            text: "Commit History"
+                            font.bold: true; font.pixelSize: 15; color: Theme.textPrimary
+                            Layout.fillWidth: true
+                        }
+                        Row {
+                            spacing: 12
+                            Row {
+                                spacing: 4
+                                Rectangle { width: 10; height: 10; radius: 2; color: Theme.warning; anchors.verticalCenter: parent.verticalCenter }
+                                Text { text: "Unpushed"; font.pixelSize: 11; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+                            }
+                            Row {
+                                spacing: 4
+                                Rectangle { width: 10; height: 10; radius: 2; color: Theme.success; anchors.verticalCenter: parent.verticalCenter }
+                                Text { text: "Pushed"; font.pixelSize: 11; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+                            }
+                        }
+                        Button { text: "Refresh"; onClicked: refreshAll() }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true; Layout.fillHeight: true
+                        color: Theme.surface; radius: 6
+                        border.color: Theme.border; border.width: 1; clip: true
+
+                        ListView {
+                            id: historyList; anchors.fill: parent; clip: true
+                            model: root.repo.isOpen ? root.repo.commitHistory(50) : []
+
+                            delegate: Rectangle {
+                                width: ListView.view.width; height: 52
+                                property bool isUnpushed: root.unpushedShas.indexOf(modelData.sha) >= 0
+
+                                color: isUnpushed
+                                    ? (Theme.dark ? "#2a2518" : "#fff8e8")
+                                    : (index % 2 === 0 ? Theme.rowBase : Theme.rowAlt)
+
+                                Rectangle { height: 1; width: parent.width; anchors.bottom: parent.bottom; color: Theme.divider }
+                                Rectangle { width: 3; height: parent.height; color: parent.isUnpushed ? Theme.warning : "transparent" }
+
+                                RowLayout {
+                                    anchors { fill: parent; leftMargin: 14; rightMargin: 12; topMargin: 6; bottomMargin: 6 }
+                                    spacing: 10
+
+                                    Rectangle {
+                                        width: 58; height: 22; radius: 4; color: Theme.shaBg
+                                        Text { anchors.centerIn: parent; text: modelData.sha; color: Theme.shaText; font.family: "Courier New"; font.pixelSize: 11 }
+                                    }
+
+                                    Rectangle {
+                                        width: statusLabel.implicitWidth + 12; height: 18; radius: 3
+                                        color: parent.parent.isUnpushed ? Theme.warning : Theme.success
+                                        Text { id: statusLabel; anchors.centerIn: parent; text: parent.parent.parent.isUnpushed ? "local" : "pushed"; color: "white"; font.pixelSize: 9; font.bold: true }
+                                    }
+
+                                    Text { text: modelData.message; color: Theme.textPrimary; Layout.fillWidth: true; elide: Text.ElideRight; font.pixelSize: 13 }
+
+                                    Column {
+                                        spacing: 2
+                                        Text { text: modelData.author; font.pixelSize: 11; color: Theme.textSecondary; horizontalAlignment: Text.AlignRight; width: 130; elide: Text.ElideRight }
+                                        Text { text: modelData.date; font.pixelSize: 10; color: Theme.textMuted; horizontalAlignment: Text.AlignRight }
+                                    }
+                                }
+                            }
+
+                            Text { anchors.centerIn: parent; visible: historyList.count === 0; text: root.repo.isOpen ? "No commits yet." : "Open a repository to see history."; color: Theme.textMuted }
+                        }
+                    }
+                }
+            }
+
+            // ═══════ TAB 2: Stash ═════════════════════════════════════════
+            Item {
+                ColumnLayout {
+                    anchors.fill: parent; anchors.margins: 12; spacing: 8
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            text: "Stash List"
+                            font.bold: true; font.pixelSize: 15; color: Theme.textPrimary
+                            Layout.fillWidth: true
+                        }
+                        Button {
+                            text: "Pop Latest"
+                            enabled: root.repo.isOpen && stashListView.count > 0
+                            onClicked: {
+                                var ok = root.repo.stashPop()
+                                if (ok) refreshAll()
+                            }
+                            ToolTip.visible: hovered
+                            ToolTip.text: "Apply and remove the most recent stash"
+                        }
+                        Button { text: "Refresh"; onClicked: { stashListView.model = root.repo.stashList() } }
+                    }
+
+                    // Stash with message
+                    RowLayout {
+                        Layout.fillWidth: true; spacing: 8
+                        TextField {
+                            id: stashMsgField; Layout.fillWidth: true
+                            placeholderText: "Stash message (optional)"
+                            font.pixelSize: 12
+                        }
+                        Button {
+                            text: "Stash Changes"
+                            enabled: root.repo.isOpen && root.repo.diffModel.count > 0
+                            onClicked: {
+                                var msg = stashMsgField.text.trim()
+                                var ok = root.repo.stashChanges(msg)
+                                if (ok) { stashMsgField.text = ""; refreshAll() }
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true; Layout.fillHeight: true
+                        color: Theme.surface; radius: 6
+                        border.color: Theme.border; border.width: 1; clip: true
+
+                        ListView {
+                            id: stashListView; anchors.fill: parent; clip: true
+                            model: root.repo.isOpen ? root.repo.stashList() : []
+
+                            delegate: Rectangle {
+                                width: ListView.view.width; height: 44
+                                color: index % 2 === 0 ? Theme.rowBase : Theme.rowAlt
+                                Rectangle { height: 1; width: parent.width; anchors.bottom: parent.bottom; color: Theme.divider }
+
+                                RowLayout {
+                                    anchors { fill: parent; leftMargin: 12; rightMargin: 12 }
+                                    spacing: 10
+
+                                    Rectangle {
+                                        width: stashIdxText.implicitWidth + 14; height: 22; radius: 4; color: Theme.accent
+                                        Text { id: stashIdxText; anchors.centerIn: parent; text: modelData.index; color: "white"; font.family: "Courier New"; font.pixelSize: 11 }
+                                    }
+
+                                    Text { text: modelData.message; color: Theme.textPrimary; Layout.fillWidth: true; elide: Text.ElideRight; font.pixelSize: 13 }
+                                }
+                            }
+
+                            Text { anchors.centerIn: parent; visible: stashListView.count === 0; text: "No stashes."; color: Theme.textMuted }
+                        }
+                    }
+                }
+            }
+
+            // ═══════ TAB 3: Tools ═════════════════════════════════════════
+            Item {
+                ColumnLayout {
+                    anchors.fill: parent; anchors.margins: 20; spacing: 16
+
+                    Text {
+                        text: "Repository Tools"
+                        font.bold: true; font.pixelSize: 18; color: Theme.textPrimary
+                    }
+
+                    // .gitignore generator
+                    Rectangle {
+                        Layout.fillWidth: true; height: gitignoreCol.implicitHeight + 32
+                        color: Theme.surface; radius: 8
+                        border.color: Theme.border; border.width: 1
+
+                        ColumnLayout {
+                            id: gitignoreCol
+                            anchors { fill: parent; margins: 16 }
+                            spacing: 8
+
+                            Text {
+                                text: "AI .gitignore Generator"
+                                font.bold: true; font.pixelSize: 14; color: Theme.textPrimary
+                            }
+                            Text {
+                                text: "Scans your repository files and uses Gemini AI to generate a comprehensive .gitignore tailored to your project's languages and frameworks."
+                                wrapMode: Text.WordWrap; Layout.fillWidth: true
+                                color: Theme.textSecondary; font.pixelSize: 12
+                            }
+                            Button {
+                                text: root.gitignoreBusy ? "Generating..." : "Generate .gitignore"
+                                enabled: root.repo.isOpen && !root.gitignoreBusy
+                                onClicked: {
+                                    root.gitignoreBusy = true
+                                    var files = root.repo.listAllFiles()
+                                    root.api.generateGitignore(files)
+                                }
+                            }
+                        }
+                    }
+
+                    // Repo info
+                    Rectangle {
+                        Layout.fillWidth: true; height: infoCol.implicitHeight + 32
+                        color: Theme.surface; radius: 8
+                        border.color: Theme.border; border.width: 1
+
+                        ColumnLayout {
+                            id: infoCol
+                            anchors { fill: parent; margins: 16 }
+                            spacing: 8
+
+                            Text {
+                                text: "Repository Info"
+                                font.bold: true; font.pixelSize: 14; color: Theme.textPrimary
+                            }
+                            Text {
+                                text: root.repo.isOpen
+                                    ? "Path: " + root.repo.repoPath
+                                      + "\nBranch: " + root.repo.currentBranchName()
+                                      + "\nRemotes: " + (root.repo.remotes.length > 0 ? root.repo.remotes.join(", ") : "none")
+                                      + "\nChanged files: " + root.repo.diffModel.count
+                                      + "\nUnpushed commits: " + root.unpushedShas.length
+                                    : "No repository open."
+                                wrapMode: Text.WordWrap; Layout.fillWidth: true
+                                color: Theme.textSecondary; font.pixelSize: 12
+                                lineHeight: 1.4
+                            }
+                        }
+                    }
+
+                    Item { Layout.fillHeight: true }
+                }
+            }
+        }
+    }
+
+    // ── Discard confirmation dialog ───────────────────────────────────
+    Dialog {
+        id: discardConfirm
+        title: "Discard Changes?"
+        standardButtons: Dialog.Yes | Dialog.No
+        modal: true
+        anchors.centerIn: parent
+
+        Text {
+            text: "This will revert selected files to their last committed state.\nThis cannot be undone."
+            color: Theme.textPrimary
+            wrapMode: Text.WordWrap
+        }
+
+        onAccepted: {
+            var files = root.repo.diffModel.selectedFilePaths()
+            for (var i = 0; i < files.length; i++) {
+                root.repo.discardFileChanges(files[i])
+            }
+            refreshAll()
+        }
+    }
+
+    // ── Gitignore preview dialog ─────────────────────────────────────
+    Dialog {
+        id: gitignoreDialog
+        title: "Generated .gitignore"
+        standardButtons: Dialog.Save | Dialog.Cancel
+        modal: true
+        width: 600; height: 500
+        anchors.centerIn: parent
+
+        ScrollView {
+            anchors.fill: parent
+            TextArea {
+                id: gitignorePreview
+                font.family: "Courier New"
+                font.pixelSize: 12
+                color: Theme.textPrimary
+                readOnly: false
+            }
+        }
+
+        onAccepted: {
+            var content = gitignorePreview.text
+            var ok = root.repo.writeFile(".gitignore", content)
+            if (ok) {
+                root.repo.refreshDiff()
+            } else {
+                console.log("Failed to save .gitignore")
+            }
+        }
+    }
+
+    // ── Background connections ─────────────────────────────────────────
+    Connections {
+        target: root.watcher
+        function onTick() { if (root.repo.isOpen) root.repo.refreshDiff() }
+    }
+
+    FolderDialog {
+        id: folderDialog; title: "Choose a git repository folder"
+        onAccepted: {
+            var path = selectedFolder.toString()
+            if (path.startsWith("file:///"))
+                path = path.substring(Qt.platform.os === "windows" ? 8 : 7)
+            else if (path.startsWith("file://"))
+                path = path.substring(7)
+            pathField.text = decodeURIComponent(path)
+            if (root.repo.openRepository(pathField.text)) {
+                root.repo.refreshDiff()
+                root.watcher.start(2000)
+                refreshAll()
+            }
         }
     }
 }

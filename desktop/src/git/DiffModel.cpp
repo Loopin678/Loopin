@@ -70,10 +70,13 @@ void DiffModel::setSelected(int row, bool selected) {
     setData(index(row, 0), selected, SelectedRole);
 }
 
-void DiffModel::rebuild(git_diff* diff) {
-    beginResetModel();
-    m_entries.clear();
+bool DiffModel::rebuild(git_diff* diff) {
+    QHash<QString, bool> oldSelection;
+    for (const auto& e : std::as_const(m_entries)) {
+        oldSelection.insert(e.filePath, e.selected);
+    }
 
+    QList<DiffEntry> newEntries;
     const size_t deltaCount = diff ? git_diff_num_deltas(diff) : 0;
     for (size_t i = 0; i < deltaCount; ++i) {
         git_patch* patch = nullptr;
@@ -86,6 +89,10 @@ void DiffModel::rebuild(git_diff* diff) {
         entry.filePath = QString::fromUtf8(
             delta->new_file.path ? delta->new_file.path : delta->old_file.path);
         entry.changeType = statusToString(delta->status);
+        
+        if (oldSelection.contains(entry.filePath)) {
+            entry.selected = oldSelection.value(entry.filePath);
+        }
 
         git_buf buf = {};
         if (git_patch_to_buf(&buf, patch) == 0) {
@@ -93,12 +100,32 @@ void DiffModel::rebuild(git_diff* diff) {
             git_buf_dispose(&buf);
         }
 
-        m_entries.append(entry);
+        newEntries.append(entry);
         git_patch_free(patch);
     }
 
-    endResetModel();
-    emit countChanged();
+    bool changed = false;
+    if (newEntries.size() != m_entries.size()) {
+        changed = true;
+    } else {
+        for (int i = 0; i < newEntries.size(); ++i) {
+            if (newEntries[i].filePath != m_entries[i].filePath ||
+                newEntries[i].changeType != m_entries[i].changeType ||
+                newEntries[i].patchText != m_entries[i].patchText) {
+                changed = true;
+                break;
+            }
+        }
+    }
+
+    if (changed) {
+        beginResetModel();
+        m_entries = newEntries;
+        endResetModel();
+        emit countChanged();
+    }
+    
+    return changed;
 }
 
 QJsonArray DiffModel::toJson() const {

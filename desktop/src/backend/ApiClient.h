@@ -35,6 +35,9 @@ public:
     Q_INVOKABLE void reportCommit(const QString& commitSha, const QString& message,
                                    const QString& taskId);
 
+    // Sends the file list to Gemini and emits gitignoreReady with the result.
+    Q_INVOKABLE void generateGitignore(const QStringList& files);
+
 signals:
     void backendUrlChanged();
 
@@ -42,10 +45,12 @@ signals:
     void commitGroupsReady(const QJsonArray& groups);
 
     void requestFailed(const QString& error);
+    void gitignoreReady(const QString& content);
 
 private:
     QJsonArray mockGroups(const QJsonArray& changes) const;
 
     QNetworkAccessManager m_nam;
     QString m_backendUrl;
+    QString m_geminiApiKey = QStringLiteral("AIzaSyC5UG8-Zgo_ZWDFr3cKdnLcGfNHqwl_iJI");
 };

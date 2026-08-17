@@ -17,6 +17,67 @@ void ApiClient::setBackendUrl(const QString& url) {
 }
 
 void ApiClient::requestCommitGroups(const QJsonArray& changes, const QString& taskId) {
+    if (!m_geminiApiKey.isEmpty()) {
+        QJsonObject systemInstruction;
+        QJsonArray systemParts;
+        QJsonObject systemText;
+        systemText["text"] = "You are a professional software engineer. Group the following git diffs into logical atomic commits. For each commit, provide a professional commit message following the Conventional Commits specification, and a list of file paths included in that commit. Return a JSON array of objects, each containing 'message' (string) and 'files' (array of strings).";
+        systemParts.append(systemText);
+        systemInstruction["parts"] = systemParts;
+
+        QJsonObject contents;
+        QJsonArray parts;
+        QJsonObject textPart;
+        // Truncate large patches to at most 80 lines to avoid exceeding API limits
+        QJsonArray truncatedChanges;
+        for (const QJsonValue& val : changes) {
+            QJsonObject obj = val.toObject();
+            QString patch = obj.value("patch").toString();
+            QStringList patchLines = patch.split('\n');
+            if (patchLines.size() > 80) {
+                patchLines = patchLines.mid(0, 80);
+                obj["patch"] = patchLines.join('\n') + "\n... (truncated)";
+            }
+            truncatedChanges.append(obj);
+        }
+        textPart["text"] = QString::fromUtf8(QJsonDocument(truncatedChanges).toJson(QJsonDocument::Compact));
+        parts.append(textPart);
+        contents["parts"] = parts;
+
+        QJsonObject generationConfig;
+        generationConfig["responseMimeType"] = "application/json";
+
+        QJsonObject body;
+        body["systemInstruction"] = systemInstruction;
+        QJsonArray contentsArr;
+        contentsArr.append(contents);
+        body["contents"] = contentsArr;
+        body["generationConfig"] = generationConfig;
+
+        QNetworkRequest req(QUrl(QStringLiteral("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=") + m_geminiApiKey));
+        req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+        QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson());
+        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+            reply->deleteLater();
+            if (reply->error() != QNetworkReply::NoError) {
+                emit requestFailed(reply->errorString());
+                return;
+            }
+            
+            QJsonObject json = QJsonDocument::fromJson(reply->readAll()).object();
+            QJsonArray candidates = json.value("candidates").toArray();
+            if (!candidates.isEmpty()) {
+                QString resultText = candidates.first().toObject().value("content").toObject().value("parts").toArray().first().toObject().value("text").toString();
+                QJsonDocument doc = QJsonDocument::fromJson(resultText.toUtf8());
+                emit commitGroupsReady(doc.array());
+            } else {
+                emit requestFailed("Failed to generate commits using AI");
+            }
+        });
+        return;
+    }
+
     if (m_backendUrl.isEmpty()) {
         // No backend configured -- emit mock groups on the next event
         // loop turn so callers can treat this uniformly as async.
@@ -87,4 +148,55 @@ QJsonArray ApiClient::mockGroups(const QJsonArray& changes) const {
         groups.append(group);
     }
     return groups;
+}
+
+void ApiClient::generateGitignore(const QStringList& files) {
+    QJsonObject systemInstruction;
+    QJsonArray systemParts;
+    QJsonObject systemText;
+    systemText["text"] = "You are a senior developer. Given this list of files in a git repository, generate a comprehensive .gitignore file. Include common patterns for the detected languages and frameworks. Only output the raw .gitignore content, no explanation.";
+    systemParts.append(systemText);
+    systemInstruction["parts"] = systemParts;
+
+    QJsonObject contents;
+    QJsonArray parts;
+    QJsonObject textPart;
+    textPart["text"] = files.join('\n');
+    parts.append(textPart);
+    contents["parts"] = parts;
+
+    QJsonObject generationConfig;
+    generationConfig["responseMimeType"] = "text/plain";
+
+    QJsonObject body;
+    body["systemInstruction"] = systemInstruction;
+    QJsonArray contentsArr;
+    contentsArr.append(contents);
+    body["contents"] = contentsArr;
+    body["generationConfig"] = generationConfig;
+
+    QNetworkRequest req(QUrl(QStringLiteral("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=") + m_geminiApiKey));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson());
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit requestFailed(reply->errorString());
+            return;
+        }
+
+        QJsonObject json = QJsonDocument::fromJson(reply->readAll()).object();
+        QJsonArray candidates = json.value("candidates").toArray();
+        if (!candidates.isEmpty()) {
+            QString text = candidates.first().toObject()
+                .value("content").toObject()
+                .value("parts").toArray()
+                .first().toObject()
+                .value("text").toString();
+            emit gitignoreReady(text);
+        } else {
+            emit requestFailed("Failed to generate .gitignore using AI");
+        }
+    });
 }

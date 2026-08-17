@@ -13,6 +13,20 @@ const QString GitHubAuth::kClientId = QStringLiteral("Ov23li3pbk1LwdgxLJEV");
 
 GitHubAuth::GitHubAuth(QObject* parent) : QObject(parent) {}
 
+void GitHubAuth::checkSavedToken() {
+    auto job = new QKeychain::ReadPasswordJob(QStringLiteral("CollabDesktopClient"), this);
+    job->setKey(QStringLiteral("github_oauth_token"));
+    connect(job, &QKeychain::Job::finished, this, [this, job]() {
+        if (job->error()) {
+            emit noSavedToken();
+        } else {
+            emit authenticated(job->textData());
+        }
+        job->deleteLater();
+    });
+    job->start();
+}
+
 void GitHubAuth::startLogin() {
     QNetworkRequest req(QUrl(QStringLiteral("https://github.com/login/device/code")));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
@@ -96,9 +110,17 @@ void GitHubAuth::pollForToken(int intervalSeconds) {
             // SUCCESS
             if (json.contains("access_token")) {
                 m_pollTimer->stop();
-                emit authenticated(
-                    json.value("access_token").toString()
-                );
+                QString token = json.value("access_token").toString();
+
+                auto job = new QKeychain::WritePasswordJob(QStringLiteral("CollabDesktopClient"), this);
+                job->setKey(QStringLiteral("github_oauth_token"));
+                job->setTextData(token);
+                connect(job, &QKeychain::Job::finished, this, [job]() {
+                    job->deleteLater();
+                });
+                job->start();
+
+                emit authenticated(token);
                 return;
             }
 

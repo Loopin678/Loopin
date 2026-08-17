@@ -1,2 +1,3 @@
-set(__QT_DEPLOY_TARGET_collab_desktop_client_FILE /home/varaa/collab-desktop-client/build/collab_desktop_client)
-set(__QT_DEPLOY_TARGET_collab_desktop_client_TYPE EXECUTABLE)
+set(__QT_DEPLOY_TARGET_loopin_desktop_FILE C:/a_Coding/Loopin/desktop/build/loopin_desktop.exe)
+set(__QT_DEPLOY_TARGET_loopin_desktop_TYPE EXECUTABLE)
+set(__QT_DEPLOY_TARGET_loopin_desktop_RUNTIME_DLLS C:/msys64/mingw64/bin/Qt6Quick.dll;C:/msys64/mingw64/bin/libqt6keychain.dll;C:/msys64/mingw64/bin/Qt6OpenGL.dll;C:/msys64/mingw64/bin/Qt6Gui.dll;C:/msys64/mingw64/bin/Qt6QmlMeta.dll;C:/msys64/mingw64/bin/Qt6QmlModels.dll;C:/msys64/mingw64/bin/Qt6QmlWorkerScript.dll;C:/msys64/mingw64/bin/Qt6Qml.dll;C:/msys64/mingw64/bin/Qt6Network.dll;C:/msys64/mingw64/bin/Qt6Core.dll)

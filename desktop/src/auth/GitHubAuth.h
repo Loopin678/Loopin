@@ -5,6 +5,7 @@
 #include <QTimer>
 #include <QNetworkAccessManager>
 #include <QQmlEngine>
+#include <qt6keychain/keychain.h>
 
 // Implements GitHub's OAuth Device Flow:
 // https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow
@@ -24,6 +25,9 @@ public:
     // the user to approve the login.
     Q_INVOKABLE void startLogin();
 
+    // Checks if a token is already saved in the system keychain.
+    Q_INVOKABLE void checkSavedToken();
+
 signals:
     // Emitted once we have a code for the user to enter. `verificationUri`
     // has already been opened in their browser automatically.
@@ -31,6 +35,9 @@ signals:
 
     // Emitted once the user has approved the login in the browser.
     void authenticated(const QString& accessToken);
+
+    // Emitted if no token is found in the keychain.
+    void noSavedToken();
 
     // Emitted if the flow fails or the user denies access.
     void authFailed(const QString& error);

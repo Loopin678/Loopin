@@ -3,6 +3,8 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QVariantList>
+#include <QVariantMap>
 #include <QQmlEngine>
 
 #include <git2.h>
@@ -18,6 +20,7 @@ class GitRepo : public QObject {
 
     Q_PROPERTY(bool isOpen READ isOpen NOTIFY repoChanged)
     Q_PROPERTY(QString repoPath READ repoPath NOTIFY repoChanged)
+    Q_PROPERTY(QStringList remotes READ remotes NOTIFY remotesChanged)
     Q_PROPERTY(DiffModel* diffModel READ diffModel CONSTANT)
 
 public:
@@ -27,6 +30,7 @@ public:
     bool isOpen() const { return m_repo != nullptr; }
     QString repoPath() const { return m_repoPath; }
     DiffModel* diffModel() const { return m_diffModel; }
+    QStringList remotes() const;
 
     // Opens (does not clone) an existing local repository at `path`.
     Q_INVOKABLE bool openRepository(const QString& path);
@@ -38,20 +42,53 @@ public:
     // a single commit with `message`. Returns true on success.
     Q_INVOKABLE bool stageAndCommit(const QStringList& files, const QString& message);
 
-    // Pushes the current branch to `remoteName` (default "origin") using
-    // `token` as a GitHub OAuth token (sent as an HTTPS credential).
+    // Pushes the current branch to `remoteName` using `token` as an OAuth
+    // credential. Falls back to system git on failure (handles SSH remotes).
     Q_INVOKABLE bool pushCurrentBranch(const QString& token, const QString& remoteName = "origin");
+
+    // Fetches from `remoteName` using system git (handles SSH + HTTPS).
+    Q_INVOKABLE bool fetchRemote(const QString& remoteName = "origin");
+
+    // Pulls (fetch + merge) from `remoteName` using system git.
+    Q_INVOKABLE bool pullRemote(const QString& remoteName = "origin");
 
     Q_INVOKABLE QString currentBranchName() const;
 
+    // Returns short SHAs of commits that are ahead of remote (not yet pushed).
+    Q_INVOKABLE QStringList unpushedCommitShas(const QString& remoteName = "origin") const;
+
+    // Writes content to a file relative to the repo root. Returns true on success.
+    Q_INVOKABLE bool writeFile(const QString& relativePath, const QString& content);
+
+    // Returns the last `limit` commits as a list of maps with keys:
+    // sha (short), message, author, date
+    Q_INVOKABLE QVariantList commitHistory(int limit = 50) const;
+
+    // Discards working-directory changes for a single file (git checkout -- file)
+    Q_INVOKABLE bool discardFileChanges(const QString& filePath);
+
+    // Stashes all working-directory changes
+    Q_INVOKABLE bool stashChanges(const QString& message = "");
+
+    // Pops the top stash entry
+    Q_INVOKABLE bool stashPop();
+
+    // Returns list of stash entries as [{"index": "stash@{0}", "message": "..."}]
+    Q_INVOKABLE QVariantList stashList() const;
+
+    // Lists ALL files in the repository (tracked + untracked) for gitignore generation
+    Q_INVOKABLE QStringList listAllFiles() const;
+
 signals:
     void repoChanged();
+    void remotesChanged();
     void diffChanged();
     void errorOccurred(const QString& message);
 
 private:
     git_repository* m_repo = nullptr;
     QString m_repoPath;
+    QString m_lastHeadSha;
     DiffModel* m_diffModel;
 
     // Returns the tree HEAD points at, or nullptr for an unborn branch

@@ -41,9 +41,8 @@ public:
 
     int count() const;
 
-    // Rebuilds the model from a freshly-computed libgit2 diff. Ownership
-    // of `diff` stays with the caller.
-    void rebuild(git_diff* diff);
+    // Rebuilds the model from a git_diff. Returns true if the entries actually changed.
+    bool rebuild(git_diff* diff);
 
     // Toggle whether a row's file should be included in the next
     // "organize changes" request sent to the backend.

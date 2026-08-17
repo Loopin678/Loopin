@@ -7,7 +7,8 @@ ApplicationWindow {
     width: 900
     height: 650
     visible: true
-    title: "Collab Desktop Client"
+    title: "Loopin"
+    color: Theme.bg
 
     // C++ objects, instantiated once for the app's lifetime.
     GitHubAuth { id: gitHubAuth }
@@ -49,6 +50,7 @@ ApplicationWindow {
             api: apiClient
             watcher: changeWatcher
             taskId: window.currentTaskId
+            githubToken: window.githubToken
             onGroupsReady: function(groups) {
                 stack.push(reviewComponent, {
                     groups: groups,

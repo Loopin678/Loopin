@@ -1,7 +1,7 @@
 {
 	"InstallScripts" : 
 	[
-		"/home/varaa/collab-desktop-client/build/cmake_install.cmake"
+		"C:/a_Coding/Loopin/desktop/build/cmake_install.cmake"
 	],
 	"Parallel" : false
 }
