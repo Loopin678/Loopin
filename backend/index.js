@@ -24,32 +24,53 @@ app.get('/api/projects/:projectId/tasks', async (req, res) => {
   }
 });
 
+// Get all commits for a project
+app.get('/api/projects/:projectId/commits', async (req, res) => {
+  const { projectId } = req.params;
+  try {
+    const commits = await prisma.commit.findMany({
+      where: { projectId },
+      include: { tasks: true }
+    });
+    res.json(commits);
+  } catch (error) {
+    console.error('Error fetching commits:', error);
+    res.status(500).json({ error: 'Failed to fetch commits' });
+  }
+});
+
 // Insert a new commit
 app.post('/api/commits', async (req, res) => {
-  const { sha, message, projectId, authorId, taskId } = req.body;
+  const { sha, message, projectId, authorId, taskIds } = req.body;
   
   if (!sha || !message || !projectId || !authorId) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
+  const tasksToConnect = Array.isArray(taskIds) ? taskIds.map(id => ({ id })) : [];
+
   try {
-    const commit = await prisma.commit.create({
-      data: {
+    const commit = await prisma.commit.upsert({
+      where: { id: sha },
+      update: { 
+        tasks: {
+          set: tasksToConnect
+        }
+      },
+      create: {
         id: sha,
         message,
         projectId,
         authorId,
-        taskId: taskId || null
+        tasks: {
+          connect: tasksToConnect
+        }
       }
     });
     res.status(201).json(commit);
   } catch (error) {
-    console.error('Error creating commit:', error);
-    // If it already exists, just return 200 OK to avoid crashing the flow
-    if (error.code === 'P2002') {
-       return res.status(200).json({ status: 'already_exists' });
-    }
-    res.status(500).json({ error: 'Failed to insert commit' });
+    console.error('Error creating/updating commit:', error);
+    res.status(500).json({ error: 'Failed to insert or update commit' });
   }
 });
 
