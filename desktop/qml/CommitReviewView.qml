@@ -109,9 +109,10 @@ Item {
                 var allOk = true
                 for (var i = 0; i < root.groups.length; i++) {
                     var g = root.groups[i]
-                    var ok = root.repo.stageAndCommit(g.files, g.message)
-                    if (ok) {
-                        root.api.reportCommit("", g.message, root.taskId)
+                    var commitSha = root.repo.stageAndCommit(g.files, g.message)
+                    if (commitSha !== "") {
+                        var selectedTaskId = taskPicker.currentIndex > 0 ? taskPicker.model[taskPicker.currentIndex].id : ""
+                        root.api.reportCommit(commitSha, g.message, selectedTaskId)
                     } else {
                         allOk = false
                         console.log("Commit failed for:", g.message)
@@ -146,6 +147,24 @@ Item {
             Button {
                 text: root.hasCommitted ? "Close" : "Back"
                 onClicked: root.done()
+            }
+
+            Item { Layout.fillWidth: true }
+
+            RowLayout {
+                spacing: 8
+                Text { text: "Task:"; color: Theme.textPrimary; font.bold: true }
+                ComboBox {
+                    id: taskPicker
+                    textRole: "title"
+                    model: {
+                        var defaultTask = [{ id: "", title: "None" }]
+                        return defaultTask.concat(window.availableTasks || [])
+                    }
+                    enabled: !root.hasCommitted
+                    implicitWidth: 150
+                    displayText: currentText
+                }
             }
 
             Button {
