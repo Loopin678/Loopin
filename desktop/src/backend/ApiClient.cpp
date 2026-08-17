@@ -55,7 +55,7 @@ void ApiClient::setUserId(const QString& u) {
 void ApiClient::fetchTasks() {
     if (m_projectId.isEmpty()) return;
 
-    QString urlStr = QString("http://localhost:3000/api/projects/%1/tasks").arg(m_projectId);
+    QString urlStr = QString("%1/api/projects/%2/tasks").arg(m_backendUrl, m_projectId);
     QNetworkRequest req((QUrl(urlStr)));
     QNetworkReply* reply = m_nam.get(req);
 
@@ -73,7 +73,7 @@ void ApiClient::fetchTasks() {
 void ApiClient::fetchProjectCommits() {
     if (m_projectId.isEmpty()) return;
 
-    QNetworkRequest req(QUrl("http://localhost:3000/api/projects/" + m_projectId + "/commits"));
+    QNetworkRequest req(QUrl(m_backendUrl + "/api/projects/" + m_projectId + "/commits"));
     QNetworkReply* reply = m_nam.get(req);
 
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
@@ -90,7 +90,7 @@ void ApiClient::fetchProjectCommits() {
 void ApiClient::reportCommit(const QString& commitSha, const QString& message, const QStringList& taskIds) {
     if (m_projectId.isEmpty() || m_userId.isEmpty()) return;
 
-    QNetworkRequest req(QUrl("http://localhost:3000/api/commits"));
+    QNetworkRequest req(QUrl(m_backendUrl + "/api/commits"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
     QJsonObject body;
