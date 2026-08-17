@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import Qt.labs.settings
 import App
 
 ApplicationWindow {
@@ -10,20 +11,25 @@ ApplicationWindow {
     title: "Loopin"
     color: Theme.bg
 
+    Settings {
+        id: settings
+        property string lastRepoPath: ""
+    }
+
     // C++ objects, instantiated once for the app's lifetime.
     GitHubAuth { id: gitHubAuth }
-    GitRepo { id: gitRepo }
+    GitRepo { 
+        id: gitRepo 
+        onRepoPathChanged: {
+            if (repoPath !== "") settings.lastRepoPath = repoPath
+        }
+    }
     ApiClient {
         id: apiClient
-        // Leave empty to use the built-in mock grouping while your
-        // backend doesn't exist yet, e.g.:
-        // backendUrl: "http://localhost:8080"
     }
     ChangeWatcher { id: changeWatcher }
 
     property string githubToken: ""
-    // In the real app this would come from whatever task the user is
-    // currently assigned on your website.
     property string currentTaskId: "TASK-DEMO-1"
 
     StackView {
@@ -51,6 +57,17 @@ ApplicationWindow {
             watcher: changeWatcher
             taskId: window.currentTaskId
             githubToken: window.githubToken
+            
+            Component.onCompleted: {
+                if (settings.lastRepoPath !== "") {
+                    // Try to auto-open
+                    if (repo.openRepository(settings.lastRepoPath)) {
+                        repo.refreshDiff()
+                        watcher.start(2000)
+                    }
+                }
+            }
+
             onGroupsReady: function(groups) {
                 stack.push(reviewComponent, {
                     groups: groups,
