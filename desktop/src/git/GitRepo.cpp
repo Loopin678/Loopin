@@ -449,6 +449,21 @@ QVariantList GitRepo::commitHistory(int limit) const {
     return result;
 }
 
+bool GitRepo::stashFile(const QString& filePath) {
+    if (!m_repo) return false;
+    QString out;
+    // git stash push -m "Stashed <file>" -- <file>
+    QString message = "Stashed " + filePath;
+    bool ok = runGit(m_repoPath, {"stash", "push", "-m", message, "--", filePath}, &out);
+    if (!ok) {
+        emit errorOccurred("git stash push failed:\n" + out);
+        return false;
+    }
+    refreshDiff();
+    emit repoChanged();
+    return true;
+}
+
 bool GitRepo::discardFileChanges(const QString& filePath) {
     if (!m_repo) return false;
     QString out;
