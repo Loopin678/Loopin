@@ -8,6 +8,7 @@
 #include <iostream>
 #include "ApiClient.h"
 #include "GitRepo.h"
+#include <git2.h>
 
 // Simple .env parser
 void loadEnvFile() {
@@ -33,6 +34,8 @@ void loadEnvFile() {
 
 int main(int argc, char *argv[])
 {
+    git_libgit2_init();
+
     QCoreApplication app(argc, argv);
     QCoreApplication::setApplicationName("loopin-cli");
     QCoreApplication::setApplicationVersion("1.0");
