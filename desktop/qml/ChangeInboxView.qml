@@ -647,7 +647,14 @@ Item {
                             enabled: root.repo.isOpen && stashListView.count > 0
                             onClicked: {
                                 var ok = root.repo.stashPop()
-                                if (ok) refreshAll()
+                                if (ok) {
+                                    stashStatus.text = "Stash popped successfully."
+                                    stashStatus.color = Theme.textMuted
+                                    refreshAll()
+                                } else {
+                                    stashStatus.text = "Failed to pop stash (likely due to merge conflicts)."
+                                    stashStatus.color = Theme.error
+                                }
                             }
                             ToolTip.visible: hovered
                             ToolTip.text: "Apply and remove the most recent stash"
@@ -669,9 +676,26 @@ Item {
                             onClicked: {
                                 var msg = stashMsgField.text.trim()
                                 var ok = root.repo.stashChanges(msg)
-                                if (ok) { stashMsgField.text = ""; refreshAll() }
+                                if (ok) {
+                                    stashMsgField.text = ""
+                                    stashStatus.text = "Changes stashed."
+                                    stashStatus.color = Theme.textMuted
+                                    refreshAll()
+                                } else {
+                                    stashStatus.text = "Failed to stash changes."
+                                    stashStatus.color = Theme.error
+                                }
                             }
                         }
+                    }
+
+                    Text {
+                        id: stashStatus
+                        Layout.fillWidth: true
+                        text: ""
+                        color: Theme.textMuted
+                        font.pixelSize: 12
+                        visible: text !== ""
                     }
 
                     Rectangle {
