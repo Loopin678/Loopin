@@ -48,19 +48,19 @@ public:
 
     // Pushes the current branch to `remoteName` using `token` as an OAuth
     // credential. Falls back to system git on failure (handles SSH remotes).
-    Q_INVOKABLE void pushCurrentBranch(const QString& token, const QString& remoteName = "origin");
+    Q_INVOKABLE bool pushCurrentBranch(const QString& token, const QString& remoteName = "origin");
 
     // Pushes specifically up to the given commit SHA.
-    Q_INVOKABLE void pushCommit(const QString& sha, const QString& remoteName = "origin");
+    Q_INVOKABLE bool pushCommit(const QString& sha, const QString& remoteName = "origin");
 
     // Fetches from `remoteName` using system git (handles SSH + HTTPS).
-    Q_INVOKABLE void fetchRemote(const QString& remoteName = "origin");
+    Q_INVOKABLE bool fetchRemote(const QString& remoteName = "origin");
 
     // Pulls (fetch + merge) from `remoteName` using system git.
-    Q_INVOKABLE void pullRemote(const QString& remoteName = "origin");
+    Q_INVOKABLE bool pullRemote(const QString& remoteName = "origin");
 
     // Checkouts an existing branch.
-    Q_INVOKABLE void checkoutBranch(const QString& branchName);
+    Q_INVOKABLE bool checkoutBranch(const QString& branchName);
 
     // Returns short SHAs of commits that are ahead of remote (not yet pushed).
     Q_INVOKABLE QStringList unpushedCommitShas(const QString& remoteName = "origin") const;
