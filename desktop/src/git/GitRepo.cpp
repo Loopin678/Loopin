@@ -5,6 +5,7 @@
 #include <QDir>
 #include <QFile>
 #include <QTextStream>
+#include <QtConcurrent/QtConcurrent>
 
 namespace {
 
@@ -197,75 +198,126 @@ QString GitRepo::stageAndCommit(const QStringList& files, const QString& message
     return QString::fromUtf8(oid_str);
 }
 
-bool GitRepo::pushCurrentBranch(const QString& token, const QString& remoteName) {
-    if (!m_repo) return false;
-
-    git_remote* remote = nullptr;
-    if (git_remote_lookup(&remote, m_repo, remoteName.toUtf8().constData()) != 0) {
-        emit errorOccurred(lastErrorMessage());
-        return false;
-    }
-
-    git_reference* headRef = nullptr;
-    if (git_repository_head(&headRef, m_repo) != 0) {
-        git_remote_free(remote);
-        emit errorOccurred(lastErrorMessage());
-        return false;
-    }
-    const QString refName = QString::fromUtf8(git_reference_name(headRef));
-    git_reference_free(headRef);
-
-    const QString refspecStr = refName + ":" + refName;
-    QByteArray refspecBytes = refspecStr.toUtf8();
-    char* refspecs[1] = {refspecBytes.data()};
-    git_strarray refspecArray{refspecs, 1};
-
-    PushPayload payload{token.toStdString()};
-    git_push_options opts = GIT_PUSH_OPTIONS_INIT;
-    opts.callbacks.credentials = credentialsAcquire;
-    opts.callbacks.payload = &payload;
-
-    const int rc = git_remote_push(remote, &refspecArray, &opts);
-    git_remote_free(remote);
-
-    if (rc != 0) {
-        QString out;
-        if (runGit(m_repoPath, {"push", remoteName, currentBranchName()}, &out)) {
-            emit repoChanged();
-            return true;
-        }
-
-        emit errorOccurred(QString("Push failed:\n") + out.trimmed());
-        return false;
+void GitRepo::pushCurrentBranch(const QString& token, const QString& remoteName) {
+    if (!m_repo) {
+        emit pushFinished(false, "Repository not open");
+        return;
     }
     
-    // Manually update the remote tracking branch since git_remote_push doesn't do it automatically
+    QString repoPath = m_repoPath;
     QString branch = currentBranchName();
-    if (!branch.isEmpty()) {
-        QString trackingRef = "refs/remotes/" + remoteName + "/" + branch;
-        git_reference* headRefForUpdate = nullptr;
-        if (git_repository_head(&headRefForUpdate, m_repo) == 0) {
-            git_reference* newRef = nullptr;
-            git_reference_create(&newRef, m_repo, trackingRef.toUtf8().constData(), git_reference_target(headRefForUpdate), 1, "update by push");
-            if (newRef) git_reference_free(newRef);
-            git_reference_free(headRefForUpdate);
-        }
-    }
     
-    emit repoChanged();
-    return true;
+    QtConcurrent::run([this, repoPath, token, remoteName, branch]() {
+        git_repository* bgRepo = nullptr;
+        if (git_repository_open(&bgRepo, repoPath.toUtf8().constData()) != 0) {
+            QMetaObject::invokeMethod(this, [this]() {
+                emit pushFinished(false, "Failed to open repo in background");
+            }, Qt::QueuedConnection);
+            return;
+        }
+
+        git_remote* remote = nullptr;
+        if (git_remote_lookup(&remote, bgRepo, remoteName.toUtf8().constData()) != 0) {
+            git_repository_free(bgRepo);
+            QMetaObject::invokeMethod(this, [this]() { emit pushFinished(false, "Remote lookup failed"); }, Qt::QueuedConnection);
+            return;
+        }
+
+        git_reference* headRef = nullptr;
+        if (git_repository_head(&headRef, bgRepo) != 0) {
+            git_remote_free(remote);
+            git_repository_free(bgRepo);
+            QMetaObject::invokeMethod(this, [this]() { emit pushFinished(false, "Head lookup failed"); }, Qt::QueuedConnection);
+            return;
+        }
+        const QString refName = QString::fromUtf8(git_reference_name(headRef));
+        git_reference_free(headRef);
+
+        const QString refspecStr = refName + ":" + refName;
+        QByteArray refspecBytes = refspecStr.toUtf8();
+        char* refspecs[1] = {refspecBytes.data()};
+        git_strarray refspecArray{refspecs, 1};
+
+        PushPayload payload{token.toStdString()};
+        git_push_options opts = GIT_PUSH_OPTIONS_INIT;
+        opts.callbacks.credentials = credentialsAcquire;
+        opts.callbacks.payload = &payload;
+
+        const int rc = git_remote_push(remote, &refspecArray, &opts);
+        git_remote_free(remote);
+
+        if (rc != 0) {
+            git_repository_free(bgRepo);
+            
+            QMetaObject::invokeMethod(this, [this, remoteName, branch]() {
+                QProcess* proc = new QProcess(this);
+                proc->setWorkingDirectory(m_repoPath);
+                proc->setProgram("git");
+                proc->setArguments({"push", remoteName, branch});
+                
+                connect(proc, &QProcess::finished, this, [this, proc](int exitCode, QProcess::ExitStatus exitStatus) {
+                    QString out = QString::fromUtf8(proc->readAllStandardOutput()) + QString::fromUtf8(proc->readAllStandardError());
+                    bool ok = (exitStatus == QProcess::NormalExit && exitCode == 0);
+                    if (ok) {
+                        emit repoChanged();
+                        emit pushFinished(true, "");
+                    } else {
+                        emit errorOccurred(QString("Push failed:\n") + out.trimmed());
+                        emit pushFinished(false, out);
+                    }
+                    proc->deleteLater();
+                });
+                proc->start();
+            }, Qt::QueuedConnection);
+            return;
+        }
+        
+        // Manually update the remote tracking branch
+        if (!branch.isEmpty()) {
+            QString trackingRef = "refs/remotes/" + remoteName + "/" + branch;
+            git_reference* headRefForUpdate = nullptr;
+            if (git_repository_head(&headRefForUpdate, bgRepo) == 0) {
+                git_reference* newRef = nullptr;
+                git_reference_create(&newRef, bgRepo, trackingRef.toUtf8().constData(), git_reference_target(headRefForUpdate), 1, "update by push");
+                if (newRef) git_reference_free(newRef);
+                git_reference_free(headRefForUpdate);
+            }
+        }
+        
+        git_repository_free(bgRepo);
+        
+        QMetaObject::invokeMethod(this, [this]() {
+            emit repoChanged();
+            emit pushFinished(true, "");
+        }, Qt::QueuedConnection);
+    });
 }
 
-bool GitRepo::pushCommit(const QString& sha, const QString& remoteName) {
-    if (!m_repo) return false;
-    QString out;
-    // git push remote <sha>:<branch>
-    if (runGit(m_repoPath, {"push", remoteName, sha + ":" + currentBranchName()}, &out)) {
-        emit repoChanged();
-        return true;
+void GitRepo::pushCommit(const QString& sha, const QString& remoteName) {
+    if (!m_repo) {
+        emit pushFinished(false, "Repository not open");
+        return;
     }
-    emit errorOccurred(QString("Push commit failed:\n") + out.trimmed());
-    return false;
+    
+    QProcess* proc = new QProcess(this);
+    proc->setWorkingDirectory(m_repoPath);
+    proc->setProgram("git");
+    proc->setArguments({"push", remoteName, sha + ":" + currentBranchName()});
+    
+    connect(proc, &QProcess::finished, this, [this, proc](int exitCode, QProcess::ExitStatus exitStatus) {
+        QString out = QString::fromUtf8(proc->readAllStandardOutput()) + QString::fromUtf8(proc->readAllStandardError());
+        bool ok = (exitStatus == QProcess::NormalExit && exitCode == 0);
+        if (ok) {
+            emit repoChanged();
+            emit pushFinished(true, "");
+        } else {
+            emit errorOccurred(QString("Push commit failed:\n") + out.trimmed());
+            emit pushFinished(false, out);
+        }
+        proc->deleteLater();
+    });
+    
+    proc->start();
 }
 
 QString GitRepo::currentBranchName() const {
@@ -321,23 +373,34 @@ QStringList GitRepo::branches() const {
     return list;
 }
 
-bool GitRepo::checkoutBranch(const QString& branchName) {
-    if (!m_repo) return false;
-    QString out;
-    bool ok;
-    if (branchName.contains('/')) {
-        // Automatically set up tracking for remote branches (e.g. origin/arnav)
-        ok = runGit(m_repoPath, {"checkout", "--track", branchName}, &out);
-    } else {
-        ok = runGit(m_repoPath, {"checkout", branchName}, &out);
+void GitRepo::checkoutBranch(const QString& branchName) {
+    if (!m_repo) {
+        emit checkoutFinished(false, "Repository not open");
+        return;
     }
     
-    if (!ok) emit errorOccurred("Checkout failed:\n" + out);
-    if (ok) {
-        refreshDiff();
-        emit repoChanged();
+    QProcess* proc = new QProcess(this);
+    proc->setWorkingDirectory(m_repoPath);
+    proc->setProgram("git");
+    if (branchName.contains('/')) {
+        proc->setArguments({"checkout", "--track", branchName});
+    } else {
+        proc->setArguments({"checkout", branchName});
     }
-    return ok;
+    
+    connect(proc, &QProcess::finished, this, [this, proc](int exitCode, QProcess::ExitStatus exitStatus) {
+        QString out = QString::fromUtf8(proc->readAllStandardOutput()) + QString::fromUtf8(proc->readAllStandardError());
+        bool ok = (exitStatus == QProcess::NormalExit && exitCode == 0);
+        if (!ok) emit errorOccurred("Checkout failed:\n" + out);
+        if (ok) {
+            refreshDiff();
+            emit repoChanged();
+        }
+        emit checkoutFinished(ok, out);
+        proc->deleteLater();
+    });
+    
+    proc->start();
 }
 
 // ── Helper: run a git sub-command in the repo working dir ─────────────────
@@ -354,21 +417,52 @@ static bool runGit(const QString& workDir, const QStringList& args, QString* out
     return proc.exitStatus() == QProcess::NormalExit && proc.exitCode() == 0;
 }
 
-bool GitRepo::fetchRemote(const QString& remoteName) {
-    if (!m_repo) return false;
-    QString out;
-    bool ok = runGit(m_repoPath, {"fetch", remoteName}, &out);
-    if (!ok) emit errorOccurred("git fetch failed:\n" + out);
-    return ok;
+void GitRepo::fetchRemote(const QString& remoteName) {
+    if (!m_repo) {
+        emit fetchFinished(false, "Repository not open");
+        return;
+    }
+    
+    QProcess* proc = new QProcess(this);
+    proc->setWorkingDirectory(m_repoPath);
+    proc->setProgram("git");
+    proc->setArguments({"fetch", remoteName});
+    
+    connect(proc, &QProcess::finished, this, [this, proc](int exitCode, QProcess::ExitStatus exitStatus) {
+        QString out = QString::fromUtf8(proc->readAllStandardOutput()) + QString::fromUtf8(proc->readAllStandardError());
+        bool ok = (exitStatus == QProcess::NormalExit && exitCode == 0);
+        if (!ok) emit errorOccurred("git fetch failed:\n" + out);
+        emit fetchFinished(ok, out);
+        proc->deleteLater();
+    });
+    
+    proc->start();
 }
 
-bool GitRepo::pullRemote(const QString& remoteName) {
-    if (!m_repo) return false;
-    QString out;
-    bool ok = runGit(m_repoPath, {"pull", remoteName, currentBranchName()}, &out);
-    if (!ok) emit errorOccurred("git pull failed:\n" + out);
-    if (ok) { refreshDiff(); emit repoChanged(); }
-    return ok;
+void GitRepo::pullRemote(const QString& remoteName) {
+    if (!m_repo) {
+        emit pullFinished(false, "Repository not open");
+        return;
+    }
+    
+    QProcess* proc = new QProcess(this);
+    proc->setWorkingDirectory(m_repoPath);
+    proc->setProgram("git");
+    proc->setArguments({"pull", remoteName, currentBranchName()});
+    
+    connect(proc, &QProcess::finished, this, [this, proc](int exitCode, QProcess::ExitStatus exitStatus) {
+        QString out = QString::fromUtf8(proc->readAllStandardOutput()) + QString::fromUtf8(proc->readAllStandardError());
+        bool ok = (exitStatus == QProcess::NormalExit && exitCode == 0);
+        if (!ok) emit errorOccurred("git pull failed:\n" + out);
+        if (ok) {
+            refreshDiff();
+            emit repoChanged();
+        }
+        emit pullFinished(ok, out);
+        proc->deleteLater();
+    });
+    
+    proc->start();
 }
 
 QStringList GitRepo::unpushedCommitShas(const QString& remoteName) const {
