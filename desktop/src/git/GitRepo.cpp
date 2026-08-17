@@ -614,9 +614,17 @@ bool GitRepo::resetToCommit(const QString& sha, bool hard) {
 bool GitRepo::mergeBranch(const QString& branchName) {
     if (!m_repo || branchName.isEmpty()) return false;
     QString out;
-    bool ok = runGit(m_repoPath, {"merge", branchName}, &out);
+    // --no-edit prevents git from hanging trying to open a terminal editor for the merge commit message
+    bool ok = runGit(m_repoPath, {"merge", "--no-edit", branchName}, &out);
     if (!ok) {
-        emit errorOccurred("git merge failed:\n" + out);
+        if (out.contains("CONFLICT") || out.contains("Automatic merge failed")) {
+            // Safe Mode for novices: Automatically abort broken merges
+            QString abortOut;
+            runGit(m_repoPath, {"merge", "--abort"}, &abortOut);
+            emit errorOccurred("Merge conflict detected! For your safety, the merge was automatically aborted.\n\nTo merge this branch, you must resolve the conflicts using a full Git client or IDE.\n\nGit output:\n" + out);
+        } else {
+            emit errorOccurred("git merge failed:\n" + out);
+        }
         return false;
     }
     refreshDiff();
