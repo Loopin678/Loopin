@@ -101,6 +101,44 @@ Item {
             font.bold: true
         }
 
+        // Timers for async UI updates
+        Timer {
+            id: commitTimer
+            interval: 50
+            onTriggered: {
+                var allOk = true
+                for (var i = 0; i < root.groups.length; i++) {
+                    var g = root.groups[i]
+                    var ok = root.repo.stageAndCommit(g.files, g.message)
+                    if (ok) {
+                        root.api.reportCommit("", g.message, root.taskId)
+                    } else {
+                        allOk = false
+                        console.log("Commit failed for:", g.message)
+                    }
+                }
+                if (allOk) {
+                    root.hasCommitted = true
+                    root.statusMessage = "Committed successfully. Ready to push."
+                } else {
+                    root.statusMessage = "Some commits failed."
+                }
+            }
+        }
+
+        Timer {
+            id: pushTimer
+            interval: 50
+            onTriggered: {
+                var pushed = root.repo.pushCurrentBranch(root.githubToken, remotePicker.currentText)
+                if (pushed) {
+                    root.statusMessage = "Pushed to '" + remotePicker.currentText + "' successfully!"
+                } else {
+                    root.statusMessage = "Push to '" + remotePicker.currentText + "' failed. Check the application logs."
+                }
+            }
+        }
+
         // Action row
         RowLayout {
             spacing: 12
@@ -111,27 +149,11 @@ Item {
             }
 
             Button {
-                text: "Commit Local Changes"
-                enabled: root.groups.length > 0 && !root.hasCommitted
+                text: root.statusMessage === "Committing..." ? "Committing..." : "Commit Local Changes"
+                enabled: root.groups.length > 0 && !root.hasCommitted && root.statusMessage !== "Committing..."
                 onClicked: {
                     root.statusMessage = "Committing..."
-                    var allOk = true
-                    for (var i = 0; i < root.groups.length; i++) {
-                        var g = root.groups[i]
-                        var ok = root.repo.stageAndCommit(g.files, g.message)
-                        if (ok) {
-                            root.api.reportCommit("", g.message, root.taskId)
-                        } else {
-                            allOk = false
-                            console.log("Commit failed for:", g.message)
-                        }
-                    }
-                    if (allOk) {
-                        root.hasCommitted = true
-                        root.statusMessage = "Committed successfully. Ready to push."
-                    } else {
-                        root.statusMessage = "Some commits failed."
-                    }
+                    commitTimer.start()
                 }
             }
 
@@ -144,16 +166,11 @@ Item {
             }
 
             Button {
-                text: "Push to Remote"
-                enabled: root.hasCommitted && root.availableRemotes.length > 0
+                text: root.statusMessage.indexOf("Pushing") === 0 ? "Pushing..." : "Push to Remote"
+                enabled: root.hasCommitted && root.availableRemotes.length > 0 && root.statusMessage.indexOf("Pushing") !== 0
                 onClicked: {
                     root.statusMessage = "Pushing to '" + remotePicker.currentText + "'..."
-                    var pushed = root.repo.pushCurrentBranch(root.githubToken, remotePicker.currentText)
-                    if (pushed) {
-                        root.statusMessage = "Pushed to '" + remotePicker.currentText + "' successfully!"
-                    } else {
-                        root.statusMessage = "Push to '" + remotePicker.currentText + "' failed. Check the application logs."
-                    }
+                    pushTimer.start()
                 }
             }
         }
