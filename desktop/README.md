@@ -1,116 +1,84 @@
-# Collab Desktop Client (MVP)
+# Loopin Desktop Client
 
-A Qt6/QML + C++ desktop app that:
-- logs in with GitHub via OAuth **Device Flow**
-- opens a local git repo and shows the working-directory diff (via libgit2)
-- sends that diff to your backend (or, if none is configured, groups it
-  locally with a naive stand-in) to get back proposed commit groups
-- lets you review and confirm those groups, then actually creates the
-  git commits and pushes them via libgit2
+Loopin is a modern desktop application that watches your local Git repositories and automatically groups your uncommitted changes into logical, AI-generated commits. 
 
-This has been build-tested (compiles, links, and loads its QML with no
-runtime errors) against Qt 6.4.2 and libgit2 1.7.2 on Ubuntu 24.04. The
-git logic (diff reading, including new/untracked files, staging,
-committing) was also exercised against a real throwaway repo — see
-"What was actually tested" below.
+## Features
+- **GitHub OAuth Login**: Secure authentication via GitHub Device Flow, with tokens securely stored in the native Windows Credential Manager (via QtKeychain).
+- **AI Auto-Grouping**: Uses Gemini 1.5 Flash (or OpenRouter/Ollama) to analyze your code diffs and organize them into discrete, logical commit groups.
+- **Git Integration**: Full local repository management via libgit2. It watches your folder for changes, stages selected files, and pushes directly to your remote.
+- **Project Tracking**: Connects to a Node.js backend to track commits against specific projects and tasks.
+- **Modern UI**: Built with Qt 6 and QML, featuring a sleek dark-mode interface, glassmorphism, and responsive layouts.
 
-## 1. Before you build
+## Technology Stack
+- **Frontend/GUI**: Qt 6.11, QML, Qt Quick Controls 2
+- **Core Logic**: C++17
+- **Git Operations**: libgit2
+- **Build System**: CMake, MinGW64 (MSYS2)
+- **Installer**: NSIS (Modern UI 2)
 
-**Register a GitHub OAuth App:**
-1. GitHub → Settings → Developer settings → OAuth Apps → New OAuth App
-2. Any placeholder value works for "Authorization callback URL" (e.g.
-   `http://localhost`) — Device Flow doesn't use it.
-3. **Check "Enable Device Flow"** on the app's settings page. This is
-   off by default; without it `/login/device/code` returns 404.
-4. Copy the **Client ID** and paste it into
-   `src/auth/GitHubAuth.cpp`, replacing `YOUR_GITHUB_OAUTH_CLIENT_ID`.
-   No client secret is needed for Device Flow.
+---
 
-## 2. Install dependencies
+## 🛠 Building from Source (Windows)
 
-**Ubuntu/Debian:**
-```bash
-sudo apt install qt6-base-dev qt6-declarative-dev qml6-module-qtquick \
-    qml6-module-qtquick-controls qml6-module-qtquick-layouts \
-    qml6-module-qtquick-window qml6-module-qtqml-workerscript \
-    qml6-module-qtquick-templates libgit2-dev pkg-config cmake build-essential
-```
+### 1. Prerequisites
+You need an MSYS2 environment with the MinGW64 toolchain. Install the following packages in your MSYS2 terminal:
+`ash
+pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-ninja
+pacman -S mingw-w64-x86_64-qt6 mingw-w64-x86_64-libgit2 mingw-w64-x86_64-qtkeychain-qt6
+`
 
-**macOS (Homebrew):**
-```bash
-brew install qt libgit2 pkg-config cmake
-```
+### 2. Building the Executable
+Open an MSYS2 MinGW64 terminal and run:
+`ash
+cd desktop
+cmake -B build_release -DCMAKE_BUILD_TYPE=Release -G Ninja
+cmake --build build_release
+`
 
-**Windows:** easiest path is [vcpkg](https://vcpkg.io) for libgit2
-(`vcpkg install libgit2`) plus the official Qt6 installer for the Qt
-side; wire both into CMake via `CMAKE_PREFIX_PATH` /
-`CMAKE_TOOLCHAIN_FILE`.
+### 3. Packaging the Installer (NSIS)
+To generate the final LoopinSetup.exe installer for distribution:
+1. Ensure makensis is installed: pacman -S mingw-w64-x86_64-nsis
+2. Copy your built executable into the dist folder:
+   `ash
+   cp build_release/loopin_desktop.exe dist/
+   `
+3. Generate the installer:
+   `ash
+   makensis installer.nsi
+   `
+This will output LoopinSetup.exe in the root of the desktop folder.
 
-## 3. Build
+---
 
-```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Debug
-cmake --build build -j$(nproc)
-./build/collab_desktop_client
-```
+## 🧪 Testing the Backend on Localhost
 
-## 4. Try it out
+To test the full integration between the desktop app and your database, you need to run the Node.js backend locally.
 
-1. Click "Login with GitHub" — a browser opens and a code is shown in
-   the app. Enter the code on GitHub to approve.
-2. Paste the path to a local git repo you have write access to, click
-   "Open".
-3. Edit some files in that repo in another terminal/editor. The app
-   polls every 2s and refreshes the change list automatically (or hit
-   "Refresh now").
-4. Click "Organize Changes". With no `backendUrl` set on `ApiClient`
-   (the default), this uses a **local mock grouping** — it buckets
-   changed files by top-level directory just so you can exercise the
-   rest of the flow. Swap in your real backend once it exists by
-   setting `backendUrl` on the `ApiClient { }` in `qml/main.qml`.
-5. Review the proposed commits, click "Confirm and Push" — this
-   creates real commits in the repo you opened and pushes the current
-   branch to `origin` using your GitHub token.
+### 1. Setup the Database
+1. Navigate to the backend folder: cd ../backend
+2. Open the .env file and ensure your DATABASE_URL is pointing to your active PostgreSQL/Supabase database.
+3. If this is your first time, initialize the database schema:
+   `ash
+   npx prisma db push
+   `
 
-## What was actually tested
+### 2. Start the Server
+1. Install backend dependencies:
+   `ash
+   npm install
+   `
+2. Start the Express server:
+   `ash
+   node index.js
+   `
+   *The server will start running on http://localhost:3000.*
 
-While building this I compiled and ran the app (offscreen, headless)
-to confirm it loads with no QML errors, and separately wrote a small
-standalone harness that exercised `GitRepo`/`DiffModel` directly
-against a real throwaway git repo — modifying a tracked file and
-adding two new untracked files, then confirming:
-- the diff correctly reports all three changes (this caught a real
-  bug: libgit2 excludes untracked files from a diff by default, and
-  separately excludes their *content* even when included, unless you
-  ask for both — both are now handled)
-- new files are correctly labeled `"added"` rather than `"modified"`
-- staging + committing a chosen subset of files produces a real git
-  commit with exactly those files, leaving the rest pending
+### 3. Connect the Desktop App
+1. Launch the Loopin desktop application.
+2. Click on the Settings tab.
+3. Ensure the Backend URL is set to http://localhost:3000. 
+   *(Note: This is the default value for fresh installations).*
+4. Open a Git repository in the app. The app will now successfully fetch tasks from your local backend server!
 
-Pushing (`pushCurrentBranch`) and the GitHub Device Flow login were
-**not** exercised end-to-end here (both need real network access to
-github.com and a real OAuth app / remote, which this environment
-doesn't have) — read that code carefully, and test it against a
-scratch repo/remote before pointing it at anything you care about.
-
-## Known gaps / next steps
-
-- **Token storage**: the GitHub token currently only lives in memory
-  (`window.githubToken` in `main.qml`) and is lost on restart. Add
-  [QtKeychain](https://github.com/frankosterfeld/qtkeychain) to
-  persist it in the OS keychain instead of asking the user to log in
-  every run.
-- **Deleted files**: `stageAndCommit` calls `git_index_add_bypath` for
-  every file, which is wrong for deletions — use
-  `git_index_remove_bypath` for entries whose `changeType` is
-  `"deleted"`.
-- **Change polling** is a dumb 2s timer, not real file-system events —
-  fine for an MVP, but the design doc's "change-event store" concept
-  is the real fix if you want instant feedback without polling.
-- **Commit SHA reporting**: `stageAndCommit` returns `bool`, not the
-  resulting SHA, so `reportCommit()` is currently called with an empty
-  SHA. Change it to return `QString` (the OID) if your backend needs
-  the real commit hash to link into the website.
-- The mock grouping in `ApiClient::mockGroups` is intentionally dumb
-  (buckets by top-level directory) — replace by pointing `backendUrl`
-  at your real backend once the AI-grouping endpoint exists.
+## Environment Variables
+If you want to bake a Gemini API key into the app during testing, you can run the executable with the GEMINI_API_KEY environment variable set. Otherwise, users can provide their own key in the Settings UI.
