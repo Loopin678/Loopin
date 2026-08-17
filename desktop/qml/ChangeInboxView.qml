@@ -245,6 +245,7 @@ Item {
             TabButton { text: "History" }
             TabButton { text: "Stash (" + stashListView.count + ")" }
             TabButton { text: "Tools" }
+            TabButton { text: "Settings" }
         }
 
         StackLayout {
@@ -456,20 +457,35 @@ Item {
                             font.bold: true; font.pixelSize: 15; color: Theme.textPrimary
                             Layout.fillWidth: true
                         }
-                        Row {
+                        RowLayout {
                             spacing: 12
-                            Row {
+                            RowLayout {
                                 spacing: 4
-                                Rectangle { width: 10; height: 10; radius: 2; color: Theme.warning; anchors.verticalCenter: parent.verticalCenter }
-                                Text { text: "Unpushed"; font.pixelSize: 11; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+                                Rectangle { width: 10; height: 10; radius: 2; color: Theme.danger; Layout.alignment: Qt.AlignVCenter }
+                                Text { text: "Unpushed"; font.pixelSize: 11; color: Theme.textSecondary; Layout.alignment: Qt.AlignVCenter }
                             }
-                            Row {
+                            RowLayout {
                                 spacing: 4
-                                Rectangle { width: 10; height: 10; radius: 2; color: Theme.success; anchors.verticalCenter: parent.verticalCenter }
-                                Text { text: "Pushed"; font.pixelSize: 11; color: Theme.textSecondary; anchors.verticalCenter: parent.verticalCenter }
+                                Rectangle { width: 10; height: 10; radius: 2; color: Theme.success; Layout.alignment: Qt.AlignVCenter }
+                                Text { text: "Pushed"; font.pixelSize: 11; color: Theme.textSecondary; Layout.alignment: Qt.AlignVCenter }
                             }
                         }
-                        Button { text: "Refresh"; onClicked: refreshAll() }
+                        Button { 
+                            id: historyRefreshBtn
+                            text: "Refresh"
+                            onClicked: {
+                                text = "Refreshing..."
+                                historyRefreshTimer.start()
+                            }
+                            Timer {
+                                id: historyRefreshTimer
+                                interval: 50
+                                onTriggered: {
+                                    refreshAll()
+                                    historyRefreshBtn.text = "Refresh"
+                                }
+                            }
+                        }
                     }
 
                     Rectangle {
@@ -487,18 +503,19 @@ Item {
                                 property bool isUnpushed: root.unpushedShas.indexOf(modelData.sha) >= 0
 
                                 color: isUnpushed
-                                    ? (Theme.dark ? "#2a2518" : "#fff8e8")
+                                    ? (Theme.dark ? "#2d1618" : "#ffebe9")
                                     : (index % 2 === 0 ? Theme.rowBase : Theme.rowAlt)
 
-                                Rectangle { height: 1; width: parent.width; anchors.bottom: parent.bottom; color: Theme.divider }
-                                Rectangle { width: 3; height: parent.height; color: parent.isUnpushed ? Theme.warning : "transparent" }
+                                Rectangle { height: 1; width: parent.width; anchors.bottom: parent.bottom; color: Theme.border }
+                                Rectangle { width: 3; height: parent.height; color: parent.isUnpushed ? Theme.danger : "transparent" }
 
                                 MouseArea {
                                     anchors.fill: parent
                                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                                     hoverEnabled: true
                                     onEntered: parent.color = Theme.rowHover
-                                    onExited: parent.color = isUnpushed ? (Theme.dark ? "#2a2518" : "#fff8e8") : (index % 2 === 0 ? Theme.rowBase : Theme.rowAlt)
+                                    onExited: parent.color = isUnpushed ? (Theme.dark ? "#2d1618" : "#ffebe9") : (index % 2 === 0 ? Theme.rowBase : Theme.rowAlt)
+                                    
                                     
                                     onClicked: function(mouse) {
                                         if (mouse.button === Qt.LeftButton) {
@@ -718,6 +735,111 @@ Item {
                     Item { Layout.fillHeight: true }
                 }
             }
+
+            // ═══════ TAB 4: Settings ═══════════════════════════════════════
+            Item {
+                ScrollView {
+                    anchors.fill: parent
+                    contentWidth: parent.width
+                    clip: true
+                    
+                    ColumnLayout {
+                        width: parent.width
+                        anchors.margins: 16
+                        spacing: 16
+
+                        Rectangle {
+                            Layout.fillWidth: true; Layout.margins: 16
+                            implicitHeight: aiSettingsCol.implicitHeight + 32
+                            color: Theme.surface; radius: 8
+                            border.color: Theme.border; border.width: 1
+
+                            ColumnLayout {
+                                id: aiSettingsCol
+                                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 16 }
+                                spacing: 12
+
+                                Text {
+                                    text: "AI Preferences"
+                                    font.bold: true; font.pixelSize: 16; color: Theme.textPrimary
+                                }
+                                Text {
+                                    text: "Select your preferred AI provider for generating commit messages and .gitignore files."
+                                    wrapMode: Text.WordWrap; Layout.fillWidth: true
+                                    color: Theme.textSecondary; font.pixelSize: 13
+                                }
+
+                                RowLayout {
+                                    spacing: 8
+                                    Text { text: "Provider:"; color: Theme.textPrimary; font.bold: true }
+                                    ComboBox {
+                                        id: providerCombo
+                                        Layout.fillWidth: true
+                                        model: ["Ollama (Local)", "Google Gemini", "OpenRouter"]
+                                        currentIndex: {
+                                            if (root.api.aiProvider === "gemini") return 1
+                                            if (root.api.aiProvider === "openrouter") return 2
+                                            return 0
+                                        }
+                                        onActivated: {
+                                            if (currentIndex === 0) root.api.aiProvider = "ollama"
+                                            else if (currentIndex === 1) root.api.aiProvider = "gemini"
+                                            else if (currentIndex === 2) root.api.aiProvider = "openrouter"
+                                        }
+                                    }
+                                }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 4
+                                    visible: root.api.aiProvider === "gemini"
+                                    Text { text: "Gemini API Key:"; color: Theme.textPrimary; font.bold: true }
+                                    TextField {
+                                        Layout.fillWidth: true
+                                        echoMode: TextInput.Password
+                                        text: root.api.geminiApiKey
+                                        placeholderText: "AIzaSy..."
+                                        onEditingFinished: root.api.geminiApiKey = text
+                                    }
+                                    Text {
+                                        text: "Stored safely in your local Windows Registry."
+                                        color: Theme.textSecondary; font.pixelSize: 11
+                                    }
+                                }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 4
+                                    visible: root.api.aiProvider === "openrouter"
+                                    Text { text: "OpenRouter API Key:"; color: Theme.textPrimary; font.bold: true }
+                                    TextField {
+                                        Layout.fillWidth: true
+                                        echoMode: TextInput.Password
+                                        text: root.api.openRouterApiKey
+                                        placeholderText: "sk-or-v1-..."
+                                        onEditingFinished: root.api.openRouterApiKey = text
+                                    }
+                                    Text {
+                                        text: "Stored safely in your local Windows Registry."
+                                        color: Theme.textSecondary; font.pixelSize: 11
+                                    }
+                                }
+                                
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 4
+                                    visible: root.api.aiProvider === "ollama"
+                                    Text {
+                                        text: "Ollama automatically runs locally on your PC. Ensure it is running and the 'qwen2.5-coder:1.5b' model is installed."
+                                        color: Theme.textSecondary; font.pixelSize: 12
+                                        wrapMode: Text.WordWrap; Layout.fillWidth: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -845,14 +967,42 @@ Item {
         width: 700; height: 500
         anchors.centerIn: parent
 
+        background: Rectangle {
+            color: Theme.bg
+            border.color: Theme.border
+            radius: 8
+        }
+
         property string currentSha: ""
         property string commitMsg: ""
+
+        function formatDiff(patch) {
+            if (!patch) return "No diff available."
+            var lines = patch.split('\n')
+            var html = "<pre style='font-family: Consolas, \"Courier New\", monospace; font-size: 12px;'>"
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i]
+                // Escape HTML
+                var escaped = line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                if (line.startsWith("+")) {
+                    html += "<span style='color: " + Theme.success + ";'>" + escaped + "</span>\n"
+                } else if (line.startsWith("-")) {
+                    html += "<span style='color: " + Theme.danger + ";'>" + escaped + "</span>\n"
+                } else if (line.startsWith("@@")) {
+                    html += "<span style='color: " + Theme.accent + ";'>" + escaped + "</span>\n"
+                } else {
+                    html += "<span style='color: " + Theme.textPrimary + ";'>" + escaped + "</span>\n"
+                }
+            }
+            html += "</pre>"
+            return html
+        }
 
         function showCommit(sha, msg) {
             currentSha = sha
             commitMsg = msg
             var patch = root.repo.getCommitDiff(sha)
-            commitDiffText.text = patch ? patch : "No diff available."
+            commitDiffText.text = formatDiff(patch)
             open()
         }
 
@@ -862,7 +1012,8 @@ Item {
 
             Text {
                 text: "Commit: " + commitDetailsDialog.currentSha
-                font.family: "Courier New"; font.pixelSize: 14; font.bold: true
+                font.family: "Consolas, Courier New"
+                font.pixelSize: 14; font.bold: true
                 color: Theme.textPrimary
             }
             Text {
@@ -872,16 +1023,23 @@ Item {
                 Layout.fillWidth: true
             }
             
-            ScrollView {
+            Rectangle {
                 Layout.fillWidth: true; Layout.fillHeight: true
-                clip: true
-                TextArea {
-                    id: commitDiffText
-                    readOnly: true
-                    font.family: "Courier New"
-                    font.pixelSize: 12
-                    color: Theme.textPrimary
-                    background: Rectangle { color: Theme.surface2; radius: 4 }
+                color: Theme.surface2; radius: 6
+                border.color: Theme.border; border.width: 1
+
+                ScrollView {
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    clip: true
+                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOn
+                    ScrollBar.vertical.policy: ScrollBar.AlwaysOn
+                    
+                    Text {
+                        id: commitDiffText
+                        textFormat: Text.RichText
+                        color: Theme.textPrimary
+                    }
                 }
             }
         }
