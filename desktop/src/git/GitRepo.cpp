@@ -229,12 +229,18 @@ bool GitRepo::pushCurrentBranch(const QString& token, const QString& remoteName)
     if (rc != 0) {
         QString out;
         if (runGit(m_repoPath, {"push", remoteName, currentBranchName()}, &out)) {
+            runGit(m_repoPath, {"fetch", remoteName}, &out);
+            emit repoChanged();
             return true;
         }
 
         emit errorOccurred(QString("Push failed:\n") + out.trimmed());
         return false;
     }
+    
+    QString out;
+    runGit(m_repoPath, {"fetch", remoteName}, &out);
+    emit repoChanged();
     return true;
 }
 
@@ -243,6 +249,7 @@ bool GitRepo::pushCommit(const QString& sha, const QString& remoteName) {
     QString out;
     // git push remote <sha>:<branch>
     if (runGit(m_repoPath, {"push", remoteName, sha + ":" + currentBranchName()}, &out)) {
+        runGit(m_repoPath, {"fetch", remoteName}, &out);
         emit repoChanged();
         return true;
     }
