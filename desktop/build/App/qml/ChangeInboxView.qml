@@ -841,6 +841,56 @@ Item {
                                 }
                             }
                         }
+
+                        Rectangle {
+                            Layout.fillWidth: true; Layout.margins: 16
+                            implicitHeight: loopinSettingsCol.implicitHeight + 32
+                            color: Theme.surface; radius: 8
+                            border.color: Theme.border; border.width: 1
+
+                            ColumnLayout {
+                                id: loopinSettingsCol
+                                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 16 }
+                                spacing: 12
+
+                                Text {
+                                    text: "Loopin Platform Configuration"
+                                    font.bold: true; font.pixelSize: 16; color: Theme.textPrimary
+                                }
+                                Text {
+                                    text: "Link your local commits to tasks on the Loopin collaborative platform."
+                                    wrapMode: Text.WordWrap; Layout.fillWidth: true
+                                    color: Theme.textSecondary; font.pixelSize: 13
+                                }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 4
+                                    Text { text: "Project ID:"; color: Theme.textPrimary; font.bold: true }
+                                    TextField {
+                                        Layout.fillWidth: true
+                                        text: root.api.projectId
+                                        placeholderText: "Enter your project UUID"
+                                        onEditingFinished: {
+                                            root.api.projectId = text
+                                            root.api.fetchTasks() // Refresh tasks when project ID changes
+                                        }
+                                    }
+                                }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 4
+                                    Text { text: "User ID:"; color: Theme.textPrimary; font.bold: true }
+                                    TextField {
+                                        Layout.fillWidth: true
+                                        text: root.api.userId
+                                        placeholderText: "Enter your user UUID"
+                                        onEditingFinished: root.api.userId = text
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
