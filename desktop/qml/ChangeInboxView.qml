@@ -18,6 +18,7 @@ Item {
     property bool fetchBusy: false
     property bool pullBusy: false
     property bool pushBusy: false
+    property bool checkoutBusy: false
     property bool commitBusy: false
     property bool gitignoreBusy: false
     property bool aiOrganizeBusy: false
@@ -50,6 +51,29 @@ Item {
             historyList.model = root.repo.commitHistory(50); 
             stashListView.model = root.repo.stashList(); 
             refreshUnpushed() 
+        }
+        
+        // Async completion handlers
+        function onCheckoutFinished(ok, errorMsg) {
+            root.checkoutBusy = false
+            root.opsStatus = ok ? "Switched to branch" : "Checkout failed"
+            root.opsIsError = !ok
+            if (ok) refreshAll()
+        }
+        function onFetchFinished(ok, errorMsg) {
+            root.fetchBusy = false
+            root.opsStatus = ok ? "Fetch complete" : "Fetch failed"
+            root.opsIsError = !ok
+        }
+        function onPullFinished(ok, errorMsg) {
+            root.pullBusy = false
+            root.opsStatus = ok ? "Pull complete" : "Pull failed"
+            root.opsIsError = !ok
+        }
+        function onPushFinished(ok, errorMsg) {
+            root.pushBusy = false
+            root.opsStatus = ok ? "Push complete" : "Push failed"
+            root.opsIsError = !ok
         }
     }
 
@@ -125,13 +149,30 @@ Item {
                     font.bold: true
                     displayText: root.repo.isOpen && root.repo.currentBranchName !== "" ? root.repo.currentBranchName : "No branch"
                     
+                    property string pendingBranch: ""
                     onActivated: function(index) {
                         var selectedBranch = model[index]
                         if (selectedBranch !== root.repo.currentBranchName) {
-                            var ok = root.repo.checkoutBranch(selectedBranch)
-                            root.opsStatus = ok ? "Switched to " + selectedBranch : "Checkout failed"
-                            root.opsIsError = !ok
-                            if (ok) refreshAll()
+                            root.checkoutBusy = true
+                            root.opsStatus = "Switching to " + selectedBranch + "..."
+                            root.opsIsError = false
+                            branchPicker.pendingBranch = selectedBranch
+                            checkoutTimer.start()
+                        }
+                    }
+                }
+                Timer {
+                    id: checkoutTimer; interval: 50; repeat: false
+                    onTriggered: {
+                        var ok = root.repo.checkoutBranch(branchPicker.pendingBranch)
+                        root.checkoutBusy = false
+                        if (ok) {
+                            root.opsStatus = "Switched to branch"
+                            root.opsIsError = false
+                            refreshAll()
+                        } else {
+                            root.opsStatus = "Checkout failed. Stash or commit your changes first."
+                            root.opsIsError = true
                         }
                     }
                 }
