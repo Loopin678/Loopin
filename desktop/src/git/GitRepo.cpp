@@ -151,12 +151,16 @@ QString GitRepo::stageAndCommit(const QStringList& files, const QString& message
     git_index_write(index);
 
     git_oid treeId;
-    git_index_write_tree(&treeId, index);
+    if (git_index_write_tree(&treeId, index) != 0) {
+        emit errorOccurred("Failed to write tree: " + lastErrorMessage());
+        git_index_free(index);
+        return QString();
+    }
     git_index_free(index);
 
     git_tree* tree = nullptr;
     if (git_tree_lookup(&tree, m_repo, &treeId) != 0) {
-        emit errorOccurred(lastErrorMessage());
+        emit errorOccurred("Failed to lookup tree: " + lastErrorMessage());
         return QString();
     }
 
