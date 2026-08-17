@@ -1,6 +1,0 @@
-<RCC>
-  <qresource prefix="/App">
-    <file alias="qmldir">C:/a_Coding/Loopin/desktop/build/App/qmldir</file>
-  </qresource>
-</RCC>
-

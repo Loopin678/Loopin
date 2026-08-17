@@ -18,6 +18,7 @@ Item {
     property bool fetchBusy: false
     property bool pullBusy: false
     property bool pushBusy: false
+    property bool checkoutBusy: false
     property bool commitBusy: false
     property bool gitignoreBusy: false
     property bool aiOrganizeBusy: false
@@ -50,6 +51,29 @@ Item {
             historyList.model = root.repo.commitHistory(50); 
             stashListView.model = root.repo.stashList(); 
             refreshUnpushed() 
+        }
+        
+        // Async completion handlers
+        function onCheckoutFinished(ok, errorMsg) {
+            root.checkoutBusy = false
+            root.opsStatus = ok ? "Switched to branch" : "Checkout failed"
+            root.opsIsError = !ok
+            if (ok) refreshAll()
+        }
+        function onFetchFinished(ok, errorMsg) {
+            root.fetchBusy = false
+            root.opsStatus = ok ? "Fetch complete" : "Fetch failed"
+            root.opsIsError = !ok
+        }
+        function onPullFinished(ok, errorMsg) {
+            root.pullBusy = false
+            root.opsStatus = ok ? "Pull complete" : "Pull failed"
+            root.opsIsError = !ok
+        }
+        function onPushFinished(ok, errorMsg) {
+            root.pushBusy = false
+            root.opsStatus = ok ? "Push complete" : "Push failed"
+            root.opsIsError = !ok
         }
     }
 
@@ -117,6 +141,51 @@ Item {
                 spacing: 6
 
                 // Branch picker
+                Button {
+                    text: "+"
+                    enabled: root.repo.isOpen
+                    implicitWidth: 32
+                    font.bold: true
+                    ToolTip.visible: hovered; ToolTip.text: "Create new branch"
+                    onClicked: newBranchDialog.open()
+                }
+
+                Dialog {
+                    id: newBranchDialog
+                    title: "Create New Branch"
+                    standardButtons: Dialog.Ok | Dialog.Cancel
+                    x: Math.round((root.width - width) / 2)
+                    y: Math.round((root.height - height) / 2)
+                    width: 300
+                    
+                    ColumnLayout {
+                        anchors.fill: parent
+                        TextField {
+                            id: newBranchNameField
+                            placeholderText: "Branch name"
+                            Layout.fillWidth: true
+                            onAccepted: newBranchDialog.accept()
+                        }
+                    }
+                    
+                    onOpened: newBranchNameField.forceActiveFocus()
+                    onAccepted: {
+                        var bName = newBranchNameField.text.trim()
+                        if (bName !== "") {
+                            var ok = root.repo.createBranch(bName, true) // create and checkout
+                            if (ok) {
+                                root.opsStatus = "Created branch " + bName
+                                root.opsIsError = false
+                                refreshAll()
+                            } else {
+                                root.opsStatus = "Failed to create branch."
+                                root.opsIsError = true
+                            }
+                        }
+                        newBranchNameField.text = ""
+                    }
+                }
+
                 ComboBox {
                     id: branchPicker
                     model: root.repo.isOpen ? root.repo.branches : []
@@ -125,13 +194,30 @@ Item {
                     font.bold: true
                     displayText: root.repo.isOpen && root.repo.currentBranchName !== "" ? root.repo.currentBranchName : "No branch"
                     
+                    property string pendingBranch: ""
                     onActivated: function(index) {
                         var selectedBranch = model[index]
                         if (selectedBranch !== root.repo.currentBranchName) {
-                            var ok = root.repo.checkoutBranch(selectedBranch)
-                            root.opsStatus = ok ? "Switched to " + selectedBranch : "Checkout failed"
-                            root.opsIsError = !ok
-                            if (ok) refreshAll()
+                            root.checkoutBusy = true
+                            root.opsStatus = "Switching to " + selectedBranch + "..."
+                            root.opsIsError = false
+                            branchPicker.pendingBranch = selectedBranch
+                            checkoutTimer.start()
+                        }
+                    }
+                }
+                Timer {
+                    id: checkoutTimer; interval: 50; repeat: false
+                    onTriggered: {
+                        var ok = root.repo.checkoutBranch(branchPicker.pendingBranch)
+                        root.checkoutBusy = false
+                        if (ok) {
+                            root.opsStatus = "Switched to branch"
+                            root.opsIsError = false
+                            refreshAll()
+                        } else {
+                            root.opsStatus = "Checkout failed. Stash or commit your changes first."
+                            root.opsIsError = true
                         }
                     }
                 }
@@ -618,7 +704,14 @@ Item {
                             enabled: root.repo.isOpen && stashListView.count > 0
                             onClicked: {
                                 var ok = root.repo.stashPop()
-                                if (ok) refreshAll()
+                                if (ok) {
+                                    stashStatus.text = "Stash popped successfully."
+                                    stashStatus.color = Theme.textMuted
+                                    refreshAll()
+                                } else {
+                                    stashStatus.text = "Failed to pop stash (likely due to merge conflicts)."
+                                    stashStatus.color = Theme.error
+                                }
                             }
                             ToolTip.visible: hovered
                             ToolTip.text: "Apply and remove the most recent stash"
@@ -640,9 +733,26 @@ Item {
                             onClicked: {
                                 var msg = stashMsgField.text.trim()
                                 var ok = root.repo.stashChanges(msg)
-                                if (ok) { stashMsgField.text = ""; refreshAll() }
+                                if (ok) {
+                                    stashMsgField.text = ""
+                                    stashStatus.text = "Changes stashed."
+                                    stashStatus.color = Theme.textMuted
+                                    refreshAll()
+                                } else {
+                                    stashStatus.text = "Failed to stash changes."
+                                    stashStatus.color = Theme.error
+                                }
                             }
                         }
+                    }
+
+                    Text {
+                        id: stashStatus
+                        Layout.fillWidth: true
+                        text: ""
+                        color: Theme.textMuted
+                        font.pixelSize: 12
+                        visible: text !== ""
                     }
 
                     Rectangle {

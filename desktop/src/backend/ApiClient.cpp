@@ -122,7 +122,7 @@ void ApiClient::requestCommitGroups(const QJsonArray& changes, const QString& ta
         QJsonObject systemInstruction;
         QJsonArray systemParts;
         QJsonObject systemText;
-        systemText["text"] = "You are a professional software engineer. Group the following git diffs into logical atomic commits. For each commit, provide a professional commit message following the Conventional Commits specification, and a list of file paths included in that commit. Return a JSON array of objects, each containing 'message' (string) and 'files' (array of strings).";
+        systemText["text"] = "You are a professional software engineer. Group the following git diffs into logical atomic commits. For each commit, provide a professional commit message following the Conventional Commits specification, and a list of file paths included in that commit. YOU MUST RETURN EXACTLY ONE RAW JSON ARRAY of objects, each containing 'message' (string) and 'files' (array of strings). DO NOT OUTPUT MARKDOWN FORMATTING OR ANY EXPLANATORY CONVERSATIONAL TEXT. ONLY JSON.";
         systemParts.append(systemText);
         systemInstruction["parts"] = systemParts;
 
@@ -171,8 +171,34 @@ void ApiClient::requestCommitGroups(const QJsonArray& changes, const QString& ta
             QJsonArray candidates = json.value("candidates").toArray();
             if (!candidates.isEmpty()) {
                 QString resultText = candidates.first().toObject().value("content").toObject().value("parts").toArray().first().toObject().value("text").toString();
+                
                 QJsonDocument doc = QJsonDocument::fromJson(resultText.toUtf8());
-                emit commitGroupsReady(doc.array());
+                if (doc.isArray()) {
+                    emit commitGroupsReady(doc.array());
+                } else if (doc.isObject()) {
+                    // responseMimeType json may return {"commits": [...]} wrapper
+                    QJsonObject obj = doc.object();
+                    for (auto it = obj.begin(); it != obj.end(); ++it) {
+                        if (it.value().isArray()) {
+                            emit commitGroupsReady(it.value().toArray());
+                            return;
+                        }
+                    }
+                    emit requestFailed("AI returned JSON object without an array:\n" + resultText.left(300));
+                } else {
+                    // Try to extract just the JSON array from conversational text
+                    int startIdx = resultText.indexOf('[');
+                    int endIdx = resultText.lastIndexOf(']');
+                    if (startIdx != -1 && endIdx != -1 && endIdx > startIdx) {
+                        QString extracted = resultText.mid(startIdx, endIdx - startIdx + 1);
+                        QJsonDocument extractedDoc = QJsonDocument::fromJson(extracted.toUtf8());
+                        if (extractedDoc.isArray()) {
+                            emit commitGroupsReady(extractedDoc.array());
+                            return;
+                        }
+                    }
+                    emit requestFailed("AI returned invalid JSON:\n" + resultText.left(300));
+                }
             } else {
                 emit requestFailed("Failed to generate commits using Gemini AI");
             }
@@ -192,7 +218,7 @@ void ApiClient::requestCommitGroups(const QJsonArray& changes, const QString& ta
         QJsonArray messages;
         QJsonObject systemMsg;
         systemMsg["role"] = "system";
-        systemMsg["content"] = "You are a professional software engineer. Group the following git diffs into logical atomic commits. For each commit, provide a professional commit message following the Conventional Commits specification, and a list of file paths included in that commit. Return ONLY a JSON array of objects, each containing 'message' (string) and 'files' (array of strings). Do not output markdown, do not output explanations.";
+        systemMsg["content"] = "You are a professional software engineer. Group the following git diffs into logical atomic commits. For each commit, provide a professional commit message following the Conventional Commits specification, and a list of file paths included in that commit. YOU MUST RETURN EXACTLY ONE RAW JSON ARRAY of objects, each containing 'message' (string) and 'files' (array of strings). DO NOT OUTPUT MARKDOWN FORMATTING OR ANY EXPLANATORY CONVERSATIONAL TEXT. ONLY JSON.";
         messages.append(systemMsg);
 
         QJsonArray truncatedChanges;
@@ -213,6 +239,11 @@ void ApiClient::requestCommitGroups(const QJsonArray& changes, const QString& ta
         messages.append(userMsg);
 
         body["messages"] = messages;
+
+        // Force JSON output
+        QJsonObject responseFormat;
+        responseFormat["type"] = "json_object";
+        body["response_format"] = responseFormat;
 
         QNetworkRequest req(QUrl(m_aiProvider == "openrouter" ? "https://openrouter.ai/api/v1/chat/completions" : "http://localhost:11434/api/chat"));
         req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -236,16 +267,39 @@ void ApiClient::requestCommitGroups(const QJsonArray& changes, const QString& ta
                 ? json.value("choices").toArray().first().toObject().value("message").toObject().value("content").toString()
                 : json.value("message").toObject().value("content").toString(); // fallback for ollama if different schema
             
-            // Strip out any markdown formatting that small models love to add
-            resultText.replace("```json", "");
-            resultText.replace("```", "");
-            resultText = resultText.trimmed();
+            // Try to extract just the JSON array if the model included conversational text
+            int startIdx = resultText.indexOf('[');
+            int endIdx = resultText.lastIndexOf(']');
+            if (startIdx != -1 && endIdx != -1 && endIdx > startIdx) {
+                resultText = resultText.mid(startIdx, endIdx - startIdx + 1);
+            }
 
             QJsonDocument doc = QJsonDocument::fromJson(resultText.toUtf8());
             if (doc.isArray()) {
                 emit commitGroupsReady(doc.array());
+            } else if (doc.isObject()) {
+                // json_object mode may return {"commits": [...]} or {"groups": [...]}
+                QJsonObject obj = doc.object();
+                for (auto it = obj.begin(); it != obj.end(); ++it) {
+                    if (it.value().isArray()) {
+                        emit commitGroupsReady(it.value().toArray());
+                        return;
+                    }
+                }
+                emit requestFailed("AI returned JSON object without an array:\n" + resultText.left(300));
             } else {
-                emit requestFailed("AI returned invalid JSON:\n" + resultText);
+                // Try to extract just the JSON array if the model included conversational text
+                int startIdx = resultText.indexOf('[');
+                int endIdx = resultText.lastIndexOf(']');
+                if (startIdx != -1 && endIdx != -1 && endIdx > startIdx) {
+                    QString extracted = resultText.mid(startIdx, endIdx - startIdx + 1);
+                    QJsonDocument extractedDoc = QJsonDocument::fromJson(extracted.toUtf8());
+                    if (extractedDoc.isArray()) {
+                        emit commitGroupsReady(extractedDoc.array());
+                        return;
+                    }
+                }
+                emit requestFailed("AI returned invalid JSON:\n" + resultText.left(300));
             }
         });
         return;

@@ -59,10 +59,13 @@ public:
     // Pulls (fetch + merge) from `remoteName` using system git.
     Q_INVOKABLE bool pullRemote(const QString& remoteName = "origin");
 
-    // Checkouts an existing branch.
+    // Checks out the specified branch.
     Q_INVOKABLE bool checkoutBranch(const QString& branchName);
 
-    // Returns short SHAs of commits that are ahead of remote (not yet pushed).
+    // Creates a new branch from HEAD and optionally checks it out.
+    Q_INVOKABLE bool createBranch(const QString& branchName, bool checkout = true);
+
+    // Returns unpushed commit SHAs that are ahead of remote (not yet pushed).
     Q_INVOKABLE QStringList unpushedCommitShas(const QString& remoteName = "origin") const;
 
     // Writes content to a file relative to the repo root. Returns true on success.

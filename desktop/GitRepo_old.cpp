@@ -5,7 +5,6 @@
 #include <QDir>
 #include <QFile>
 #include <QTextStream>
-#include <QtConcurrent/QtConcurrent>
 
 namespace {
 
@@ -152,16 +151,12 @@ QString GitRepo::stageAndCommit(const QStringList& files, const QString& message
     git_index_write(index);
 
     git_oid treeId;
-    if (git_index_write_tree(&treeId, index) != 0) {
-        emit errorOccurred("Failed to write tree: " + lastErrorMessage());
-        git_index_free(index);
-        return QString();
-    }
+    git_index_write_tree(&treeId, index);
     git_index_free(index);
 
     git_tree* tree = nullptr;
     if (git_tree_lookup(&tree, m_repo, &treeId) != 0) {
-        emit errorOccurred("Failed to lookup tree: " + lastErrorMessage());
+        emit errorOccurred(lastErrorMessage());
         return QString();
     }
 
@@ -207,14 +202,14 @@ bool GitRepo::pushCurrentBranch(const QString& token, const QString& remoteName)
 
     git_remote* remote = nullptr;
     if (git_remote_lookup(&remote, m_repo, remoteName.toUtf8().constData()) != 0) {
-        emit errorOccurred("Remote lookup failed: " + lastErrorMessage());
+        emit errorOccurred(lastErrorMessage());
         return false;
     }
 
     git_reference* headRef = nullptr;
     if (git_repository_head(&headRef, m_repo) != 0) {
         git_remote_free(remote);
-        emit errorOccurred("HEAD lookup failed");
+        emit errorOccurred(lastErrorMessage());
         return false;
     }
     const QString refName = QString::fromUtf8(git_reference_name(headRef));
@@ -234,10 +229,8 @@ bool GitRepo::pushCurrentBranch(const QString& token, const QString& remoteName)
     git_remote_free(remote);
 
     if (rc != 0) {
-        // Fallback to system git (handles SSH remotes, credential helpers, etc.)
-        QString branch = currentBranchName();
         QString out;
-        if (runGit(m_repoPath, {"push", remoteName, branch}, &out)) {
+        if (runGit(m_repoPath, {"push", remoteName, currentBranchName()}, &out)) {
             emit repoChanged();
             return true;
         }
@@ -328,31 +321,8 @@ QStringList GitRepo::branches() const {
     return list;
 }
 
-bool GitRepo::createBranch(const QString& branchName, bool checkout) {
-    if (!m_repo) return false;
-    
-    QString out;
-    QStringList args = {"branch", branchName};
-    bool ok = runGit(m_repoPath, args, &out);
-    if (!ok) {
-        emit errorOccurred("Failed to create branch:\n" + out);
-        return false;
-    }
-    
-    emit repoChanged();
-    
-    if (checkout) {
-        return checkoutBranch(branchName);
-    }
-    
-    return true;
-}
-
 bool GitRepo::checkoutBranch(const QString& branchName) {
-    if (!m_repo) {
-        emit checkoutFinished(false, "Repository not open");
-        return false;
-    }
+    if (!m_repo) return false;
     QString out;
     bool ok;
     if (branchName.contains('/')) {
@@ -367,7 +337,6 @@ bool GitRepo::checkoutBranch(const QString& branchName) {
         refreshDiff();
         emit repoChanged();
     }
-    emit checkoutFinished(ok, out);
     return ok;
 }
 
@@ -386,27 +355,19 @@ static bool runGit(const QString& workDir, const QStringList& args, QString* out
 }
 
 bool GitRepo::fetchRemote(const QString& remoteName) {
-    if (!m_repo) {
-        emit fetchFinished(false, "Repository not open");
-        return false;
-    }
+    if (!m_repo) return false;
     QString out;
     bool ok = runGit(m_repoPath, {"fetch", remoteName}, &out);
     if (!ok) emit errorOccurred("git fetch failed:\n" + out);
-    emit fetchFinished(ok, out);
     return ok;
 }
 
 bool GitRepo::pullRemote(const QString& remoteName) {
-    if (!m_repo) {
-        emit pullFinished(false, "Repository not open");
-        return false;
-    }
+    if (!m_repo) return false;
     QString out;
     bool ok = runGit(m_repoPath, {"pull", remoteName, currentBranchName()}, &out);
     if (!ok) emit errorOccurred("git pull failed:\n" + out);
     if (ok) { refreshDiff(); emit repoChanged(); }
-    emit pullFinished(ok, out);
     return ok;
 }
 

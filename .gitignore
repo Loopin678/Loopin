@@ -31,7 +31,6 @@ CTestTestfile.cmake
 .ninja_deps
 .ninja_log
 *.ninja
-desktop/*
 
 # Qt / QML
 *autogen/
@@ -42,7 +41,8 @@ desktop/*
 *.aotstats
 
 # Project Build Directories
-/[Dd]esktop/build/
+desktop/build/
+desktop/build_release/
 [Bb]uild/
 
 # Node.js
