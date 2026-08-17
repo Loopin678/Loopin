@@ -470,3 +470,53 @@ QStringList GitRepo::listAllFiles() const {
         files.append(line.trimmed());
     return files;
 }
+
+QString GitRepo::getCommitDiff(const QString& sha) {
+    if (!m_repo || sha.isEmpty()) return {};
+    QString out;
+    bool ok = runGit(m_repoPath, {"show", sha, "--format=format:"}, &out);
+    if (!ok) {
+        emit errorOccurred("git show failed:\n" + out);
+        return {};
+    }
+    return out;
+}
+
+bool GitRepo::revertCommit(const QString& sha) {
+    if (!m_repo || sha.isEmpty()) return false;
+    QString out;
+    bool ok = runGit(m_repoPath, {"revert", "--no-commit", sha}, &out);
+    if (!ok) {
+        emit errorOccurred("git revert failed:\n" + out);
+        return false;
+    }
+    refreshDiff();
+    emit repoChanged();
+    return true;
+}
+
+bool GitRepo::resetToCommit(const QString& sha, bool hard) {
+    if (!m_repo || sha.isEmpty()) return false;
+    QString out;
+    bool ok = runGit(m_repoPath, {"reset", hard ? "--hard" : "--soft", sha}, &out);
+    if (!ok) {
+        emit errorOccurred("git reset failed:\n" + out);
+        return false;
+    }
+    refreshDiff();
+    emit repoChanged();
+    return true;
+}
+
+bool GitRepo::mergeBranch(const QString& branchName) {
+    if (!m_repo || branchName.isEmpty()) return false;
+    QString out;
+    bool ok = runGit(m_repoPath, {"merge", branchName}, &out);
+    if (!ok) {
+        emit errorOccurred("git merge failed:\n" + out);
+        return false;
+    }
+    refreshDiff();
+    emit repoChanged();
+    return true;
+}

@@ -69,6 +69,18 @@ public:
     // sha (short), message, author, date
     Q_INVOKABLE QVariantList commitHistory(int limit = 50) const;
 
+    // Returns patch text for a specific commit
+    Q_INVOKABLE QString getCommitDiff(const QString& sha);
+
+    // Reverts a commit (without auto-committing)
+    Q_INVOKABLE bool revertCommit(const QString& sha);
+
+    // Resets HEAD to a commit (soft or hard)
+    Q_INVOKABLE bool resetToCommit(const QString& sha, bool hard);
+
+    // Merges a branch into the current branch
+    Q_INVOKABLE bool mergeBranch(const QString& branchName);
+
     // Discards working-directory changes for a single file (git checkout -- file)
     Q_INVOKABLE bool discardFileChanges(const QString& filePath);
 
