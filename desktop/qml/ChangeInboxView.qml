@@ -1172,18 +1172,25 @@ Item {
         }
 
         ColumnLayout {
-            spacing: 12
+            spacing: 8
             anchors.fill: parent
             Text {
-                text: "Select tasks for commit " + editTaskDialog.targetSha.substring(0, 8) + ":"
+                text: "Search and select tasks:"
                 color: Theme.textPrimary
+                font.bold: true
             }
             TextField {
                 id: historyTaskSearch
                 Layout.fillWidth: true
-                placeholderText: "Search tasks..."
+                placeholderText: "Type to search..."
                 color: Theme.textPrimary
-                background: Rectangle { color: Theme.surface; border.color: Theme.border; radius: 4 }
+                background: Rectangle { 
+                    color: Theme.dark ? Theme.surface : "#eef1f5" 
+                    border.color: Theme.dark ? Theme.border : "#c0c7ce"
+                    border.width: 1
+                    radius: 4 
+                    implicitHeight: 30
+                }
                 onTextChanged: editTaskDialog.updateModel()
             }
             Rectangle {
@@ -1205,25 +1212,6 @@ Item {
                             var tIds = window.linkedCommits[editTaskDialog.targetSha] || []
                             return tIds.indexOf(modelData.id) >= 0
                         }
-                        
-                        indicator: Rectangle {
-                            implicitWidth: 16
-                            implicitHeight: 16
-                            x: parent.leftPadding
-                            y: parent.height / 2 - height / 2
-                            radius: 3
-                            color: parent.checked ? Theme.accent : "transparent"
-                            border.color: parent.checked ? Theme.accent : Theme.border
-                            
-                            Text {
-                                text: "✔"
-                                visible: parent.parent.checked
-                                color: "white"
-                                anchors.centerIn: parent
-                                font.pixelSize: 10
-                            }
-                        }
-
                         contentItem: Text {
                             text: parent.text
                             font.pixelSize: 13
@@ -1253,15 +1241,6 @@ Item {
             window.linkedCommits = newMap
 
             root.api.reportCommit(targetSha, "(History Task Update)", selectedIds)
-            refreshLinkedTimer.start()
-        }
-    }
-
-    Timer {
-        id: refreshLinkedTimer
-        interval: 300
-        onTriggered: {
-            root.api.fetchProjectCommits()
         }
     }
 

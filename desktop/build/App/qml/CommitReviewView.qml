@@ -246,16 +246,17 @@ Item {
         }
 
         ColumnLayout {
-            spacing: 12
+            spacing: 8
             anchors.fill: parent
             Text {
-                text: "Select tasks to link with these new commits:"
+                text: "Search and select tasks:"
                 color: Theme.textPrimary
+                font.bold: true
             }
             TextField {
                 id: newCommitTaskSearch
                 Layout.fillWidth: true
-                placeholderText: "Search tasks..."
+                placeholderText: "Type to search..."
                 color: Theme.textPrimary
                 background: Rectangle { color: Theme.surface; border.color: Theme.border; radius: 4 }
                 onTextChanged: newCommitTaskDialog.updateModel()
@@ -276,25 +277,6 @@ Item {
                         text: modelData.title
                         property string taskId: modelData.id
                         onCheckedChanged: linkTasksBtn.text = linkTasksBtn.text // force re-eval
-                        
-                        indicator: Rectangle {
-                            implicitWidth: 16
-                            implicitHeight: 16
-                            x: parent.leftPadding
-                            y: parent.height / 2 - height / 2
-                            radius: 3
-                            color: parent.checked ? Theme.accent : "transparent"
-                            border.color: parent.checked ? Theme.accent : Theme.border
-                            
-                            Text {
-                                text: "✔"
-                                visible: parent.parent.checked
-                                color: "white"
-                                anchors.centerIn: parent
-                                font.pixelSize: 10
-                            }
-                        }
-
                         contentItem: Text {
                             text: parent.text
                             font.pixelSize: 13
