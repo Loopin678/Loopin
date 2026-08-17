@@ -18,6 +18,9 @@ ApplicationWindow {
     Settings {
         id: settings
         property string lastRepoPath: ""
+        property string aiProvider: "ollama"
+        property string geminiApiKey: ""
+        property string openRouterApiKey: ""
     }
 
     // C++ objects, instantiated once for the app's lifetime.
@@ -30,6 +33,13 @@ ApplicationWindow {
     }
     ApiClient {
         id: apiClient
+        aiProvider: settings.aiProvider
+        geminiApiKey: settings.geminiApiKey
+        openRouterApiKey: settings.openRouterApiKey
+
+        onAiProviderChanged: settings.aiProvider = aiProvider
+        onGeminiApiKeyChanged: settings.geminiApiKey = geminiApiKey
+        onOpenRouterApiKeyChanged: settings.openRouterApiKey = openRouterApiKey
     }
     ChangeWatcher { id: changeWatcher }
 
@@ -87,7 +97,10 @@ ApplicationWindow {
     Component {
         id: reviewComponent
         CommitReviewView {
-            onDone: stack.pop()
+            onDone: {
+                stack.pop()
+                gitRepo.refreshDiff()
+            }
         }
     }
 }

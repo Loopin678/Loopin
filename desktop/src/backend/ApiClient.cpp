@@ -7,8 +7,32 @@
 #include <QNetworkRequest>
 #include <QTimer>
 #include <QUrl>
+#include <qglobal.h>
 
-ApiClient::ApiClient(QObject* parent) : QObject(parent) {}
+ApiClient::ApiClient(QObject* parent) : QObject(parent) {
+    QString envKey = qEnvironmentVariable("GEMINI_API_KEY");
+    if (!envKey.isEmpty()) {
+        m_geminiApiKey = envKey;
+    }
+}
+
+void ApiClient::setAiProvider(const QString& p) {
+    if (m_aiProvider == p) return;
+    m_aiProvider = p;
+    emit aiProviderChanged();
+}
+
+void ApiClient::setGeminiApiKey(const QString& k) {
+    if (m_geminiApiKey == k) return;
+    m_geminiApiKey = k;
+    emit geminiApiKeyChanged();
+}
+
+void ApiClient::setOpenRouterApiKey(const QString& k) {
+    if (m_openRouterApiKey == k) return;
+    m_openRouterApiKey = k;
+    emit openRouterApiKeyChanged();
+}
 
 void ApiClient::setBackendUrl(const QString& url) {
     if (m_backendUrl == url) return;
@@ -17,7 +41,11 @@ void ApiClient::setBackendUrl(const QString& url) {
 }
 
 void ApiClient::requestCommitGroups(const QJsonArray& changes, const QString& taskId) {
-    if (!m_geminiApiKey.isEmpty()) {
+    if (m_aiProvider == "gemini") {
+        if (m_geminiApiKey.isEmpty()) {
+            emit requestFailed("Gemini API key is not configured in settings.");
+            return;
+        }
         QJsonObject systemInstruction;
         QJsonArray systemParts;
         QJsonObject systemText;
@@ -28,7 +56,7 @@ void ApiClient::requestCommitGroups(const QJsonArray& changes, const QString& ta
         QJsonObject contents;
         QJsonArray parts;
         QJsonObject textPart;
-        // Truncate large patches to at most 80 lines to avoid exceeding API limits
+        
         QJsonArray truncatedChanges;
         for (const QJsonValue& val : changes) {
             QJsonObject obj = val.toObject();
@@ -54,14 +82,15 @@ void ApiClient::requestCommitGroups(const QJsonArray& changes, const QString& ta
         body["contents"] = contentsArr;
         body["generationConfig"] = generationConfig;
 
-        QNetworkRequest req(QUrl(QStringLiteral("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=") + m_geminiApiKey));
+        QNetworkRequest req(QUrl(QStringLiteral("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=") + m_geminiApiKey));
         req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
         QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson());
         connect(reply, &QNetworkReply::finished, this, [this, reply]() {
             reply->deleteLater();
             if (reply->error() != QNetworkReply::NoError) {
-                emit requestFailed(reply->errorString());
+                QString errBody = QString::fromUtf8(reply->readAll());
+                emit requestFailed("Gemini Error: " + reply->errorString() + (errBody.isEmpty() ? "" : "\n" + errBody));
                 return;
             }
             
@@ -72,7 +101,78 @@ void ApiClient::requestCommitGroups(const QJsonArray& changes, const QString& ta
                 QJsonDocument doc = QJsonDocument::fromJson(resultText.toUtf8());
                 emit commitGroupsReady(doc.array());
             } else {
-                emit requestFailed("Failed to generate commits using AI");
+                emit requestFailed("Failed to generate commits using Gemini AI");
+            }
+        });
+        return;
+    } else {
+        // ollama or openrouter
+        if (m_aiProvider == "openrouter" && m_openRouterApiKey.isEmpty()) {
+            emit requestFailed("OpenRouter API key is not configured in settings.");
+            return;
+        }
+
+        QJsonObject body;
+        body["model"] = (m_aiProvider == "openrouter") ? "google/gemini-2.5-flash" : "qwen2.5-coder:1.5b";
+        body["stream"] = false;
+
+        QJsonArray messages;
+        QJsonObject systemMsg;
+        systemMsg["role"] = "system";
+        systemMsg["content"] = "You are a professional software engineer. Group the following git diffs into logical atomic commits. For each commit, provide a professional commit message following the Conventional Commits specification, and a list of file paths included in that commit. Return ONLY a JSON array of objects, each containing 'message' (string) and 'files' (array of strings). Do not output markdown, do not output explanations.";
+        messages.append(systemMsg);
+
+        QJsonArray truncatedChanges;
+        for (const QJsonValue& val : changes) {
+            QJsonObject obj = val.toObject();
+            QString patch = obj.value("patch").toString();
+            QStringList patchLines = patch.split('\n');
+            if (patchLines.size() > 80) {
+                patchLines = patchLines.mid(0, 80);
+                obj["patch"] = patchLines.join('\n') + "\n... (truncated)";
+            }
+            truncatedChanges.append(obj);
+        }
+        
+        QJsonObject userMsg;
+        userMsg["role"] = "user";
+        userMsg["content"] = QString::fromUtf8(QJsonDocument(truncatedChanges).toJson(QJsonDocument::Compact));
+        messages.append(userMsg);
+
+        body["messages"] = messages;
+
+        QNetworkRequest req(QUrl(m_aiProvider == "openrouter" ? "https://openrouter.ai/api/v1/chat/completions" : "http://localhost:11434/api/chat"));
+        req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        if (m_aiProvider == "openrouter") {
+            req.setRawHeader("Authorization", ("Bearer " + m_openRouterApiKey).toUtf8());
+            req.setRawHeader("HTTP-Referer", "https://github.com/loopin"); 
+            req.setRawHeader("X-Title", "Loopin Desktop");
+        }
+
+        QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson());
+        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+            reply->deleteLater();
+            if (reply->error() != QNetworkReply::NoError) {
+                QString errBody = QString::fromUtf8(reply->readAll());
+                emit requestFailed("AI Provider Error: " + reply->errorString() + (errBody.isEmpty() ? "" : "\n" + errBody));
+                return;
+            }
+            
+            QJsonObject json = QJsonDocument::fromJson(reply->readAll()).object();
+            QString resultText = json.value("choices").isArray() 
+                ? json.value("choices").toArray().first().toObject().value("message").toObject().value("content").toString()
+                : json.value("message").toObject().value("content").toString(); // fallback for ollama if different schema
+            
+            // Strip out any markdown formatting that small models love to add
+            resultText.replace("```json", "");
+            resultText.replace("```", "");
+            resultText = resultText.trimmed();
+
+            QJsonDocument doc = QJsonDocument::fromJson(resultText.toUtf8());
+            if (doc.isArray()) {
+                emit commitGroupsReady(doc.array());
+            } else {
+                emit requestFailed("AI returned invalid JSON:\n" + resultText);
             }
         });
         return;
@@ -151,52 +251,116 @@ QJsonArray ApiClient::mockGroups(const QJsonArray& changes) const {
 }
 
 void ApiClient::generateGitignore(const QStringList& files) {
-    QJsonObject systemInstruction;
-    QJsonArray systemParts;
-    QJsonObject systemText;
-    systemText["text"] = "You are a senior developer. Given this list of files in a git repository, generate a comprehensive .gitignore file. Include common patterns for the detected languages and frameworks. Only output the raw .gitignore content, no explanation.";
-    systemParts.append(systemText);
-    systemInstruction["parts"] = systemParts;
+    if (m_aiProvider == "gemini") {
+        if (m_geminiApiKey.isEmpty()) {
+            emit requestFailed("Gemini API key is not configured in settings.");
+            return;
+        }
+        QJsonObject systemInstruction;
+        QJsonArray systemParts;
+        QJsonObject systemText;
+        systemText["text"] = "You are a senior developer. Given this list of files in a git repository, generate a comprehensive .gitignore file. Include common patterns for the detected languages and frameworks. Only output the raw .gitignore content, no explanation.";
+        systemParts.append(systemText);
+        systemInstruction["parts"] = systemParts;
 
-    QJsonObject contents;
-    QJsonArray parts;
-    QJsonObject textPart;
-    textPart["text"] = files.join('\n');
-    parts.append(textPart);
-    contents["parts"] = parts;
+        QJsonObject contents;
+        QJsonArray parts;
+        QJsonObject textPart;
+        textPart["text"] = files.join('\n');
+        parts.append(textPart);
+        contents["parts"] = parts;
 
-    QJsonObject generationConfig;
-    generationConfig["responseMimeType"] = "text/plain";
+        QJsonObject generationConfig;
+        generationConfig["responseMimeType"] = "text/plain";
 
-    QJsonObject body;
-    body["systemInstruction"] = systemInstruction;
-    QJsonArray contentsArr;
-    contentsArr.append(contents);
-    body["contents"] = contentsArr;
-    body["generationConfig"] = generationConfig;
+        QJsonObject body;
+        body["systemInstruction"] = systemInstruction;
+        QJsonArray contentsArr;
+        contentsArr.append(contents);
+        body["contents"] = contentsArr;
+        body["generationConfig"] = generationConfig;
 
-    QNetworkRequest req(QUrl(QStringLiteral("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=") + m_geminiApiKey));
-    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        QNetworkRequest req(QUrl(QStringLiteral("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=") + m_geminiApiKey));
+        req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
-    QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson());
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        reply->deleteLater();
-        if (reply->error() != QNetworkReply::NoError) {
-            emit requestFailed(reply->errorString());
+        QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson());
+        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+            reply->deleteLater();
+            if (reply->error() != QNetworkReply::NoError) {
+                QString errBody = QString::fromUtf8(reply->readAll());
+                emit requestFailed("Gemini Error: " + reply->errorString() + (errBody.isEmpty() ? "" : "\n" + errBody));
+                return;
+            }
+
+            QJsonObject json = QJsonDocument::fromJson(reply->readAll()).object();
+            QJsonArray candidates = json.value("candidates").toArray();
+            if (!candidates.isEmpty()) {
+                QString text = candidates.first().toObject()
+                    .value("content").toObject()
+                    .value("parts").toArray()
+                    .first().toObject()
+                    .value("text").toString();
+                emit gitignoreReady(text);
+            } else {
+                emit requestFailed("Failed to generate .gitignore using Gemini AI");
+            }
+        });
+        return;
+    } else {
+        if (m_aiProvider == "openrouter" && m_openRouterApiKey.isEmpty()) {
+            emit requestFailed("OpenRouter API key is not configured in settings.");
             return;
         }
 
-        QJsonObject json = QJsonDocument::fromJson(reply->readAll()).object();
-        QJsonArray candidates = json.value("candidates").toArray();
-        if (!candidates.isEmpty()) {
-            QString text = candidates.first().toObject()
-                .value("content").toObject()
-                .value("parts").toArray()
-                .first().toObject()
-                .value("text").toString();
-            emit gitignoreReady(text);
-        } else {
-            emit requestFailed("Failed to generate .gitignore using AI");
+        QJsonObject body;
+        body["model"] = (m_aiProvider == "openrouter") ? "google/gemini-2.5-flash" : "qwen2.5-coder:1.5b";
+        body["stream"] = false;
+
+        QJsonArray messages;
+        QJsonObject systemMsg;
+        systemMsg["role"] = "system";
+        systemMsg["content"] = "You are a senior developer. Given this list of files in a git repository, generate a comprehensive .gitignore file. Include common patterns for the detected languages and frameworks. Only output the raw .gitignore content, no explanation.";
+        messages.append(systemMsg);
+
+        QJsonObject userMsg;
+        userMsg["role"] = "user";
+        userMsg["content"] = files.join('\n');
+        messages.append(userMsg);
+
+        body["messages"] = messages;
+
+        QNetworkRequest req(QUrl(m_aiProvider == "openrouter" ? "https://openrouter.ai/api/v1/chat/completions" : "http://localhost:11434/api/chat"));
+        req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+        if (m_aiProvider == "openrouter") {
+            req.setRawHeader("Authorization", ("Bearer " + m_openRouterApiKey).toUtf8());
+            req.setRawHeader("HTTP-Referer", "https://github.com/loopin"); 
+            req.setRawHeader("X-Title", "Loopin Desktop");
         }
-    });
+
+        QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson());
+        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+            reply->deleteLater();
+            if (reply->error() != QNetworkReply::NoError) {
+                QString errBody = QString::fromUtf8(reply->readAll());
+                emit requestFailed("AI Provider Error: " + reply->errorString() + (errBody.isEmpty() ? "" : "\n" + errBody));
+                return;
+            }
+
+            QJsonObject json = QJsonDocument::fromJson(reply->readAll()).object();
+            QString resultText = json.value("choices").isArray() 
+                ? json.value("choices").toArray().first().toObject().value("message").toObject().value("content").toString()
+                : json.value("message").toObject().value("content").toString(); // fallback
+            
+            resultText.replace("```gitignore", "");
+            resultText.replace("```", "");
+            resultText = resultText.trimmed();
+
+            if (!resultText.isEmpty()) {
+                emit gitignoreReady(resultText);
+            } else {
+                emit requestFailed("Failed to generate .gitignore using AI");
+            }
+        });
+        return;
+    }
 }

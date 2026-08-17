@@ -19,12 +19,24 @@ class ApiClient : public QObject {
     QML_ELEMENT
 
     Q_PROPERTY(QString backendUrl READ backendUrl WRITE setBackendUrl NOTIFY backendUrlChanged)
+    Q_PROPERTY(QString aiProvider READ aiProvider WRITE setAiProvider NOTIFY aiProviderChanged)
+    Q_PROPERTY(QString geminiApiKey READ geminiApiKey WRITE setGeminiApiKey NOTIFY geminiApiKeyChanged)
+    Q_PROPERTY(QString openRouterApiKey READ openRouterApiKey WRITE setOpenRouterApiKey NOTIFY openRouterApiKeyChanged)
 
 public:
     explicit ApiClient(QObject* parent = nullptr);
 
     QString backendUrl() const { return m_backendUrl; }
     void setBackendUrl(const QString& url);
+
+    QString aiProvider() const { return m_aiProvider; }
+    void setAiProvider(const QString& p);
+
+    QString geminiApiKey() const { return m_geminiApiKey; }
+    void setGeminiApiKey(const QString& k);
+
+    QString openRouterApiKey() const { return m_openRouterApiKey; }
+    void setOpenRouterApiKey(const QString& k);
 
     // `changes` should be DiffModel::toJson(). Emits commitGroupsReady
     // asynchronously (or synchronously-via-event-loop in mock mode).
@@ -40,6 +52,9 @@ public:
 
 signals:
     void backendUrlChanged();
+    void aiProviderChanged();
+    void geminiApiKeyChanged();
+    void openRouterApiKeyChanged();
 
     // groups is an array of { "message": string, "files": [string, ...] }
     void commitGroupsReady(const QJsonArray& groups);
@@ -52,5 +67,7 @@ private:
 
     QNetworkAccessManager m_nam;
     QString m_backendUrl;
-    QString m_geminiApiKey = QStringLiteral("AIzaSyC5UG8-Zgo_ZWDFr3cKdnLcGfNHqwl_iJI");
+    QString m_aiProvider = "ollama";
+    QString m_geminiApiKey;
+    QString m_openRouterApiKey;
 };
