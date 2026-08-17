@@ -9,7 +9,7 @@
 #include <QUrl>
 #include <qglobal.h>
 
-ApiClient::ApiClient(QObject* parent) : QObject(parent) {
+ApiClient::ApiClient(QObject* parent) : QObject(parent), m_backendUrl(QStringLiteral("http://localhost:3000")) {
     QString envKey = qEnvironmentVariable("GEMINI_API_KEY");
     if (!envKey.isEmpty()) {
         m_geminiApiKey = envKey;

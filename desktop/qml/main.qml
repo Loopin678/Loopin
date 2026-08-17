@@ -18,6 +18,7 @@ ApplicationWindow {
     Settings {
         id: settings
         property string lastRepoPath: ""
+        property string backendUrl: "http://localhost:3000"
         property string aiProvider: "ollama"
         property string geminiApiKey: ""
         property string openRouterApiKey: ""
