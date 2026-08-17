@@ -1184,7 +1184,13 @@ Item {
                 Layout.fillWidth: true
                 placeholderText: "Type to search..."
                 color: Theme.textPrimary
-                background: Rectangle { color: Theme.surface; border.color: Theme.border; radius: 4 }
+                background: Rectangle { 
+                    color: Theme.dark ? Theme.surface : "#eef1f5" 
+                    border.color: Theme.dark ? Theme.border : "#c0c7ce"
+                    border.width: 1
+                    radius: 4 
+                    implicitHeight: 30
+                }
                 onTextChanged: editTaskDialog.updateModel()
             }
             Rectangle {
