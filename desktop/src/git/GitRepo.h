@@ -87,6 +87,9 @@ public:
     // Discards working-directory changes for a single file (git checkout -- file)
     Q_INVOKABLE bool discardFileChanges(const QString& filePath);
 
+    // Stashes changes for a specific file
+    Q_INVOKABLE bool stashFile(const QString& filePath);
+
     // Stashes all working-directory changes
     Q_INVOKABLE bool stashChanges(const QString& message = "");
 
