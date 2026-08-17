@@ -3,6 +3,7 @@
 #include <QUrl>
 
 #include <git2.h>
+#include <QQuickStyle>
 
 int main(int argc, char* argv[]) {
     QGuiApplication app(argc, argv);
@@ -11,6 +12,8 @@ int main(int argc, char* argv[]) {
 
     // Initialize libgit2 once for the whole process lifetime.
     git_libgit2_init();
+
+    QQuickStyle::setStyle("Fusion");
 
     QQmlApplicationEngine engine;
     // NOTE: the exact qrc path Qt generates for a qt_add_qml_module can
