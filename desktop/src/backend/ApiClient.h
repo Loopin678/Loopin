@@ -78,6 +78,7 @@ signals:
     void requestFailed(const QString& errorString);
     void tasksReady(const QJsonArray& tasks);
     void projectCommitsReady(const QJsonArray& commits);
+    void commitReported(const QString& sha);
 
 private:
     QJsonArray mockGroups(const QJsonArray& changes) const;

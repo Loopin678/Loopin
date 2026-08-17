@@ -107,8 +107,9 @@ void ApiClient::reportCommit(const QString& commitSha, const QString& message, c
     }
 
     QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson());
-    connect(reply, &QNetworkReply::finished, this, [reply]() {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, commitSha]() {
         reply->deleteLater();
+        emit commitReported(commitSha);
     });
 }
 

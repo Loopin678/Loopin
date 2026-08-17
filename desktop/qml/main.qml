@@ -35,18 +35,18 @@ ApplicationWindow {
     }
     ApiClient {
         id: apiClient
+        backendUrl: settings.backendUrl
         aiProvider: settings.aiProvider
         geminiApiKey: settings.geminiApiKey
         openRouterApiKey: settings.openRouterApiKey
         projectId: settings.projectId
         userId: settings.userId
 
+        onBackendUrlChanged: settings.backendUrl = backendUrl
         onAiProviderChanged: settings.aiProvider = aiProvider
         onGeminiApiKeyChanged: settings.geminiApiKey = geminiApiKey
         onOpenRouterApiKeyChanged: settings.openRouterApiKey = openRouterApiKey
-        onProjectIdChanged: {
-            settings.projectId = projectId
-        }
+        onProjectIdChanged: settings.projectId = projectId
         onUserIdChanged: settings.userId = userId
 
         onTasksReady: function(tasksList) {
@@ -65,6 +65,11 @@ ApplicationWindow {
                 map[c.id] = tIds
             }
             window.linkedCommits = map
+        }
+        onCommitReported: function(sha) {
+            if (projectId !== "") {
+                apiClient.fetchProjectCommits()
+            }
         }
     }
     ChangeWatcher { id: changeWatcher }
