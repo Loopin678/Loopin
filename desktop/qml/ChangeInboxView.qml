@@ -235,7 +235,7 @@ Item {
                     title: "Merge Conflict Detected"
                     x: Math.round((root.width - width) / 2)
                     y: Math.round((root.height - height) / 2)
-                    width: 450
+                    width: 650
                     modal: true
                     
                     property var conflictedFiles: []
@@ -374,6 +374,32 @@ Item {
                             }
                             onObjectAdded: function(index, object) { mergeMenu.insertItem(index, object) }
                             onObjectRemoved: function(index, object) { mergeMenu.removeItem(object) }
+                        }
+                    }
+                }
+
+                Button {
+                    text: "Delete..."
+                    enabled: root.repo.isOpen && root.repo.branches.length > 1
+                    onClicked: deleteMenu.open()
+                    
+                    Menu {
+                        id: deleteMenu
+                        y: parent.height
+                        Instantiator {
+                            model: root.repo.isOpen ? root.repo.branches : []
+                            MenuItem {
+                                text: modelData
+                                visible: modelData !== root.repo.currentBranchName
+                                onClicked: {
+                                    var ok = root.repo.deleteBranch(modelData)
+                                    root.opsStatus = ok ? "Deleted branch " + modelData : "Failed to delete branch"
+                                    root.opsIsError = !ok
+                                    if (ok) refreshAll()
+                                }
+                            }
+                            onObjectAdded: function(index, object) { deleteMenu.insertItem(index, object) }
+                            onObjectRemoved: function(index, object) { deleteMenu.removeItem(object) }
                         }
                     }
                 }

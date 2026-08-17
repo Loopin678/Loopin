@@ -654,6 +654,21 @@ bool GitRepo::abortMerge() {
     return ok;
 }
 
+bool GitRepo::deleteBranch(const QString& branchName) {
+    if (!m_repo || branchName.isEmpty()) return false;
+    QString out;
+    // -D force deletes even if unmerged. Safe enough for this tool? Or -d? 
+    // Usually novices might want -D if they just created it, but let's use -d first, or just -D since there is no force UI. 
+    // I will use -D so they can definitely delete it if they want.
+    bool ok = runGit(m_repoPath, {"branch", "-D", branchName}, &out);
+    if (!ok) {
+        emit errorOccurred("Failed to delete branch:\n" + out);
+        return false;
+    }
+    emit repoChanged(); // refresh branches
+    return true;
+}
+
 bool GitRepo::resolveConflictFile(const QString& filePath, const QString& content) {
     if (!m_repo) return false;
     

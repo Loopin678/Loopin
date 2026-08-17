@@ -65,6 +65,9 @@ public:
     // Creates a new branch from HEAD and optionally checks it out.
     Q_INVOKABLE bool createBranch(const QString& branchName, bool checkout = true);
 
+    // Deletes the specified branch.
+    Q_INVOKABLE bool deleteBranch(const QString& branchName);
+
     // Aborts an in-progress merge.
     Q_INVOKABLE bool abortMerge();
 
