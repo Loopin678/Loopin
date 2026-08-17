@@ -49,14 +49,17 @@ public:
     // Fetch tasks from local backend for the current projectId
     Q_INVOKABLE void fetchTasks();
 
+    // Fetch commits from local backend for the current projectId
+    Q_INVOKABLE void fetchProjectCommits();
+
     // `changes` should be DiffModel::toJson(). Emits commitGroupsReady
     // asynchronously (or synchronously-via-event-loop in mock mode).
     Q_INVOKABLE void requestCommitGroups(const QJsonArray& changes, const QString& taskId);
 
     // Tells the backend a commit was made, so it can be associated with
-    // the task on your website.
+    // the tasks on your website.
     Q_INVOKABLE void reportCommit(const QString& commitSha, const QString& message,
-                                   const QString& taskId);
+                                   const QStringList& taskIds);
 
     // Sends the file list to Gemini and emits gitignoreReady with the result.
     Q_INVOKABLE void generateGitignore(const QStringList& files);
@@ -74,6 +77,7 @@ signals:
     void gitignoreReady(const QString& content);
     void requestFailed(const QString& errorString);
     void tasksReady(const QJsonArray& tasks);
+    void projectCommitsReady(const QJsonArray& commits);
 
 private:
     QJsonArray mockGroups(const QJsonArray& changes) const;

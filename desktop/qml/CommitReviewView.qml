@@ -111,8 +111,12 @@ Item {
                     var g = root.groups[i]
                     var commitSha = root.repo.stageAndCommit(g.files, g.message)
                     if (commitSha !== "") {
-                        var selectedTaskId = taskPicker.currentIndex > 0 ? taskPicker.model[taskPicker.currentIndex].id : ""
-                        root.api.reportCommit(commitSha, g.message, selectedTaskId)
+                        var selectedIds = []
+                        for (var j = 0; j < newCommitTaskPicker.contentItem.children.length; j++) {
+                            var child = newCommitTaskPicker.contentItem.children[j]
+                            if (child && child.checked) selectedIds.push(child.taskId)
+                        }
+                        root.api.reportCommit(commitSha, g.message, selectedIds)
                     } else {
                         allOk = false
                         console.log("Commit failed for:", g.message)
@@ -153,17 +157,21 @@ Item {
 
             RowLayout {
                 spacing: 8
-                Text { text: "Task:"; color: Theme.textPrimary; font.bold: true }
-                ComboBox {
-                    id: taskPicker
-                    textRole: "title"
-                    model: {
-                        var defaultTask = [{ id: "", title: "None" }]
-                        return defaultTask.concat(window.availableTasks || [])
+                Text { text: "Tasks:"; color: Theme.textPrimary; font.bold: true }
+                Button {
+                    id: linkTasksBtn
+                    text: {
+                        var count = 0
+                        if (typeof newCommitTaskPicker !== "undefined" && newCommitTaskPicker.contentItem) {
+                            for (var j = 0; j < newCommitTaskPicker.contentItem.children.length; j++) {
+                                var child = newCommitTaskPicker.contentItem.children[j]
+                                if (child && child.checked) count++
+                            }
+                        }
+                        return count > 0 ? count + " Selected..." : "Select..."
                     }
                     enabled: !root.hasCommitted
-                    implicitWidth: 150
-                    displayText: currentText
+                    onClicked: newCommitTaskDialog.open()
                 }
             }
 
@@ -190,6 +198,111 @@ Item {
                 onClicked: {
                     root.statusMessage = "Pushing to '" + remotePicker.currentText + "'..."
                     pushTimer.start()
+                }
+            }
+        }
+    }
+
+    // ── Multi-select Task Dialog ───────────────────────────────────────────────
+    Dialog {
+        id: newCommitTaskDialog
+        title: "Link Commits to Tasks"
+        standardButtons: Dialog.Ok
+        modal: true
+        anchors.centerIn: parent
+        width: 400
+        height: 380
+
+        background: Rectangle {
+            color: Theme.bg
+            border.color: Theme.border
+            radius: 8
+        }
+
+        property var filteredTasks: window.availableTasks
+
+        function updateModel() {
+            var term = newCommitTaskSearch.text.toLowerCase()
+            if (term === "") {
+                filteredTasks = window.availableTasks
+            } else {
+                var res = []
+                if (window.availableTasks) {
+                    for (var i = 0; i < window.availableTasks.length; i++) {
+                        if (window.availableTasks[i].title.toLowerCase().indexOf(term) >= 0) {
+                            res.push(window.availableTasks[i])
+                        }
+                    }
+                }
+                filteredTasks = res
+            }
+            newCommitTaskPicker.model = null
+            newCommitTaskPicker.model = filteredTasks
+        }
+
+        onAboutToShow: {
+            newCommitTaskSearch.text = ""
+            updateModel()
+        }
+
+        ColumnLayout {
+            spacing: 12
+            anchors.fill: parent
+            Text {
+                text: "Select tasks to link with these new commits:"
+                color: Theme.textPrimary
+            }
+            TextField {
+                id: newCommitTaskSearch
+                Layout.fillWidth: true
+                placeholderText: "Search tasks..."
+                color: Theme.textPrimary
+                background: Rectangle { color: Theme.surface; border.color: Theme.border; radius: 4 }
+                onTextChanged: newCommitTaskDialog.updateModel()
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                color: Theme.surface2; border.color: Theme.border; border.width: 1; radius: 4
+                clip: true
+
+                ListView {
+                    id: newCommitTaskPicker
+                    anchors.fill: parent; anchors.margins: 4
+                    model: newCommitTaskDialog.filteredTasks
+                    boundsBehavior: Flickable.StopAtBounds
+                    delegate: CheckBox {
+                        width: ListView.view.width
+                        text: modelData.title
+                        property string taskId: modelData.id
+                        onCheckedChanged: linkTasksBtn.text = linkTasksBtn.text // force re-eval
+                        
+                        indicator: Rectangle {
+                            implicitWidth: 16
+                            implicitHeight: 16
+                            x: parent.leftPadding
+                            y: parent.height / 2 - height / 2
+                            radius: 3
+                            color: parent.checked ? Theme.accent : "transparent"
+                            border.color: parent.checked ? Theme.accent : Theme.border
+                            
+                            Text {
+                                text: "✔"
+                                visible: parent.parent.checked
+                                color: "white"
+                                anchors.centerIn: parent
+                                font.pixelSize: 10
+                            }
+                        }
+
+                        contentItem: Text {
+                            text: parent.text
+                            font.pixelSize: 13
+                            color: Theme.textPrimary
+                            verticalAlignment: Text.AlignVCenter
+                            leftPadding: parent.indicator.width + parent.spacing
+                        }
+                    }
                 }
             }
         }

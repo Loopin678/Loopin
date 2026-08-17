@@ -70,7 +70,24 @@ void ApiClient::fetchTasks() {
     });
 }
 
-void ApiClient::reportCommit(const QString& commitSha, const QString& message, const QString& taskId) {
+void ApiClient::fetchProjectCommits() {
+    if (m_projectId.isEmpty()) return;
+
+    QNetworkRequest req(QUrl("http://localhost:3000/api/projects/" + m_projectId + "/commits"));
+    QNetworkReply* reply = m_nam.get(req);
+
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        if (reply->error() == QNetworkReply::NoError) {
+            QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+            if (doc.isArray()) {
+                emit projectCommitsReady(doc.array());
+            }
+        }
+    });
+}
+
+void ApiClient::reportCommit(const QString& commitSha, const QString& message, const QStringList& taskIds) {
     if (m_projectId.isEmpty() || m_userId.isEmpty()) return;
 
     QNetworkRequest req(QUrl("http://localhost:3000/api/commits"));
@@ -81,8 +98,12 @@ void ApiClient::reportCommit(const QString& commitSha, const QString& message, c
     body["message"] = message;
     body["projectId"] = m_projectId;
     body["authorId"] = m_userId;
-    if (!taskId.isEmpty()) {
-        body["taskId"] = taskId;
+    if (!taskIds.isEmpty()) {
+        QJsonArray idsArray;
+        for (const QString& id : taskIds) {
+            idsArray.append(id);
+        }
+        body["taskIds"] = idsArray;
     }
 
     QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson());
