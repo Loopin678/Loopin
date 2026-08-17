@@ -18,6 +18,7 @@ model User {
   assignedTasks Task[]          @relation("TaskAssignee")
   messages      Message[]
   mentions      Mention[]
+  commits       Commit[]
 }
 
 model Project {
@@ -29,6 +30,7 @@ model Project {
   lists    List[]
   tasks    Task[]
   messages Message[]
+  commits  Commit[]
 }
 
 model ProjectMember {
@@ -68,6 +70,7 @@ model Task {
   list     List    @relation(fields: [listId], references: [id])
   project  Project @relation(fields: [projectId], references: [id])
   assignee User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  commits  Commit[]
 }
 
 // Chat/comment messages, scoped to a project (extend with taskId later if you want per-task threads)
@@ -92,4 +95,18 @@ model Mention {
 
   message Message @relation(fields: [messageId], references: [id])
   user    User?   @relation(fields: [userId], references: [id]) // optional if isAiMention
+}
+
+// Represents a Git commit pushed by a user, optionally linked to a specific task
+model Commit {
+  id        String   @id // The Git commit SHA
+  message   String
+  taskId    String?  // Optional: The task this commit belongs to
+  projectId String   
+  authorId  String
+  createdAt DateTime @default(now())
+
+  task    Task?    @relation(fields: [taskId], references: [id])
+  project Project  @relation(fields: [projectId], references: [id])
+  author  User     @relation(fields: [authorId], references: [id])
 }
