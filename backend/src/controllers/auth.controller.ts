@@ -78,7 +78,7 @@ try {
     })
 }
 }
-export function logout(req: Request, res: Response):Promise<void>{
+export function logout(req: Request, res: Response): void{
     res.clearCookie("auth_token");
 
     res.status(200).json({

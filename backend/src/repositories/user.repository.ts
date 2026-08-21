@@ -28,3 +28,13 @@ export async function userExistsByEmail(email: string): Promise<boolean>{
 
     return user !== null;
 }
+
+/*
+Here all of our prisma connections will be with our database
+
+queries from Prisma to DB is our main goal here
+
+
+Gotta create basic "Types" folder's items of prisma 
+
+*/

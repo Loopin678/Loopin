@@ -86,4 +86,4 @@ export async function getUserById(id: string): Promise<PublicUser | null>{
     return toPublicUser(user);
 }
 
-export const authService = new authService();
+// export const authService = new authService();
