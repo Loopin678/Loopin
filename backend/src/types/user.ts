@@ -1,9 +1,14 @@
+export type AuthProvider = "local" | "google";
+
 export type User ={
     id: string;
     name: string;
     email: string;
-    passwordHash: string;
+    passwordHash?: string;
+    provider: AuthProvider;
+
     createdAt: Date;
+    googleId?: string;
 };
 
 /*

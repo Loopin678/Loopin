@@ -29,6 +29,16 @@ export async function userExistsByEmail(email: string): Promise<boolean>{
     return user !== null;
 }
 
+export async function findUserByGoogleId(googleId: string): Promise<User | null>{
+    for(const user of users.values()){
+        if(user.googleId === googleId){
+            return user;
+        }
+    }
+    return null;
+}
+
+
 /*
 Here all of our prisma connections will be with our database
 
