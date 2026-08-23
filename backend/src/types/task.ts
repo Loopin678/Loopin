@@ -1,4 +1,4 @@
-export interface CreatTasKInput {
+export interface CreatTaskInput {
     title: string;
     listId: string;
     description?: string;
@@ -11,7 +11,7 @@ export interface TaskSummary {
     title: string;
     position: number;
     stack: string | null;
-    asigneeId: string | null;
+    assigneeId: string | null;
 }
 
 export interface TaskDetail {
