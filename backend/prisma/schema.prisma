@@ -8,17 +8,16 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
-
+  id            String          @id @default(uuid())
+  name          String
+  email         String          @unique
+  password      String
+  createdAt     DateTime        @default(now())
+  Commit        Commit[]
+  mentions      Mention[]
+  messages      Message[]
   memberships   ProjectMember[]
   assignedTasks Task[]          @relation("TaskAssignee")
-  messages      Message[]
-  mentions      Mention[]
-  commits       Commit[]
 }
 
 model Project {
@@ -30,29 +29,26 @@ model Project {
   lists    List[]
   tasks    Task[]
   messages Message[]
-  commits  Commit[]
+  Commit   Commit[]
 }
 
 model ProjectMember {
-  id        String @id @default(uuid())
+  id        String  @id @default(uuid())
   userId    String
   projectId String
-  stack     String // e.g. "frontend", "backend", "ML", "design"
-
-  user    User    @relation(fields: [userId], references: [id])
-  project Project @relation(fields: [projectId], references: [id])
+  stack     String
+  project   Project @relation(fields: [projectId], references: [id])
+  user      User    @relation(fields: [userId], references: [id])
 }
 
-// A Kanban column. Not fixed — users can create/rename/reorder these.
 model List {
   id        String   @id @default(uuid())
   name      String
   position  Int
   projectId String
   createdAt DateTime @default(now())
-
-  project Project @relation(fields: [projectId], references: [id])
-  tasks   Task[]
+  project   Project  @relation(fields: [projectId], references: [id])
+  tasks     Task[]
 }
 
 model Task {
@@ -70,42 +66,38 @@ model Task {
   list     List    @relation(fields: [listId], references: [id])
   project  Project @relation(fields: [projectId], references: [id])
   assignee User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  commits  Commit[]
+  Commit   Commit? @relation(fields: [commitId], references: [id])
+  commitId String?
 }
 
 // Chat/comment messages, scoped to a project (extend with taskId later if you want per-task threads)
 model Message {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   content   String
   projectId String
   senderId  String
-  createdAt DateTime @default(now())
-
-  project  Project   @relation(fields: [projectId], references: [id])
-  sender   User      @relation(fields: [senderId], references: [id])
-  mentions Mention[]
+  createdAt DateTime  @default(now())
+  mentions  Mention[]
+  project   Project   @relation(fields: [projectId], references: [id])
+  sender    User      @relation(fields: [senderId], references: [id])
 }
 
-// Tracks @mentions of a user inside a message (or a task, if you extend it later)
 model Mention {
   id          String  @id @default(cuid())
   messageId   String
-  userId      String // who was mentioned
-  isAiMention Boolean @default(false) // true if this mention was @AI, not a person
-
-  message Message @relation(fields: [messageId], references: [id])
-  user    User?   @relation(fields: [userId], references: [id]) // optional if isAiMention
+  userId      String
+  isAiMention Boolean @default(false)
+  message     Message @relation(fields: [messageId], references: [id])
+  user        User    @relation(fields: [userId], references: [id])
 }
 
-// Represents a Git commit pushed by a user, optionally linked to multiple tasks
 model Commit {
-  id        String   @id // The Git commit SHA
+  id        String   @id
   message   String
-  projectId String   
+  projectId String
   authorId  String
   createdAt DateTime @default(now())
-
-  tasks   Task[]
-  project Project  @relation(fields: [projectId], references: [id])
-  author  User     @relation(fields: [authorId], references: [id])
+  User      User     @relation(fields: [authorId], references: [id])
+  Project   Project  @relation(fields: [projectId], references: [id])
+  Task      Task[]
 }
