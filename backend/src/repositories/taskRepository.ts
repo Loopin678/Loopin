@@ -1,6 +1,5 @@
-import { Task } from '@prisma/client';
 import { prisma } from '../library/prisma'
-import { CreatedTask, CreatTaskInput, TaskDetail , UpdateTaskInput} from "../types/task";
+import { CreatedTask, CreatTaskInput, MoveTaskInput, TaskDetail , UpdateTaskInput, MovedTask, DeletedTask} from "../types/task";
 
 
 async function createTask(data: CreatTaskInput): Promise<CreatedTask> {
@@ -71,3 +70,33 @@ async function updateTask(data: UpdateTaskInput): Promise<TaskDetail> {
 
     return task;
 }
+
+async function moveTask(data: MoveTaskInput): Promise<MovedTask> {
+    const task = await prisma.task.update({
+        where: { id: data.taskId },
+        data : {
+            listId: data.newListId,
+            position: data.newPosition
+        },
+        select: {
+            id: true,
+            title: true,
+            position: true,
+            stack: true,
+            assigneeId: true,
+            listId: true
+        }
+    });
+    
+    return task;
+}
+
+async function deleteTask(taskId: string): Promise<DeletedTask> {
+    const task = await prisma.task.delete({
+        where: { id: taskId },
+        select: { id: true, listId: true }
+    });
+    return task;
+}
+
+export const taskRepository = { createTask, getTaskDetail, updateTask, moveTask, deleteTask };

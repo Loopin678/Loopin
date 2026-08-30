@@ -47,3 +47,18 @@ export interface UpdateTaskInput {
     stack?: string;
     assigneeId?: string;
 }
+
+export interface MoveTaskInput {
+    taskId: string;
+    newListId: string;
+    newPosition: number;
+}
+
+export interface MovedTask extends TaskSummary {
+    listId: string;
+}
+
+export interface DeletedTask {
+    id: string;
+    listId: string;
+}
