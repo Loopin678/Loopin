@@ -70,7 +70,6 @@ model Task {
   commitId String?
 }
 
-// Chat/comment messages, scoped to a project (extend with taskId later if you want per-task threads)
 model Message {
   id        String    @id @default(cuid())
   content   String
@@ -92,7 +91,7 @@ model Mention {
 }
 
 model Commit {
-  id        String   @id
+  id        String   @id @default(uuid())
   message   String
   projectId String
   authorId  String
