@@ -1,8 +1,8 @@
 import { prisma } from '../library/prisma'
-import { CreatedTask, CreatTaskInput, MoveTaskInput, TaskDetail , UpdateTaskInput, MovedTask, DeletedTask} from "../types/task";
+import { CreatedTask, CreateTaskInput, MoveTaskInput, TaskDetail , UpdateTaskInput, MovedTask, DeletedTask} from "../types/task";
 
 
-async function createTask(data: CreatTaskInput): Promise<CreatedTask> {
+async function createTask(data: CreateTaskInput): Promise<CreatedTask> {
     const list = await prisma.list.findUnique({
         where: { id: data.listId }
     });
@@ -99,4 +99,16 @@ async function deleteTask(taskId: string): Promise<DeletedTask> {
     return task;
 }
 
-export const taskRepository = { createTask, getTaskDetail, updateTask, moveTask, deleteTask };
+async function getTaskProjectId(taskId: string): Promise<string> {
+    const task = await prisma.task.findUnique({
+        where: { id: taskId},
+        select: { projectId: true }
+    });
+    if(!task) {
+        throw new Error('Task not found!');
+    }
+
+    return task.projectId;
+}
+
+export const taskRepository = { createTask, getTaskDetail, updateTask, moveTask, deleteTask, getTaskProjectId };

@@ -1,4 +1,4 @@
-export interface CreatTaskInput {
+export interface CreateTaskInput {
     title: string;
     listId: string;
     description?: string;
