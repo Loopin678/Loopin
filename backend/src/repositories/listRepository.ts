@@ -50,4 +50,16 @@ async function renameList(data: RenameListInput): Promise<ListWithoutTasks>{
     return updatedList;
 }
 
-export const listRepository = { createList, getListsByProject, renameList };
+async function getListById(listId: string): Promise<ListWithoutTasks>{
+    const list = await prisma.list.findUnique({
+        where: { id: listId }
+    });
+    if(!list) {
+        throw new Error('List not found!');
+    }
+    return list;
+}
+
+export const listRepository = { createList, getListsByProject, renameList, getListById };
+
+
