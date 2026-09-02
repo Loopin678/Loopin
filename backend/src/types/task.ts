@@ -3,7 +3,7 @@ export interface CreateTaskInput {
     listId: string;
     description?: string;
     stack?: string;
-    asigneeId?: string;
+    assigneeId?: string;
 }
 
 export interface TaskSummary { // to show the tasks on the list

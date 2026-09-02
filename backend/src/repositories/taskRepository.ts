@@ -1,4 +1,5 @@
 import { prisma } from '../library/prisma'
+import { Prisma } from '@prisma/client';
 import { CreatedTask, CreateTaskInput, MoveTaskInput, TaskDetail , UpdateTaskInput, MovedTask, DeletedTask} from "../types/task";
 
 
@@ -23,7 +24,7 @@ async function createTask(data: CreateTaskInput): Promise<CreatedTask> {
             title: data.title,
             description: data.description,
             stack: data.stack,
-            assigneeId: data.asigneeId,
+            assigneeId: data.assigneeId,
             listId: data.listId,
             projectId: list.projectId,
             position
@@ -58,17 +59,23 @@ async function getTaskDetail(taskId: string): Promise<TaskDetail> {
 }
 
 async function updateTask(data: UpdateTaskInput): Promise<TaskDetail> {
+  try {
     const task = await prisma.task.update({
-        where: { id: data.taskId },
-        data: {
-            title: data.title,
-            description: data.description,
-            stack: data.stack,
-            assigneeId: data.assigneeId
-        }
+      where: { id: data.taskId },
+      data: {
+        title: data.title,
+        description: data.description,
+        stack: data.stack,
+        assigneeId: data.assigneeId
+      }
     });
-
     return task;
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      throw new Error('Task not found!');
+    }
+    throw error;
+  }
 }
 
 async function moveTask(data: MoveTaskInput): Promise<MovedTask> {
@@ -92,11 +99,18 @@ async function moveTask(data: MoveTaskInput): Promise<MovedTask> {
 }
 
 async function deleteTask(taskId: string): Promise<DeletedTask> {
+  try {
     const task = await prisma.task.delete({
-        where: { id: taskId },
-        select: { id: true, listId: true }
+      where: { id: taskId },
+      select: { id: true, listId: true }
     });
     return task;
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      throw new Error('Task not found');
+    }
+    throw error;
+  }
 }
 
 async function getTaskProjectId(taskId: string): Promise<string> {
