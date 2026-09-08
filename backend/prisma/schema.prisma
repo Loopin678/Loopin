@@ -4,14 +4,17 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // url      = env("DATABASE_URL")
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String
+  id       String  @id @default(uuid())
+  name     String
+  email    String  @unique
+  password String?
+
+  googleId String? @unique
+
   createdAt DateTime @default(now())
 
   memberships   ProjectMember[]
@@ -39,6 +42,8 @@ model ProjectMember {
 
   user    User    @relation(fields: [userId], references: [id])
   project Project @relation(fields: [projectId], references: [id])
+
+  @@unique([userId, projectId])
 }
 
 // A Kanban column. Not fixed — users can create/rename/reorder these.
@@ -84,12 +89,25 @@ model Message {
 }
 
 // Tracks @mentions of a user inside a message (or a task, if you extend it later)
+// model Mention {
+//   id          String  @id @default(cuid())
+//   messageId   String
+//   userId      String // who was mentioned
+//   isAiMention Boolean @default(false) // true if this mention was @AI, not a person
+
+//   message Message @relation(fields: [messageId], references: [id])
+//   user    User?   @relation(fields: [userId], references: [id]) // optional if isAiMention
+// }
 model Mention {
-  id          String  @id @default(cuid())
-  messageId   String
-  userId      String // who was mentioned
-  isAiMention Boolean @default(false) // true if this mention was @AI, not a person
+  id String @id @default(cuid())
+
+  messageId String
+
+  userId String? // null when mentioning AI
+
+  isAiMention Boolean @default(false)
 
   message Message @relation(fields: [messageId], references: [id])
-  user    User?   @relation(fields: [userId], references: [id]) // optional if isAiMention
+
+  user User? @relation(fields: [userId], references: [id])
 }
