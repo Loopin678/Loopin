@@ -1,12 +1,11 @@
-import { Project } from "@prisma/client";
-import { ProjectMember } from "../types/project-member";
+import {prisma } from "../library/prisma.js"
 
-const storeProjectMem = new Map<string, ProjectMember>();
-
-export async function createProjectMember(
-     member: ProjectMember
-): Promise<ProjectMember>{
-     storeProjectMem.set(member.id, member)
+export async function createProjectMember(data:{
+     userId: string;
+     projectId: string;
+     stack: string;
+}){
+     const member = await prisma.projectMember.create({data});
 
      return member;
 }
@@ -14,17 +13,64 @@ export async function createProjectMember(
 export async function findProjectMember(
      projectId: string,
      userId: string
-):Promise<ProjectMember | null>{
-     const found = [...storeProjectMem.values()].find(
-          m=> m.projectId === projectId && m.userId === userId
-     )
-     return found ?? null;
+){
+     const member = await prisma.projectMember.findUnique({
+          where:{
+               userId_projectId:{
+                    userId,
+                    projectId
+               }
+          }
+     });
+
+     return member;
+}
+
+export async function findProjectMembershipsByUserId(userId: string) {
+  const memberships = await prisma.projectMember.findMany({
+    where: {
+      userId,
+    },
+    orderBy: {
+      id: "asc",
+    },
+  });
+
+  return memberships;
+}
+
+export async function findProjectMembers(projectId: string){
+
+  const members = await prisma.projectMember.findMany({where: {projectId,},
+                                                       orderBy: {
+                                                            id: "asc",
+                                                       },
+     });
+
+  return members;
 }
 
 export async function deleteProjectMember(
      projectId: string,
      userId: string
-):Promise<boolean>{
-     const member = await findProjectMember(projectId, userId);
-     return member ? storeProjectMem.delete(member.id) : false;
+     ){
+     const member = await prisma.projectMember.findUnique({
+          where:{
+               userId_projectId:{
+                    userId,
+                    projectId,
+               }
+          }
+     });
+
+     if(!member){
+          return false;
+     }
+
+     await prisma.projectMember.delete({
+          where:{
+               id: member.id
+          },
+     });
+     return true;
 }
