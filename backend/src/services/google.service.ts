@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import { googleOAuth2Client } from "../library/google";
+import { googleOAuth2Client, GOOGLE_CLIENT_ID } from "../library/google";
 export type GoogleUser = {
   googleId: string;
   email: string;
@@ -29,7 +29,7 @@ export async function getGoogleUser(code: string): Promise<GoogleUser>{
 
     const ticket = await googleOAuth2Client.verifyIdToken({
         idToken: tokens.id_token,
-        audience: process.env.GOOGLE_CLIENT_ID ?? "YOUR_GOOGLE_CLIENT_ID",
+        audience: process.env.GOOGLE_CLIENT_ID,
     });
 
     const payload = ticket.getPayload();
