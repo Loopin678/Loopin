@@ -1,16 +1,14 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import crypto from "crypto"
 
-import { createUser, 
+import { 
+    createUser, 
     findUserByEmail, 
     findUserByGoogleId, 
     findUserById,
- } from "../repositories/user.repository";
+} from "../repositories/user.repository";
 
-import {User} from "../types/user.js"
-import {JWT_EXPIRES_IN, JWT_SECRET} from "../library/auth.js";
-import { error } from "console";
+import { JWT_EXPIRES_IN, JWT_SECRET } from "../library/auth.js";
 
 
 export type PublicUser = {
@@ -20,7 +18,23 @@ export type PublicUser = {
     createdAt: Date;
 };
 
-function toPublicUser(user: User):PublicUser{
+function generateToken(userId: string): string {
+  return jwt.sign(
+    {
+      userId,
+    },
+    JWT_SECRET,
+    {
+      expiresIn: JWT_EXPIRES_IN,
+    }
+  );
+}
+
+function toPublicUser(user:{ 
+    id: string;
+    name: string;
+    email: string;
+    createdAt: Date;}):PublicUser{
     return{
         id: user.id,
         name: user.name,
@@ -35,44 +49,36 @@ export async function registerUser(name: string, email: string, password: string
     const existingUser = await findUserByEmail(normalizedEmail);
 
     if(existingUser){
-        throw new Error("User already exists");
+        throw new Error("USER_ALREADY_EXISTS");
     }
     const passwordHash = await bcrypt.hash(password, 12);
 
-    const user: User = {
-        id: crypto.randomUUID(),
+    const user = await createUser({
         name: name.trim(),
         email: normalizedEmail,
-        passwordHash,
-        createdAt: new Date(),
-    };
+        password: passwordHash
+    });
 
-    const createdUser = await createUser(user);
-
-    return toPublicUser(createdUser);
+    return toPublicUser(user);
 }
 
-export async function loginUser(email: string, password: string): Promise<{user: PublicUser; token: string;}>{
+export async function loginUser(email: string, password: string): 
+                    Promise<{user: PublicUser; token: string;}>{
 
     const normalizedEmail = email.toLowerCase().trim();
 
     const user = await findUserByEmail(normalizedEmail);
 
-    if(!user){
+    if(!user || !user.password){
         throw new Error("INVALID_CREDENTIALS");
     }
-    const passwordMatches = await bcrypt.compare(password, user.passwordHash);
+    const passwordMatches = await bcrypt.compare(password, user.password);
 
     if(!passwordMatches){
         throw new Error("INVALID_CREDENTIALS");
     }
-    const token = jwt.sign({
-        userId: user.id,
-    },JWT_SECRET,
-    {
-        expiresIn: JWT_EXPIRES_IN,
-    }
-);
+    const token = generateToken(user.id);
+
     return{
         user: toPublicUser(user),
         token,
@@ -82,45 +88,45 @@ export async function loginUser(email: string, password: string): Promise<{user:
 // this shit migt actually be bugged
 // we gotta fix this later
 export async function loginWithGoogle(googleId: string, name: string, email: string): Promise<{user: PublicUser; token: string;}>{
+    const normalizedEmail = email.toLowerCase().trim();
+
     let user = await findUserByGoogleId(googleId);
     // existing google account
+    if (user) {
+        const token = generateToken(user.id);
 
-    if(!user){
-        /*
-            check if this non google user's email already belongs to a TeamSync Account 
-        */
-       const exisitngEmailUser = await findUserByEmail(email);
-        if(exisitngEmailUser){
-            throw new Error("EMAIL_ALREADY_REGISTERED");
-        }
-        user={
-            id: crypto.randomUUID(),
-            name,
-            email: email.toLowerCase().trim(),
-            provider: "google",
-            googleId,
-            createdAt: new Date()
-        };
-        user = await createUser(user);
-
-        const token = jwt.sign(
-            {
-                userId: user.id,
-            },
-            JWT_SECRET,
-            {
-                expiresIn: JWT_EXPIRES_IN,
-            }
-        );
-        return{
+        return {
             user: toPublicUser(user),
             token,
         };
-
     }
+
+    /*
+        check if this non google user's email already belongs to a TeamSync Account 
+    */
+    const existingEmailUser = await findUserByEmail(normalizedEmail);
+
+    if (existingEmailUser) {
+        throw new Error("EMAIL_ALREADY_REGISTERED");
+    }
+
+    /*
+        Create a new Google user.
+        Google users dont need a password.
+    */
+    user = await createUser({
+        name: name.trim(),
+        email: normalizedEmail,
+        googleId,
+    });
+
+    const token = generateToken(user.id);
+
+    return {
+        user: toPublicUser(user),
+        token,
+    };
 }
-
-
 
 export async function getUserById(id: string): Promise<PublicUser | null>{
     const user = await findUserById(id);
