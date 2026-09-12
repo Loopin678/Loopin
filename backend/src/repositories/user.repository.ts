@@ -1,42 +1,52 @@
-import { User } from "../types/user";
+import {prisma } from "../library/prisma"
 
-const users = new Map<string, User>();
+// import { User } from "../types/user";
+// const users = new Map<string, User>();
 
-export async function createUser(user: User): Promise<User>{
-    users.set(user.id, user);
+export async function createUser(data:{
+    name: string;
+    email: string;
+    password?: string;
+    googleId?: string;
+})
+{
+    
+    const user = await prisma.user.create({
+        data,
+    });
+    return user;
+}
+
+export async function findUserByEmail(email: string){
+    
+    const user = await prisma.user.findUnique({
+        where: { email },
+    })
 
     return user;
 }
 
-export async function findUserByEmail(email: string):Promise<User | null>{
-    const normalizedEmail = email.toLowerCase().trim();
+export async function findUserById(userId: string){
+    const user = await prisma.user.findUnique({
+        where: {id: userId},
+    });
 
-    for(const user of users.values()){
-        if(user.email === normalizedEmail){
-            return user;
-        }
-    }
-    return null;
+    return user;
+}
+export async function findUserByGoogleId(googleId: string){
+    const user = await prisma.user.findUnique({where: { googleId }});
+
+    return user;
 }
 
-export async function findUserById(id: string): Promise<User | null>{
-    return users.get(id) ?? null;
-}
 
-export async function userExistsByEmail(email: string): Promise<boolean>{
-    const user = await findUserByEmail(email);
+// not need anymore now that we using prisma
+// export async function userExistsByEmail(email: string): Promise<boolean>{
+//     const user = await findUserByEmail(email);
 
-    return user !== null;
-}
+//     return user !== null;
+// }
 
-export async function findUserByGoogleId(googleId: string): Promise<User | null>{
-    for(const user of users.values()){
-        if(user.googleId === googleId){
-            return user;
-        }
-    }
-    return null;
-}
 
 
 /*
