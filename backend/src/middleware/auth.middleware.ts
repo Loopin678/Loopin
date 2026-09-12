@@ -1,35 +1,90 @@
 import { NextFunction, Request, Response } from "express";
-import jwt from "jsonwebtoken"
+import jwt from "jsonwebtoken";
 
 import { JWT_SECRET } from "../library/auth";
 
-type AuthPayload={
-    userId: string;
+// Auth payload is data sent during login or signup request
+type AuthPayload = {
+  userId: string;
 };
-/*
-Auth payload is data sent during login or signup request
- */
 
-export function requireAuth(req: Request, res: Response, next: NextFunction): void{
-    const token = req.cookies?.auth_token;
+function isAuthPayload(
+  payload: string | jwt.JwtPayload
+): payload is AuthPayload {
+  return (
+    typeof payload !== "string" &&
+    typeof payload.userId === "string" &&
+    payload.userId.length > 0
+  );
+}
 
-    if(!token){
-        res.status(401).json({
-            message: "Authentication required",
-        });
-        return ;
+export function requireAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  const token = req.cookies?.auth_token;
+
+  if (!token) {
+    res.status(401).json({
+      message: "Authentication required",
+    });
+    return;
+  }
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+
+    if (!isAuthPayload(payload)) {
+      res.status(401).json({
+        message: "Invalid authentication token",
+      });
+      return;
     }
-try {
-    const payload = jwt.verify(token, JWT_SECRET) as AuthPayload;
 
     req.user = {
-        id: payload.userId
+      id: payload.userId,
     };
-    next();
 
-} catch (error) {
+    next();
+  } catch (error) {
     res.status(401).json({
-        message: "Invalid or expired authentication token"
-    })
+      message: "Invalid or expired authentication token",
+    });
+  }
 }
-}
+// import { NextFunction, Request, Response } from "express";
+// import jwt from "jsonwebtoken"
+
+// import { JWT_SECRET } from "../library/auth";
+
+// type AuthPayload={
+//     userId: string;
+// };
+// /*
+// Auth payload is data sent during login or signup request
+//  */
+
+// export function requireAuth(req: Request, res: Response, next: NextFunction): void{
+//     const token = req.cookies?.auth_token;
+
+//     if(!token){
+//         res.status(401).json({
+//             message: "Authentication required",
+//         });
+//         return ;
+//     }
+// try {
+//     const payload = jwt.verify(token, JWT_SECRET) as AuthPayload;
+
+//     req.user = {
+//         id: payload.userId
+//     };
+//     next();
+
+// } catch (error) {
+//     res.status(401).json({
+//         message: "Invalid or expired authentication token"
+//     })
+// }
+// }
