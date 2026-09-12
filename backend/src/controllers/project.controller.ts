@@ -4,7 +4,7 @@ import {createProjectService,getProjectByIdService,getProjectsByUserIdService,up
 
 export async function createProject(req: Request,res: Response): Promise<void> {
 try {
-    const { name } = req.body;
+    const { name, userId, stack } = req.body;
 
     if (!name || typeof name !== "string") {
       res.status(400).json({
@@ -13,7 +13,22 @@ try {
       return;
     }
 
-     const project = await createProjectService({name});
+    if (!userId || typeof userId !== "string") {
+      res.status(400).json({
+        message: "userId is required",
+      });
+      return;
+    }
+
+    if (!stack || typeof stack !== "string") {
+      res.status(400).json({
+        message: "stack is required",
+      });
+      return;
+    }
+
+
+     const project = await createProjectService({name, userId, stack});
 
     res.status(201).json({project,});
 } 
@@ -57,6 +72,20 @@ catch (error) {
       });
       return;
     }
+if (error instanceof Error && error.message === "User ID is Required"){
+      res.status(400).json({
+        message: error.message,
+      });
+      return;
+    }
+
+    if (error instanceof Error && error.message === "Stack is Required"){
+      res.status(400).json({
+        message: error.message,
+      });
+      return;
+    }
+
 
     console.error(error);
 
