@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { loginUser ,registerUser, loginWithGoogle } from "../services/auth.service";
+import { getUserById,loginUser ,registerUser, loginWithGoogle } from "../services/auth.service";
 import { findUserById } from "../repositories/user.repository";
 import { getGoogleUser, getGoogleAuthUrl } from "../services/google.service";
 
@@ -138,40 +138,40 @@ export function logout(req: Request, res: Response): void{
     res.status(200).json({
         message:"Logged out successfully"
     })
-}
-export async function me(req: Request, res: Response): Promise<void>{
-try {
+}export async function me(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
     const userId = req.user?.id;
 
-    if(!userId){
-        res.status(401).json({
-            message: "Unauthorized",
-        });
-        return;
+    if (!userId) {
+      res.status(401).json({
+        message: "Unauthorized",
+      });
+      return;
     }
 
-    const user = await findUserById(userId);
+    const user = await getUserById(userId);
 
-    if(!user){
-        res.status(404).json({
-            message: "User not found"
-        });
-        return ;
+    if (!user) {
+      res.status(404).json({
+        message: "User not found",
+      });
+      return;
     }
 
     res.status(200).json({
-        user
+      user,
     });
-
-} catch (error) {
+  } catch (error) {
     console.error(error);
 
     res.status(500).json({
-        message:"Internal Server Error"
+      message: "Internal Server Error",
     });
+  }
 }
-}
-
 export function googleLogin(req: Request, res: Response):void{
     const authUrl = getGoogleAuthUrl();
 
