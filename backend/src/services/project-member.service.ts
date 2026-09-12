@@ -9,8 +9,7 @@ export async function addProjectMemberService(data: {
      const existingMember = await findProjectMember(data.projectId, data.userId);
 
      if(existingMember) {
-     throw new Error("User is already an existing member of this project");
-     }
+throw new Error("User is already a member of this project");     }
 
      const member = await createProjectMember(data);
 
@@ -35,7 +34,7 @@ export async function getProjectMembersService(projectId: string) {
 }
 
 export async function getProjectMembershipsByUserIdService(userId: string){
-     
+
   const memberships = await findProjectMembershipsByUserId(userId);
 
   return memberships;
