@@ -1,6 +1,10 @@
 import { google } from "googleapis";
 import { googleOAuth2Client } from "../library/google";
-
+export type GoogleUser = {
+  googleId: string;
+  email: string;
+  name: string;
+};
 // this is just a basic google auth url command 
 export function getGoogleAuthUrl(): string{
     return googleOAuth2Client.generateAuthUrl({
@@ -14,7 +18,7 @@ export function getGoogleAuthUrl(): string{
     });
 };
 
-export async function getGoogleUser(code: string){
+export async function getGoogleUser(code: string): Promise<GoogleUser>{
     const { tokens } = await googleOAuth2Client.getToken(code);
 
     googleOAuth2Client.setCredentials(tokens);
@@ -39,6 +43,6 @@ export async function getGoogleUser(code: string){
     return{
         googleId: payload.sub,
         email: payload.email,
-        name: payload.name ?? payload.email.split("@")[0],
+        name: payload.name ?? payload.email.split("@")[0] ?? "Google User",
     };
 }

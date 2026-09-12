@@ -1,11 +1,13 @@
-export{}
-
+import "express"
 declare global{
     namespace Express{
         interface Request{
-            userId?: string;
+            user?: {
+                id:string;
+            }
         }
     }
 }
+export{}
 
 /// this gives TS awareness of req.user

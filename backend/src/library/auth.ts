@@ -1,4 +1,5 @@
-export const JWT_SECRET = "development-secret-change-later"
+import "dotenv/config"
+export const JWT_SECRET = process.env.JWT_SECRET || "development-secret-change-later";
 
 export const JWT_EXPIRES_IN = "7d";
 /*

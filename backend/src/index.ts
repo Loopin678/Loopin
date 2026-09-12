@@ -22,7 +22,7 @@ app.use("/api", apiRoutes);
 
 const port = process.env.PORT || 4000;
 
-app.listen(port, ()=> console.log(`Server on: ${port}`));
+app.listen(port, ()=> console.log(`Server on http://localhost:${port}`));
 
 /**
  * /index/ auth
