@@ -22,7 +22,7 @@ export async function getListsByProject(req: Request, res: Response): Promise<vo
 export async function createList(req: Request, res: Response): Promise<void> {
     try {
         const { projectId } = req.params;
-        const name = req.body;
+        const { name } = req.body;
 
         if (typeof projectId !== "string") {
         res.status(400).json({ message: "Invalid projectId" });
@@ -34,7 +34,7 @@ export async function createList(req: Request, res: Response): Promise<void> {
         return;
         }
 
-        const list = listService.createList({ name, projectId});
+        const list =  await listService.createList({ name, projectId});
 
         res.status(201).json({ list });
     } catch (error) {
@@ -66,7 +66,7 @@ export async function renameList(req: Request, res: Response): Promise<void> {
 
         res.status(200).json({ list });
     } catch (error) {
-        if (error instanceof Error && error.message === "List not found") {
+        if (error instanceof Error && error.message === "List not found!") {
         res.status(404).json({ message: error.message });
         return;
         }

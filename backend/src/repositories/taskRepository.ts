@@ -107,7 +107,7 @@ async function deleteTask(taskId: string): Promise<DeletedTask> {
     return task;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
-      throw new Error('Task not found');
+      throw new Error('Task not found!');
     }
     throw error;
   }

@@ -99,11 +99,11 @@ export async function moveTask(req: Request, res: Response): Promise<void> {
 
     res.status(200).json({ task });
   } catch (error) {
-    if (error instanceof Error && error.message === "List not found") {
+    if (error instanceof Error && error.message === "List not found!") {
       res.status(404).json({ message: error.message });
       return;
     }
-    if (error instanceof Error && error.message === "Cannot move a task to a list in different project") {
+    if (error instanceof Error && error.message === "Cannot move a task to a list in different project!") {
       res.status(400).json({ message: error.message });
       return;
     }
