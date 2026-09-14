@@ -1,4 +1,6 @@
+# ================================
 # C++ / Compiled files
+# ================================
 *.o
 *.obj
 *.co
@@ -19,7 +21,9 @@
 *.app
 *.manifest
 
+# ================================
 # CMake & Ninja
+# ================================
 CMakeCache.txt
 CMakeFiles/
 CMakeConfigureLog.yaml
@@ -32,7 +36,9 @@ CTestTestfile.cmake
 .ninja_log
 *.ninja
 
+# ================================
 # Qt / QML
+# ================================
 *autogen/
 .qt/
 .rcc/
@@ -40,12 +46,16 @@ CTestTestfile.cmake
 *.qmlcache
 *.aotstats
 
+# ================================
 # Project Build Directories
+# ================================
 desktop/build/
 desktop/build_release/
 [Bb]uild/
 
+# ================================
 # Node.js
+# ================================
 node_modules/
 jspm_packages/
 .npm
@@ -53,11 +63,25 @@ jspm_packages/
 .stylelintcache
 *.tsbuildinfo
 
-# Build outputs (JS/TS)
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ================================
+# Build outputs
+# ================================
 dist/
+dist-ssr/
 out/
 
+# ================================
 # Environment variables
+# ================================
 .env
 .env.local
 .env.development.local
@@ -65,29 +89,39 @@ out/
 .env.production.local
 .env.backup
 *.env
+*.local
 
+# ================================
 # Databases / Prisma
+# ================================
 *.db
 *.db-journal
 
-# AI Agents & Editors (Claude, Windsurf, VS Code, etc.)
+# ================================
+# AI Agents & Editors
+# ================================
 .agents/
 .claude/
 .windsurf/
 skills-lock.json
+
+# ================================
+# IDE / Editor files
+# ================================
 .vscode/
 .idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
-*.swp
+*.sw?
 
-# OS Files
+# ================================
+# OS files
+# ================================
 .DS_Store
 .DS_Store?
 ._*
 Thumbs.db
 ehthumbs.db
 Desktop.ini
-.env
