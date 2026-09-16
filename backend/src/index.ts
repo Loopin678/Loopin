@@ -3,7 +3,7 @@ import express from "express"
 import cookieParser from "cookie-parser"
 //import authRoutes from "./routes/auth.routes";
 import apiRoutes from "./routes/index";
-import { prisma } from "./library/prisma"
+import { prisma } from "./library/prisma";
 
 //dotenv.config();
 

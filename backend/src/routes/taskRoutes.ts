@@ -1,12 +1,13 @@
 import { Router } from "express";
 import { createTask, getTaskDetail, updateTask, deleteTask, moveTask } from "../controllers/taskController";
 
-const router = Router();
+const nestedTaskRoutes = Router({ mergeParams: true });
+nestedTaskRoutes.post("/", createTask);
 
-router.post("/projects/:projectId/tasks", createTask);
-router.get("/tasks/:taskId", getTaskDetail);
-router.patch("/tasks/:taskId", updateTask);
-router.patch("/tasks/:taskId/move", moveTask);
-router.delete("/tasks/:taskId", deleteTask);
+const flatTaskRoutes = Router();
+flatTaskRoutes.get("/:taskId", getTaskDetail);
+flatTaskRoutes.patch("/:taskId", updateTask);
+flatTaskRoutes.patch("/:taskId/move", moveTask);
+flatTaskRoutes.delete("/:taskId", deleteTask);
 
-export default router;
+export {nestedTaskRoutes, flatTaskRoutes};

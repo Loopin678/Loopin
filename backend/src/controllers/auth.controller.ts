@@ -138,7 +138,9 @@ export function logout(req: Request, res: Response): void{
     res.status(200).json({
         message:"Logged out successfully"
     })
-}export async function me(
+}
+
+export async function me(
   req: Request,
   res: Response
 ): Promise<void> {

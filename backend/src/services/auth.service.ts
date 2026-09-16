@@ -8,7 +8,7 @@ import {
     findUserById,
 } from "../repositories/user.repository";
 
-import { JWT_EXPIRES_IN, JWT_SECRET } from "../library/auth.js";
+import { JWT_EXPIRES_IN, JWT_SECRET } from "../library/auth";
 
 
 export type PublicUser = {

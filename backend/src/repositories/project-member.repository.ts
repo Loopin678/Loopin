@@ -1,4 +1,4 @@
-import {prisma } from "../library/prisma.js"
+import {prisma } from "../library/prisma"
 
 export async function createProjectMember(data:{
      userId: string;
