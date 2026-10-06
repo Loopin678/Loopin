@@ -65,6 +65,8 @@ void ApiClient::fetchTasks() {
             QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
             if (doc.isArray()) {
                 emit tasksReady(doc.array());
+            } else if (doc.isObject() && doc.object().contains("tasks") && doc.object().value("tasks").isArray()) {
+                emit tasksReady(doc.object().value("tasks").toArray());
             }
         }
     });
@@ -82,6 +84,8 @@ void ApiClient::fetchProjectCommits() {
             QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
             if (doc.isArray()) {
                 emit projectCommitsReady(doc.array());
+            } else if (doc.isObject() && doc.object().contains("commits") && doc.object().value("commits").isArray()) {
+                emit projectCommitsReady(doc.object().value("commits").toArray());
             }
         }
     });

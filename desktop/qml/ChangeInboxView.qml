@@ -1166,6 +1166,24 @@ Item {
                                 ColumnLayout {
                                     Layout.fillWidth: true
                                     spacing: 4
+                                    Text { text: "Backend URL:"; color: Theme.textPrimary; font.bold: true }
+                                    TextField {
+                                        Layout.fillWidth: true
+                                        text: root.api.backendUrl
+                                        placeholderText: "http://localhost:3000"
+                                        onEditingFinished: {
+                                            root.api.backendUrl = text
+                                            if (root.api.projectId !== "") {
+                                                root.api.fetchTasks()
+                                                root.api.fetchProjectCommits()
+                                            }
+                                        }
+                                    }
+                                }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 4
                                     Text { text: "Project ID:"; color: Theme.textPrimary; font.bold: true }
                                     TextField {
                                         Layout.fillWidth: true
