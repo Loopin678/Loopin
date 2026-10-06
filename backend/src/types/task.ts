@@ -23,6 +23,9 @@ export interface TaskDetail {
     projectId: string; // to get the different asignees for the task
     assigneeId: string | null;
     commitId: string | null;
+    priority?: string | null;
+    dueDate?: Date | null;
+    tags?: string[];
     createdAt: Date;
     updatedAt: Date;
 }
