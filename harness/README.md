@@ -6,6 +6,15 @@ Loopin Harness transforms autonomous agents and engineering teams into cohesive,
 
 ---
 
+## 📚 Detailed Documentation
+
+- 📖 **[CLI Reference Guide](docs/CLI_REFERENCE.md)** - Full reference for all commands (`task`, `commit`, `sync`, `push`, `conflict`, `query`, `config`, `mcp`).
+- 🔑 **[API Keys & Configuration Guide](docs/API_KEYS_AND_CONFIGURATION.md)** - Step-by-step setup for Google Gemini, OpenRouter, local Ollama, and Supabase DB config.
+- 🤖 **[MCP Agent Integration Guide](docs/MCP_AGENT_INTEGRATION.md)** - Connecting Loopin Harness to Claude Code, Cursor, Windsurf, and Antigravity.
+- ⚙️ **[.env.example](.env.example)** - Ready-to-use template for environment variables.
+
+---
+
 ## Why Loopin Harness?
 
 ### The Problem with Agents & Git Today
