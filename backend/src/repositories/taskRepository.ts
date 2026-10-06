@@ -113,6 +113,25 @@ async function deleteTask(taskId: string): Promise<DeletedTask> {
   }
 }
 
+async function getTasksByProjectId(projectId: string): Promise<TaskDetail[]> {
+    return prisma.task.findMany({
+        where: { projectId },
+        select: {
+            id: true,
+            title: true,
+            description: true,
+            stack: true,
+            listId: true,
+            projectId: true,
+            assigneeId: true,
+            commitId: true,
+            createdAt: true,
+            updatedAt: true
+        },
+        orderBy: { position: 'asc' }
+    });
+}
+
 async function getTaskProjectId(taskId: string): Promise<string> {
     const task = await prisma.task.findUnique({
         where: { id: taskId},
@@ -125,4 +144,4 @@ async function getTaskProjectId(taskId: string): Promise<string> {
     return task.projectId;
 }
 
-export const taskRepository = { createTask, getTaskDetail, updateTask, moveTask, deleteTask, getTaskProjectId };
+export const taskRepository = { createTask, getTaskDetail, getTasksByProjectId, updateTask, moveTask, deleteTask, getTaskProjectId };

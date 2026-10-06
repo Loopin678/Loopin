@@ -1,28 +1,20 @@
-import "dotenv/config"
-import express from "express"
-import cookieParser from "cookie-parser"
-//import authRoutes from "./routes/auth.routes";
+import "dotenv/config";
+import express from "express";
+import cookieParser from "cookie-parser";
+import cors from "cors";
 import apiRoutes from "./routes/index";
-import { prisma } from "./library/prisma";
-
-//dotenv.config();
 
 const app = express();
+
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
-
 app.use(cookieParser());
-
-// app.get("/health", (req, res)=>{
-//     res.json({ok: true});
-// });
-
-//app.use("/auth", authRoutes);
 
 app.use("/api", apiRoutes);
 
-const port = process.env.PORT || 4000;
+const port = process.env.PORT || 3000;
 
-app.listen(port, ()=> console.log(`Server on http://localhost:${port}`));
+app.listen(port, () => console.log(`Server on http://localhost:${port}`));
 
 /**
  * /index/ auth

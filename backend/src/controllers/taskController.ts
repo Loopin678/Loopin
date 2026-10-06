@@ -134,3 +134,21 @@ export async function deleteTask(req: Request, res: Response): Promise<void> {
   }
 }
 
+export async function getTasksByProject(req: Request, res: Response): Promise<void> {
+  try {
+    const { projectId } = req.params;
+
+    if (!projectId || typeof projectId !== "string") {
+      res.status(400).json({ message: "Invalid projectId" });
+      return;
+    }
+
+    const tasks = await taskService.getTasksByProject(projectId);
+    res.status(200).json(tasks);
+  } catch (error) {
+    console.error("Error fetching tasks by project:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+

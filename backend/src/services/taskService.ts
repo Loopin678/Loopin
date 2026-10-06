@@ -36,4 +36,8 @@ async function deleteTask(taskId: string): Promise<DeletedTask> {
   return taskRepository.deleteTask(taskId);
 }
 
-export const taskService = { createTask, getTaskDetail, updateTask, moveTask, deleteTask };
+async function getTasksByProject(projectId: string): Promise<TaskDetail[]> {
+  return taskRepository.getTasksByProjectId(projectId);
+}
+
+export const taskService = { createTask, getTaskDetail, getTasksByProject, updateTask, moveTask, deleteTask };

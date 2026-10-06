@@ -1,7 +1,8 @@
 import { Router } from "express";
-import { createTask, getTaskDetail, updateTask, deleteTask, moveTask } from "../controllers/taskController";
+import { createTask, getTaskDetail, updateTask, deleteTask, moveTask, getTasksByProject } from "../controllers/taskController";
 
 const nestedTaskRoutes = Router({ mergeParams: true });
+nestedTaskRoutes.get("/", getTasksByProject);
 nestedTaskRoutes.post("/", createTask);
 
 const flatTaskRoutes = Router();

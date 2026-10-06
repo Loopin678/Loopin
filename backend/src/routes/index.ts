@@ -3,14 +3,17 @@ import authRoutes from "./auth.routes";
 import { projectRoutes } from "./project.routes";
 import { projectMemberRoutes } from "./project-member.routes";
 import { flatTaskRoutes } from "./taskRoutes";
+import commitRoutes from "./commit.routes";
 import { requireAuth } from "../middleware/auth.middleware";
 
 const indexRouter = Router();
 
 indexRouter.use("/auth", authRoutes);
 indexRouter.use("/projects", projectRoutes);
+indexRouter.use("/project", projectRoutes);
 indexRouter.use("/project/member", projectMemberRoutes);
 indexRouter.use("/tasks", requireAuth, flatTaskRoutes);
+indexRouter.use("/commits", commitRoutes);
 
 export default indexRouter;
 
