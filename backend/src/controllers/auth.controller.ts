@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import { getUserById,loginUser ,registerUser, loginWithGoogle } from "../services/auth.service";
-import { findUserById } from "../repositories/user.repository";
 import { getGoogleUser, getGoogleAuthUrl } from "../services/google.service";
 
 
@@ -53,85 +52,42 @@ export async function register(req: Request, res: Response): Promise<void>{
     }
 }
 
-// export async function login(req: Request, res: Response): Promise<void>{
-// try {
-//     const {email, password} = req.body;
+export async function login(req: Request, res: Response): Promise<void>{
+try {
+    const {email, password} = req.body;
 
-//     if(!email || !password){
-//         res.status(400).json({
-//             message:"All fields are required"   
-//         })
-//         return;
-//     }
-//     const {user, token} = await loginUser(email, password);
-
-//     res.cookie("auth_token",token,{
-//         httpOnly: true,
-//         sameSite: "lax",
-//         secure: false,
-//         maxAge: 7*24*60*60*1000
-//     })
-//     res.status(200).json({
-//         user,
-//     });
-
-// } catch (error){
-//     if(error instanceof Error &&
-//         error.message === "INVALID_CREDENTIALS"
-//     ){
-//         res.status(401).json({
-//             message: "Invalid email or password",
-//         });
-//         return;
-//     }
-//     res.status(500).json({
-//         message: "Internal Server Error"
-//     })
-// }
-// }
-export async function login(
-  req: Request,
-  res: Response
-): Promise<void> {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      res.status(400).json({
-        message: "All fields are required",
-      });
-      return;
+    if(!email || !password){
+        res.status(400).json({
+            message:"All fields are required"   
+        })
+        return;
     }
+    const {user, token} = await loginUser(email, password);
 
-    const { user, token } = await loginUser(
-      email,
-      password
-    );
-
-    setAuthCookie(res, token);
-
+    res.cookie("auth_token",token,{
+        httpOnly: true,
+        sameSite: "lax",
+        secure: false,
+        maxAge: 7*24*60*60*1000
+    })
     res.status(200).json({
-      user,
+        user,
     });
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message === "INVALID_CREDENTIALS"
-    ) {
-      res.status(401).json({
-        message: "Invalid email or password",
-      });
-      return;
+
+} catch (error){
+    if(error instanceof Error &&
+        error.message === "INVALID_CREDENTIALS"
+    ){
+        res.status(401).json({
+            message: "Invalid email or password",
+        });
+        return;
     }
-
-    console.error(error);
-
     res.status(500).json({
-      message: "Internal Server Error",
-    });
-  }
+        message: "Internal Server Error"
+    })
 }
-
+}
 export function logout(req: Request, res: Response): void{
     res.clearCookie("auth_token");
 

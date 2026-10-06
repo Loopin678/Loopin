@@ -3,6 +3,7 @@ import { Server as HTTPServer} from "http";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "./auth";
 import { findProjectMember } from "../repositories/project-member.repository";
+import { registerMessageHandlers } from "../Sockets/message.socket";
 
 let io: SocketIOServer | null = null;
 
@@ -74,6 +75,8 @@ export function initSocket(httpServer: HTTPServer): SocketIOServer {
 
         socket.join(`project:${projectId}`);
         });
+
+        registerMessageHandlers(getIO(), socket);
 
     });
 
