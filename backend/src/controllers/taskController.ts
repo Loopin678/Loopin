@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { taskService } from "../services/taskService";
+import { getIO } from "../library/socket";
 
 export async function createTask(req: Request, res: Response): Promise<void> {
   try {
@@ -18,6 +19,8 @@ export async function createTask(req: Request, res: Response): Promise<void> {
     }
 
     const task = await taskService.createTask({ title, listId, description, stack, assigneeId });
+
+    getIO().to(`project:${task.projectId}`).emit("task:created", task);
 
     res.status(201).json({ task });
   } catch (error) {
@@ -64,6 +67,8 @@ export async function updateTask(req: Request, res: Response): Promise<void> {
 
     const task = await taskService.updateTask({ taskId, title, description, stack, assigneeId });
 
+    getIO().to(`project:${task.projectId}`).emit("task:updated", task);
+
     res.status(200).json({ task });
   } catch (error) {
     if (error instanceof Error && error.message === "Task not found!") {
@@ -97,6 +102,8 @@ export async function moveTask(req: Request, res: Response): Promise<void> {
 
     const task = await taskService.moveTask({ taskId, newListId, newPosition });
 
+    getIO().to(`project:${task.projectId}`).emit("task:moved", task);
+
     res.status(200).json({ task });
   } catch (error) {
     if (error instanceof Error && error.message === "List not found!") {
@@ -122,6 +129,8 @@ export async function deleteTask(req: Request, res: Response): Promise<void> {
     }
 
     const deleted = await taskService.deleteTask(taskId);
+
+    getIO().to(`project:${deleted.projectId}`).emit("task:deleted", deleted);
 
     res.status(200).json({ deleted });
   } catch (error) {

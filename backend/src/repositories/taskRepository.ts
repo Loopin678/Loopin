@@ -91,7 +91,8 @@ async function moveTask(data: MoveTaskInput): Promise<MovedTask> {
             position: true,
             stack: true,
             assigneeId: true,
-            listId: true
+            listId: true,
+            projectId: true
         }
     });
     
@@ -102,7 +103,7 @@ async function deleteTask(taskId: string): Promise<DeletedTask> {
   try {
     const task = await prisma.task.delete({
       where: { id: taskId },
-      select: { id: true, listId: true }
+      select: { id: true, listId: true, projectId: true }
     });
     return task;
   } catch (error) {

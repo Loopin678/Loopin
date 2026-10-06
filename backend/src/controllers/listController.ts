@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { listService } from "../services/listService";
+import { getIO } from "../library/socket";
 
 export async function getListsByProject(req: Request, res: Response): Promise<void> {
     try {
@@ -36,6 +37,8 @@ export async function createList(req: Request, res: Response): Promise<void> {
 
         const list =  await listService.createList({ name, projectId});
 
+        getIO().to(`project:${projectId}`).emit("list:created", list);
+
         res.status(201).json({ list });
     } catch (error) {
         if (error instanceof Error && error.message === "A list with this name already exists in this project!") {
@@ -63,6 +66,8 @@ export async function renameList(req: Request, res: Response): Promise<void> {
         }
 
         const list = await listService.renameList({ listId, name });
+
+        getIO().to(`project:${list.projectId}`).emit("list:renamed", list);
 
         res.status(200).json({ list });
     } catch (error) {

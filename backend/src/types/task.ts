@@ -56,9 +56,11 @@ export interface MoveTaskInput {
 
 export interface MovedTask extends TaskSummary {
     listId: string;
+    projectId: string;
 }
 
 export interface DeletedTask {
     id: string;
     listId: string;
+    projectId: string;
 }
