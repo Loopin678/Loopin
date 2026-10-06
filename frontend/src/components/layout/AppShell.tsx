@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { NavLink, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectsApi, Project } from '../../api/client';
-import { Menu, X, LogOut, FolderKanban, LayoutGrid, Users, Copy, Check } from 'lucide-react';
+import { Menu, X, LogOut, FolderKanban, LayoutGrid, Users, Copy, Check, MessageSquare } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 function NavItem({ to, icon: Icon, label }: { to: string; icon: React.ElementType; label: string }) {
@@ -100,6 +100,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
               <NavItem to={`/projects/${projectId}`} icon={LayoutGrid} label="Board" />
               <NavItem to={`/projects/${projectId}/members`} icon={Users} label="Members" />
+              <NavItem to={`/projects/${projectId}/chat`} icon={MessageSquare} label="Chat & AI" />
             </>
           )}
         </nav>
@@ -170,6 +171,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <>
                   <span className="text-[#2A3040]">/</span>
                   <span className="text-[#5EE6B0]">members</span>
+                </>
+              )}
+              {location.pathname.includes('/chat') && (
+                <>
+                  <span className="text-[#2A3040]">/</span>
+                  <span className="text-[#5EE6B0]">chat</span>
                 </>
               )}
             </div>

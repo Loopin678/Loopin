@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useBoardStore } from '../store/boardStore';
 import { listsApi, tasksApi, projectsApi, Project, ListWithTasks, TaskSummary, TaskDetail } from '../api/client';
 import { connectSocket } from '../api/socket';
-import { Loader2, Plus, X, MoreHorizontal, GripVertical, Edit2, Users, Radio, Check } from 'lucide-react';
+import { Loader2, Plus, X, MoreHorizontal, GripVertical, Edit2, Users, Radio, Check, MessageSquare } from 'lucide-react';
 import {
   DndContext,
   DragOverlay,
@@ -544,6 +544,14 @@ export function Board() {
           >
             <Users size={13} />
             <span>Members</span>
+          </Link>
+
+          <Link
+            to={`/projects/${projectId}/chat`}
+            className="flex items-center gap-1.5 text-[#8A9099] hover:text-[#5EE6B0] transition-colors"
+          >
+            <MessageSquare size={13} />
+            <span>Chat</span>
           </Link>
         </div>
       </div>

@@ -7,6 +7,7 @@ import { Landing } from './pages/Landing';
 import { Projects } from './pages/Projects';
 import { Board } from './pages/Board';
 import { Members } from './pages/Members';
+import { Chat } from './pages/Chat';
 import { FocusMode } from './pages/FocusMode';
 import { AppShell } from './components/layout/AppShell';
 
@@ -73,6 +74,18 @@ function AppRoutes() {
           <ProtectedRoute>
             <AppShell>
               <Members />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Chat & AI */}
+      <Route
+        path="/projects/:projectId/chat"
+        element={
+          <ProtectedRoute>
+            <AppShell>
+              <Chat />
             </AppShell>
           </ProtectedRoute>
         }

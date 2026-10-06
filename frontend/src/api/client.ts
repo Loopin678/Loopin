@@ -95,6 +95,15 @@ export interface TaskDetail {
   updatedAt: string;
 }
 
+export interface Message {
+  id: string;
+  content: string;
+  projectId: string;
+  senderId: string;
+  createdAt: string;
+  sender?: User;
+}
+
 // ─── Auth ────────────────────────────────────────────────────────────────────
 // POST /api/auth/register  { name, email, password } → 201 { user }
 // POST /api/auth/login     { email, password }        → 200 { user }
@@ -203,4 +212,13 @@ export const tasksApi = {
 
   delete: async (taskId: string) =>
     (await apiClient.delete<{ deleted: { id: string; listId: string; projectId: string } }>(`/tasks/${taskId}`)).data.deleted,
+};
+
+// ─── Messages ─────────────────────────────────────────────────────────────────
+// GET /api/projects/:projectId/messages → 200 Message[] (or { messages: Message[] })
+export const messagesApi = {
+  list: async (projectId: string) => {
+    const res = await apiClient.get<Message[] | { messages: Message[] }>(`/projects/${projectId}/messages`);
+    return Array.isArray(res.data) ? res.data : (res.data as any).messages || [];
+  },
 };
