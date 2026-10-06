@@ -1,7 +1,9 @@
 import * as messageRepo from "../repositories/message.repository";
 
 function extractMentions(text: string): string[] {
-  return [...text.matchAll(/@(\w+)/g)].map((m) => m[1]);
+  return [...text.matchAll(/@(\w+)/g)]
+    .map((m) => m[1])
+    .filter((name): name is string => name !== undefined);
 }
 
 export async function sendMessage(projectId: string, senderId: string, content: string) {

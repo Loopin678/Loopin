@@ -1,8 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 
-import { JWT_SECRET } from "../library/auth";
-
 // Auth payload is data sent during login or signup request
 type AuthPayload = {
   userId: string;
@@ -33,7 +31,7 @@ export function requireAuth(
   }
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(token, process.env.JWT_SECRET!);
 
     if (!isAuthPayload(payload)) {
       res.status(401).json({

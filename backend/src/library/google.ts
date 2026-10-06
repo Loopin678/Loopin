@@ -6,7 +6,7 @@ export const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 
 export const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 
-export const GOOGLE_REDIRECT_URL = "http://localhost:4000/api/auth/google/callback";
+export const GOOGLE_REDIRECT_URL = process.env.GOOGLE_REDIRECT_URL!;
 
 export const googleOAuth2Client = new google.auth.OAuth2(
     GOOGLE_CLIENT_ID,

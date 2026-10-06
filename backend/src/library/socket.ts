@@ -1,7 +1,6 @@
 import { Server as SocketIOServer} from "socket.io";
 import { Server as HTTPServer} from "http";
 import jwt from "jsonwebtoken";
-import { JWT_SECRET } from "./auth";
 import { findProjectMember } from "../repositories/project-member.repository";
 import { registerMessageHandlers } from "../Sockets/message.socket";
 
@@ -33,7 +32,7 @@ function isAuthPayload(payload: string | jwt.JwtPayload): payload is AuthPayload
 export function initSocket(httpServer: HTTPServer): SocketIOServer {
     io = new SocketIOServer(httpServer, {
         cors: {
-            origin: "http://localhost:5173",
+            origin: process.env.FRONTEND_URL,
             credentials: true,
         },
     });
@@ -47,7 +46,7 @@ export function initSocket(httpServer: HTTPServer): SocketIOServer {
         }
 
         try {
-            const payload = jwt.verify(token, JWT_SECRET);
+            const payload = jwt.verify(token, process.env.JWT_SECRET!);
 
             if (!isAuthPayload(payload)) {
                 return next(new Error("Invalid authentication token"));

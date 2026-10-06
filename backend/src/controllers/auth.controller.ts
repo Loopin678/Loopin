@@ -6,8 +6,8 @@ import { getGoogleUser, getGoogleAuthUrl } from "../services/google.service";
 function setAuthCookie(res: Response, token: string): void{
     res.cookie("auth_token", token, {
         httpOnly: true,
-        secure: false,
-        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
         maxAge: 7*24*60*60*1000,
     });
 }
@@ -64,12 +64,8 @@ try {
     }
     const {user, token} = await loginUser(email, password);
 
-    res.cookie("auth_token",token,{
-        httpOnly: true,
-        sameSite: "lax",
-        secure: false,
-        maxAge: 7*24*60*60*1000
-    })
+    setAuthCookie(res, token);
+    
     res.status(200).json({
         user,
     });
