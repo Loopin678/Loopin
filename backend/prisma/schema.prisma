@@ -39,6 +39,8 @@ model ProjectMember {
   userId    String
   projectId String
   stack     String // e.g. "frontend", "backend", "ML", "design"
+  role      MemberRole @default(MEMBER)
+  status    MembershipStatus @default(PENDING)
 
   user    User    @relation(fields: [userId], references: [id])
   project Project @relation(fields: [projectId], references: [id])
@@ -110,4 +112,13 @@ model Mention {
   message Message @relation(fields: [messageId], references: [id])
 
   user User? @relation(fields: [userId], references: [id])
+}
+
+enum MemberRole{
+  OWNER
+  MEMBER
+}
+enum MembershipStatus{
+  ACTIVE
+  PENDING
 }

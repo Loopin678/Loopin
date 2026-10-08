@@ -1,19 +1,36 @@
+import { MemberRole, MembershipStatus } from "@prisma/client";
+import { findUserByEmail } from "../repositories/user.repository";
 import {createProjectMember,findProjectMember,findProjectMembers,findProjectMembershipsByUserId,
   deleteProjectMember,} from "../repositories/project-member.repository";
 
 export async function addProjectMemberService(data: {
-  userId: string;
+  email: string;
   projectId: string;
   stack: string;
 }){
-     const existingMember = await findProjectMember(data.projectId, data.userId);
+    const normalizedEmail = data.email.toLowerCase().trim();
 
-     if(existingMember) {
-throw new Error("User is already a member of this project");     }
+    const user = await findUserByEmail(normalizedEmail);
 
-     const member = await createProjectMember(data);
+    if(!user){
+        throw new Error("NO_USER_FOUND");
 
-     return member;
+    }
+    const existingMember = await findProjectMember(data.projectId, user.id);
+
+    if (existingMember) {
+      throw new Error("ALREADY_MEMBER_OR_PENDING");
+    }
+
+    const member = await createProjectMember({
+        userId: user.id,
+        projectId: data.projectId,
+        stack: data.stack.trim(),
+        role: MemberRole.MEMBER,
+        status: MembershipStatus.PENDING,
+    });
+
+    return member;
 }
 
 

@@ -8,13 +8,11 @@ import {
   removeProjectMemberService,
 } from "../services/project-member.service";
 
-export async function addProjectMember(
-  req: Request,
-  res: Response
-): Promise<void> {
+export async function addProjectMember(req: Request,res: Response): Promise<void> {
   try {
     const { projectId } = req.params;
-    const { userId, stack } = req.body;
+    // replace userId with email since that shit is unique
+    const { email, stack } = req.body;
 
     if (typeof projectId !== "string") {
       res.status(400).json({
@@ -23,9 +21,9 @@ export async function addProjectMember(
       return;
     }
 
-    if (!userId || typeof userId !== "string") {
+    if (!email || typeof email !== "string") {
       res.status(400).json({
-        message: "userId is required",
+        message: "email is required",
       });
       return;
     }
@@ -39,7 +37,7 @@ export async function addProjectMember(
 
     const member = await addProjectMemberService({
       projectId,
-      userId,
+      email,
       stack,
     });
 
@@ -47,12 +45,17 @@ export async function addProjectMember(
       member,
     });
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message === "User is already a member of this project"
-    ) {
+    if(error instanceof Error && error.message === "NO_USER_FOUND"){
+      res.status(404).json({
+        message: "No user found with that email",
+      });
+      return;
+    }
+
+    if(error instanceof Error && error.message === "ALREADY_MEMBER_OR_PENDING"){
       res.status(409).json({
-        message: error.message,
+        message:
+          "User is already a member or has a pending invite",
       });
       return;
     }

@@ -2,7 +2,8 @@ import { createProject, findProjectById, findProjectsByUserId
      ,updateProject, deleteProject } from "../repositories/project.repository";
 
 import { createProjectMember } from "../repositories/project-member.repository";   
-
+import { MemberRole, MembershipStatus } from "@prisma/client";
+import { prisma } from "../library/prisma.js";
 
 export async function createProjectService(data:{ name: string,
   userId: string;
@@ -25,6 +26,8 @@ export async function createProjectService(data:{ name: string,
       userId: data.userId,
       projectId: project.id,
       stack: data.stack.trim(),
+      role: MemberRole.OWNER,
+      status: MembershipStatus.ACTIVE,
     });
 
      return project;

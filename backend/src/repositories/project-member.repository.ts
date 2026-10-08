@@ -1,11 +1,16 @@
 import {prisma } from "../library/prisma.js"
+import { MemberRole, MembershipStatus } from "@prisma/client";
 
 export async function createProjectMember(data:{
      userId: string;
      projectId: string;
      stack: string;
+     role?: "OWNER" | "MEMBER";
+     status?: "ACTIVE" | "PENDING"
 }){
-     const member = await prisma.projectMember.create({data});
+     const member = await prisma.projectMember.create({
+          data,
+     });
 
      return member;
 }
