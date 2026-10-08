@@ -97,6 +97,18 @@ model Mention {
   user    User?   @relation(fields: [userId], references: [id])
 }
 
+model Commit {
+  id        String   @id @default(uuid())
+  message   String
+  projectId String
+  authorId  String
+  createdAt DateTime @default(now())
+
+  User    User    @relation(fields: [authorId], references: [id])
+  Project Project @relation(fields: [projectId], references: [id])
+  Task    Task[]
+}
+
 enum MemberRole{
   OWNER
   MEMBER
