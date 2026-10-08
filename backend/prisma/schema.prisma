@@ -4,38 +4,36 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id       String  @id @default(uuid())
-  name     String
-  email    String  @unique
-  password String?
-
-  googleId String? @unique
-
-  createdAt DateTime @default(now())
-
+  id            String          @id @default(uuid())
+  name          String
+  email         String          @unique
+  password      String?
+  googleId      String?         @unique
+  createdAt     DateTime        @default(now())
+  Commit        Commit[]
+  mentions      Mention[]
+  messages      Message[]
   memberships   ProjectMember[]
   assignedTasks Task[]          @relation("TaskAssignee")
-  messages      Message[]
-  mentions      Mention[]
 }
 
 model Project {
-  id        String   @id @default(uuid())
+  id        String          @id @default(uuid())
   name      String
-  createdAt DateTime @default(now())
-
-  members  ProjectMember[]
-  lists    List[]
-  tasks    Task[]
-  messages Message[]
+  createdAt DateTime        @default(now())
+  Commit    Commit[]
+  lists     List[]
+  messages  Message[]
+  members   ProjectMember[]
+  tasks     Task[]
 }
 
 model ProjectMember {
-  id        String @id @default(uuid())
+  id        String  @id @default(uuid())
   userId    String
   projectId String
   stack     String // e.g. "frontend", "backend", "ML", "design"
@@ -48,7 +46,6 @@ model ProjectMember {
   @@unique([userId, projectId])
 }
 
-// A Kanban column. Not fixed — users can create/rename/reorder these.
 model List {
   id        String   @id @default(uuid())
   name      String
@@ -69,15 +66,15 @@ model Task {
   listId      String
   projectId   String
   assigneeId  String?
+  commitId    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  list     List    @relation(fields: [listId], references: [id])
-  project  Project @relation(fields: [projectId], references: [id])
-  assignee User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  assignee    User?    @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  list        List     @relation(fields: [listId], references: [id])
+  project     Project  @relation(fields: [projectId], references: [id])
+  Commit      Commit?  @relation(fields: [commitId], references: [id])
 }
 
-// Chat/comment messages, scoped to a project (extend with taskId later if you want per-task threads)
 model Message {
   id        String   @id @default(cuid())
   content   String
@@ -85,33 +82,19 @@ model Message {
   senderId  String
   createdAt DateTime @default(now())
 
-  project  Project   @relation(fields: [projectId], references: [id])
-  sender   User      @relation(fields: [senderId], references: [id])
   mentions Mention[]
+  project  Project  @relation(fields: [projectId], references: [id])
+  sender   User     @relation(fields: [senderId], references: [id])
 }
 
-// Tracks @mentions of a user inside a message (or a task, if you extend it later)
-// model Mention {
-//   id          String  @id @default(cuid())
-//   messageId   String
-//   userId      String // who was mentioned
-//   isAiMention Boolean @default(false) // true if this mention was @AI, not a person
-
-//   message Message @relation(fields: [messageId], references: [id])
-//   user    User?   @relation(fields: [userId], references: [id]) // optional if isAiMention
-// }
 model Mention {
-  id String @id @default(cuid())
-
-  messageId String
-
-  userId String? // null when mentioning AI
-
+  id          String  @id @default(cuid())
+  messageId   String
+  userId      String?
   isAiMention Boolean @default(false)
 
   message Message @relation(fields: [messageId], references: [id])
-
-  user User? @relation(fields: [userId], references: [id])
+  user    User?   @relation(fields: [userId], references: [id])
 }
 
 enum MemberRole{

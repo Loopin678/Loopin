@@ -48,7 +48,6 @@ export async function findUserByGoogleId(googleId: string){
 // }
 
 
-
 /*
 Here all of our prisma connections will be with our database
 
