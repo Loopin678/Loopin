@@ -5,7 +5,11 @@
 #include <QTimer>
 #include <QNetworkAccessManager>
 #include <QQmlEngine>
+#ifdef USE_QTKEYCHAIN
 #include <qt6keychain/keychain.h>
+#else
+#include <QSettings>
+#endif
 
 // Implements GitHub's OAuth Device Flow:
 // https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps#device-flow

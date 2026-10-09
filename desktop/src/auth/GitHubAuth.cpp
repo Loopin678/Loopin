@@ -14,6 +14,7 @@ const QString GitHubAuth::kClientId = QStringLiteral("Ov23li3pbk1LwdgxLJEV");
 GitHubAuth::GitHubAuth(QObject* parent) : QObject(parent) {}
 
 void GitHubAuth::checkSavedToken() {
+#ifdef USE_QTKEYCHAIN
     auto job = new QKeychain::ReadPasswordJob(QStringLiteral("CollabDesktopClient"), this);
     job->setKey(QStringLiteral("github_oauth_token"));
     connect(job, &QKeychain::Job::finished, this, [this, job]() {
@@ -25,6 +26,15 @@ void GitHubAuth::checkSavedToken() {
         job->deleteLater();
     });
     job->start();
+#else
+    QSettings settings(QStringLiteral("Loopin"), QStringLiteral("DesktopClient"));
+    const QString token = settings.value(QStringLiteral("github_oauth_token")).toString();
+    if (token.isEmpty()) {
+        emit noSavedToken();
+    } else {
+        emit authenticated(token);
+    }
+#endif
 }
 
 void GitHubAuth::startLogin() {
@@ -112,6 +122,7 @@ void GitHubAuth::pollForToken(int intervalSeconds) {
                 m_pollTimer->stop();
                 QString token = json.value("access_token").toString();
 
+#ifdef USE_QTKEYCHAIN
                 auto job = new QKeychain::WritePasswordJob(QStringLiteral("CollabDesktopClient"), this);
                 job->setKey(QStringLiteral("github_oauth_token"));
                 job->setTextData(token);
@@ -119,6 +130,10 @@ void GitHubAuth::pollForToken(int intervalSeconds) {
                     job->deleteLater();
                 });
                 job->start();
+#else
+                QSettings settings(QStringLiteral("Loopin"), QStringLiteral("DesktopClient"));
+                settings.setValue(QStringLiteral("github_oauth_token"), token);
+#endif
 
                 emit authenticated(token);
                 return;

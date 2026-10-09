@@ -21,8 +21,10 @@ int main(int argc, char* argv[]) {
     // often uses "/qt/qml/<URI>/..."). If this fails to load, run the
     // build once and check build/App/qmldir plus the generated .qrc
     // files under build/ to see the real path, or switch to
-    // engine.loadFromModule("App", "Main") on Qt 6.5+.
     engine.load(QUrl(QStringLiteral("qrc:/App/qml/main.qml")));
+    if (engine.rootObjects().isEmpty()) {
+        engine.load(QUrl(QStringLiteral("qrc:/qt/qml/App/qml/main.qml")));
+    }
 
     if (engine.rootObjects().isEmpty()) {
         git_libgit2_shutdown();

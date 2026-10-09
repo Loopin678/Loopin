@@ -6,13 +6,22 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick Network QuickControls2 Concurrent)
-find_package(Qt6Keychain REQUIRED)
+find_package(Qt6Keychain QUIET)
+if(Qt6Keychain_FOUND)
+    message(STATUS "Qt6Keychain found, using system keychain")
+    add_compile_definitions(USE_QTKEYCHAIN)
+    set(KEYCHAIN_LIBS qt6keychain)
+else()
+    message(STATUS "Qt6Keychain not found, using QSettings fallback for credential storage")
+    set(KEYCHAIN_LIBS "")
+endif()
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBGIT2 REQUIRED IMPORTED_TARGET libgit2)
 
 qt_standard_project_setup(REQUIRES 6.2)
 
-qt_add_executable(loopin_desktop WIN32
+qt_add_executable(loopin_desktop
     src/main.cpp
     src/auth/GitHubAuth.cpp
     src/git/GitRepo.cpp
@@ -48,7 +57,7 @@ target_link_libraries(loopin_desktop PRIVATE
     Qt6::QuickControls2
     Qt6::Network
     Qt6::Concurrent
-    qt6keychain
+    ${KEYCHAIN_LIBS}
     PkgConfig::LIBGIT2
 )
 
