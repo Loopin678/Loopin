@@ -14,10 +14,7 @@ import {
   cancelProjectInviteService,
 } from "../services/project-member.service";
 
-export async function addProjectMember(
-  req: Request,
-  res: Response
-): Promise<void> {
+export async function addProjectMember(req: Request,res: Response): Promise<void> {
   try {
     const { projectId } = req.params;
     const { userId, email, stack } = req.body;
@@ -29,7 +26,7 @@ export async function addProjectMember(
       return;
     }
 
-    if (!userId && !email) {
+    if (!userId && (!email || typeof email !== "string")) {
       res.status(400).json({
         message: "userId or email is required",
       });
@@ -47,13 +44,22 @@ export async function addProjectMember(
       member,
     });
   } catch (error) {
+    if (error instanceof Error && error.message === "NO_USER_FOUND") {
+      res.status(404).json({
+        message: "No user found with that email",
+      });
+      return;
+    }
+
     if (
       error instanceof Error &&
-      (error.message.includes("already an active member") ||
+      (error.message === "ALREADY_MEMBER_OR_PENDING" ||
+        error.message.includes("already an active member") ||
         error.message.includes("already a member"))
     ) {
       res.status(409).json({
-        message: error.message,
+        message:
+          "User is already a member or has a pending invite",
       });
       return;
     }

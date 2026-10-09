@@ -29,7 +29,7 @@ export async function addProjectMemberService(data: {
     if (user) {
       targetUserId = user.id;
     } else {
-      throw new Error("User with this email not found. Please send an invite instead.");
+      throw new Error("NO_USER_FOUND");
     }
   }
 
@@ -41,7 +41,7 @@ export async function addProjectMemberService(data: {
 
   if (existingMember) {
     if (existingMember.status === MembershipStatus.ACTIVE) {
-      throw new Error("User is already an active member of this project");
+      throw new Error("ALREADY_MEMBER_OR_PENDING");
     }
     // Activate existing pending membership
     return updateProjectMemberStatus(existingMember.id, MembershipStatus.ACTIVE);

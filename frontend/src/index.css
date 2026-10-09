@@ -1,6 +1,9 @@
 @import "tailwindcss";
 
 @theme {
+  --font-sans: "Inter Tight", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -32,6 +35,17 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  --color-bg: #0B0D10;
+  --color-surface-1: #111418;
+  --color-surface-2: #161A1F;
+  --color-surface-3: #1C2127;
+  --color-border-strong: rgba(255, 255, 255, 0.10);
+  --color-text-main: #ECEAE4;
+  --color-text-muted: #8A9099;
+  --color-text-faint: #5B616A;
+  --color-accent-soft: rgba(94, 230, 176, 0.12);
+  --color-accent-2: #7C7FE8;
 }
 
 :root {
@@ -103,7 +117,7 @@ body {
   min-height: 100vh;
   background-color: var(--background);
   color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -125,4 +139,15 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted-foreground);
+}
+
+@layer utilities {
+  .shadow-mint-glow {
+    box-shadow: 0 0 16px rgba(94, 230, 176, 0.15);
+  }
+  
+  .glass-overlay {
+    backdrop-filter: blur(16px);
+    background-color: rgba(11, 13, 16, 0.6);
+  }
 }

@@ -2,6 +2,8 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  googleId?: string | null;
+  createdAt: string;
 }
 
 export interface Project {
@@ -49,6 +51,10 @@ export interface List {
   createdAt?: string;
 }
 
+export interface ListWithTasks extends List {
+  tasks: Partial<Task>[];
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -58,7 +64,7 @@ export interface Task {
   listId: string;
   projectId: string;
   assigneeId: string | null;
-  commitId: string | null;
+  commitId?: string | null;
   priority?: "low" | "medium" | "high" | string | null;
   dueDate?: string | null;
   assignee?: { id: string; name: string; email: string } | null;
