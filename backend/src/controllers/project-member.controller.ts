@@ -6,15 +6,17 @@ import {
   getProjectMembersService,
   getProjectMembershipsByUserIdService,
   removeProjectMemberService,
+  getPendingProjectInvitationService,
+  acceptProjectInvitationService,
+  declineProjectInvitationService,
+  transferProjectOwnershipService
 } from "../services/project-member.service";
 
-export async function addProjectMember(
-  req: Request,
-  res: Response
-): Promise<void> {
+export async function addProjectMember(req: Request,res: Response): Promise<void> {
   try {
     const { projectId } = req.params;
-    const { userId, stack } = req.body;
+    // replace userId with email since that shit is unique
+    const { email, stack } = req.body;
 
     if (typeof projectId !== "string") {
       res.status(400).json({
@@ -23,9 +25,9 @@ export async function addProjectMember(
       return;
     }
 
-    if (!userId || typeof userId !== "string") {
+    if (!email || typeof email !== "string") {
       res.status(400).json({
-        message: "userId is required",
+        message: "email is required",
       });
       return;
     }
@@ -39,7 +41,7 @@ export async function addProjectMember(
 
     const member = await addProjectMemberService({
       projectId,
-      userId,
+      email,
       stack,
     });
 
@@ -47,12 +49,17 @@ export async function addProjectMember(
       member,
     });
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message === "User is already a member of this project"
-    ) {
+    if(error instanceof Error && error.message === "NO_USER_FOUND"){
+      res.status(404).json({
+        message: "No user found with that email",
+      });
+      return;
+    }
+
+    if(error instanceof Error && error.message === "ALREADY_MEMBER_OR_PENDING"){
       res.status(409).json({
-        message: error.message,
+        message:
+          "User is already a member or has a pending invite",
       });
       return;
     }
@@ -159,34 +166,200 @@ catch (error) {
   }
 }
 
-export async function removeProjectMember(
-  req: Request,
-  res: Response
-): Promise<void> {
+export async function removeProjectMember(req: Request,res: Response): Promise<void>{
 try {
     const { projectId, userId } = req.params;
+    const requesterId = req.user?.id;
 
-     if (typeof projectId !== "string" || typeof userId !== "string"){
+
+    if(typeof projectId !== "string" || typeof userId !== "string"){
       res.status(400).json({
         message: "Invalid projectId or userId",
       });
       return;
     }
+    if(!requesterId){
+      res.status(401).json({
+        message: "Authentication required",
+      });
+      return;
+    }
 
-    await removeProjectMemberService(projectId, userId);
+    await removeProjectMemberService(projectId, requesterId, userId);
 
     res.status(204).send();
 } 
 catch (error) {
-     if (error instanceof Error && error.message === "Project member not found"){
-          res.status(404).json({
-          message: error.message,
-          });
-          return;
-     }
+    if (!(error instanceof Error)) {
+      res.status(500).json({ message: "Internal Server Error" });
+      return;
+    }
 
-     console.error(error);
+    const forbiddenMessages: Record<string, string> = {
+      FORBIDDEN_NO_ACTIVE_MEMBERSHIP:
+        "You must be an active project member to perform this action",
+      FORBIDDEN_MEMBER_CANNOT_REMOVE_OTHERS:
+        "Members can only remove themselves",
+      OWNER_CANNOT_REMOVE_SELF:
+        "Transfer ownership or delete the project instead of removing yourself as owner",
+      FORBIDDEN_OWNER_CANNOT_REMOVE_OWNER:
+        "An owner cannot remove another owner",
+    };
 
-     res.status(500).json({message: "Internal Server Error",});
+    if (forbiddenMessages[error.message]) {
+      res.status(403).json({
+        message: forbiddenMessages[error.message],
+      });
+      return;
+    }
+
+    if (error.message === "Project member not found") {
+      res.status(404).json({ message: error.message });
+      return;
+    }
+
+    console.error(error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
 }
+
+
+export async function getPendingProjectInvitations(req: Request, res: Response):Promise<void>{
+try {
+    const userId = req.user?.id;
+
+    if(!userId){
+      res.status(401).json({
+        message: "Authentication Required"
+      });
+      return; // return here tells TS after the check that userId must be a string
+    }
+    const invitations = await getPendingProjectInvitationService(userId);
+
+    res.status(200).json({invitations})
+} catch (err) {
+  console.error(err);
+}
+}
+export async function acceptProjectInvitation(req: Request, res: Response): Promise<void>{
+try {
+  const {projectId} = req.params;
+  const userId = req.user?.id;
+
+  if(typeof projectId !== "string"){
+    res.status(400).json({message: "Invalid projectId"});
+    return;
+  }
+  if(!userId){
+    res.status(401).json({message:"Authentication required"});
+    return;
+  }
+  await acceptProjectInvitationService(projectId, userId);
+
+  res.status(200).json({
+    message:"Invitation Accepted"
+  });
+  
+}catch (err){
+  if(err instanceof Error && err.message === "INVITE_NOT_FOUND_OR_NOT_PENDING"){
+      res.status(404).json({message: "Pending invitation not found"});
+      return;
+    }
+
+    console.error(err);
+
+    res.status(500).json({
+      message: "Internal Server Error",
+    });}
+}
+
+export async function declineProjectInvitation(req: Request,res: Response): Promise<void> {
+  try {
+    const {projectId} = req.params;
+    const userId = req.user?.id;
+
+    if(typeof projectId !== "string"){
+      res.status(400).json({message: "Invalid projectId"});
+      return;
+    }
+
+    if(!userId){
+      res.status(401).json({message: "Authentication required"});
+      return;
+    }
+
+    await declineProjectInvitationService(projectId, userId);
+
+    res.status(200).json({message: "Invitation declined"});
+  }catch (error) {
+    if (error instanceof Error && error.message === "INVITE_NOT_FOUND_OR_NOT_PENDING"){
+      res.status(404).json({message: "Pending invitation not found"});
+      return;
+    }
+
+    console.error(error);
+
+    res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
+}
+
+export async function transferProjectOwnershipController(req: Request,res: Response): Promise<void> {
+  try {
+    const { projectId } = req.params;
+    const currentOwnerId = req.user?.id;
+    const { newOwnerId } = req.body;
+
+    if(typeof projectId !== "string"){
+      res.status(400).json({ message: "Invalid projectId" });
+      return;
+    }
+
+    if(!currentOwnerId){
+      res.status(401).json({
+        message: "Authentication required",
+      });
+      return;
+    }
+
+    if(typeof newOwnerId !== "string" || !newOwnerId.trim()){
+      res.status(400).json({
+        message: "newOwnerId is required",
+      });
+      return;
+    }
+
+    await transferProjectOwnershipService(projectId, currentOwnerId, newOwnerId.trim());
+
+    res.status(200).json({
+      message: "Project ownership transferred successfully",
+    });
+  }catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "NOT_PROJECT_OWNER") {
+        res.status(403).json({
+          message: "Only the active project owner can transfer ownership",
+        });
+        return;
+      }
+
+      if (error.message === "TARGET_NOT_ACTIVE_MEMBER") {
+        res.status(400).json({
+          message: "The new owner must be an active project member",
+        });
+        return;
+      }
+
+      if (error.message === "CANNOT_TRANSFER_OWNERSHIP_TO_SELF") {
+        res.status(400).json({
+          message: "You are already the project owner",
+        });
+        return;
+      }
+    }
+
+    console.error(error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
 }

@@ -71,6 +71,8 @@ try {
     });
 
 } catch (error){
+    console.error("LOGIN ERROR:", error);
+
     if(error instanceof Error &&
         error.message === "INVALID_CREDENTIALS"
     ){
@@ -80,6 +82,7 @@ try {
         return;
     }
     res.status(500).json({
+      
         message: "Internal Server Error"
     })
 }
