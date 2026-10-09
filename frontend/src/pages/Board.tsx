@@ -523,8 +523,17 @@ export function Board() {
       {/* Top project sub-bar */}
       <div className="h-12 border-b border-[rgba(255,255,255,0.06)] bg-[#111418]/60 px-6 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4">
-          <h2 className="text-sm font-bold text-[#ECEAE4] truncate">
+          <h2 className="text-sm font-bold text-[#ECEAE4] truncate flex items-center gap-2">
             {project?.name || 'Board'}
+            {projectId && (
+              <button
+                onClick={() => navigator.clipboard.writeText(projectId)}
+                className="text-[10px] bg-[rgba(255,255,255,0.08)] hover:bg-[rgba(255,255,255,0.15)] text-[#8A9099] px-2 py-0.5 rounded transition-colors"
+                title="Copy Project ID"
+              >
+                Copy ID
+              </button>
+            )}
           </h2>
           <span className="text-xs text-[#5B616A] font-mono">
             {totalTasks} task{totalTasks !== 1 ? 's' : ''}

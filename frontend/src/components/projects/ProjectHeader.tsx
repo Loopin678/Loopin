@@ -86,8 +86,20 @@ export function ProjectHeader({ project }: { project: Project }) {
               </Tooltip.Root>
 
               <DropdownMenu.Portal>
-                <DropdownMenu.Content align="end" sideOffset={5} className="w-48 bg-white border border-black/10 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 p-1 z-50 font-sans">
-                  <DropdownMenu.Item className="text-sm font-semibold text-black/70 px-3 py-2 rounded-lg hover:bg-black/5 focus:bg-black/5 focus:outline-none cursor-not-allowed opacity-50">
+                <DropdownMenu.Content align="end" sideOffset={5} className="w-56 bg-white border border-black/10 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 p-1 z-50 font-sans">
+                  
+                  <DropdownMenu.Item 
+                    className="flex flex-col text-sm font-semibold text-black/70 px-3 py-2 rounded-lg hover:bg-black/5 focus:bg-black/5 focus:outline-none cursor-pointer"
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      navigator.clipboard.writeText(project.id);
+                    }}
+                  >
+                    <span>Copy Project ID</span>
+                    <span className="text-[10px] text-black/40 font-mono mt-0.5 truncate">{project.id}</span>
+                  </DropdownMenu.Item>
+
+                  <DropdownMenu.Item className="text-sm font-semibold text-black/70 px-3 py-2 rounded-lg hover:bg-black/5 focus:bg-black/5 focus:outline-none cursor-not-allowed opacity-50 mt-1">
                     Export Data
                   </DropdownMenu.Item>
                   <DropdownMenu.Separator className="h-px bg-black/10 my-1" />

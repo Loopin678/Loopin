@@ -65,6 +65,23 @@ export function UserMenu({ user, isCollapsed, onLogout }: UserMenuProps) {
             <p className="text-sm font-semibold text-zinc-900 truncate">{user?.email}</p>
           </div>
           
+          <DropdownMenu.Item 
+            className="flex flex-col text-sm font-medium text-zinc-700 px-3 py-2 rounded-lg hover:bg-zinc-100 focus:bg-zinc-100 focus:outline-none cursor-pointer outline-none"
+            onSelect={(e) => {
+              e.preventDefault();
+              if (user?.id) {
+                navigator.clipboard.writeText(user.id);
+                // Optional: show a toast notification here
+              }
+            }}
+          >
+            <div className="flex items-center justify-between w-full">
+              <span>Copy User ID (for Desktop App)</span>
+              <Keyboard size={16} strokeWidth={1.75} className="text-zinc-400" />
+            </div>
+            <p className="text-[10px] text-zinc-400 font-mono mt-1 truncate">{user?.id}</p>
+          </DropdownMenu.Item>
+          
           <DropdownMenu.Item className="flex items-center justify-between text-sm font-medium text-zinc-700 px-3 py-2 rounded-lg hover:bg-zinc-100 focus:bg-zinc-100 focus:outline-none cursor-not-allowed opacity-50 outline-none">
             Account Settings <Settings size={18} strokeWidth={1.75} className="text-zinc-400" />
           </DropdownMenu.Item>

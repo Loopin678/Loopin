@@ -159,7 +159,7 @@ void ApiClient::requestCommitGroups(const QJsonArray& changes, const QString& ta
         body["contents"] = contentsArr;
         body["generationConfig"] = generationConfig;
 
-        QNetworkRequest req(QUrl(QStringLiteral("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=") + m_geminiApiKey));
+        QNetworkRequest req(QUrl(QStringLiteral("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=") + m_geminiApiKey));
         req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
         QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson());
@@ -397,7 +397,7 @@ void ApiClient::generateGitignore(const QStringList& files) {
         body["contents"] = contentsArr;
         body["generationConfig"] = generationConfig;
 
-        QNetworkRequest req(QUrl(QStringLiteral("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=") + m_geminiApiKey));
+        QNetworkRequest req(QUrl(QStringLiteral("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=") + m_geminiApiKey));
         req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
         QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson());
