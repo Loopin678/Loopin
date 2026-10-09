@@ -9,6 +9,14 @@ import {
   deleteProject,
 } from "../controllers/project.controller";
 import { getProjectCommits } from "../controllers/commit.controller";
+import {
+  getProjectMembers,
+  addProjectMember,
+  removeProjectMember,
+  getProjectInvites,
+  sendProjectInvite,
+  cancelProjectInvite,
+} from "../controllers/project-member.controller";
 
 import listRoutes from "./listRoutes";
 import { nestedTaskRoutes } from "./taskRoutes";
@@ -19,6 +27,14 @@ const projectRoutes = Router();
 projectRoutes.use("/:projectId/tasks", nestedTaskRoutes);
 projectRoutes.use("/:projectId/lists", listRoutes);
 projectRoutes.get("/:projectId/commits", getProjectCommits);
+
+// Project members & invites
+projectRoutes.get("/:projectId/members", getProjectMembers);
+projectRoutes.post("/:projectId/members", requireAuth, addProjectMember);
+projectRoutes.delete("/:projectId/members/:userId", requireAuth, removeProjectMember);
+projectRoutes.get("/:projectId/invites", requireAuth, getProjectInvites);
+projectRoutes.post("/:projectId/invites", requireAuth, sendProjectInvite);
+projectRoutes.delete("/:projectId/invites/:inviteId", requireAuth, cancelProjectInvite);
 
 // Protected endpoints requiring authenticated user session
 projectRoutes.get("/", requireAuth, getMyProjects);

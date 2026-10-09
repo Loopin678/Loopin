@@ -10,7 +10,9 @@ import {
   UserCircle,
   LogOut,
   Sun,
-  Moon
+  Moon,
+  Users,
+  Mail
 } from 'lucide-react';
 import { Button } from './ui/button';
 
@@ -25,6 +27,10 @@ interface HeaderProps {
   setActiveTab: (tab: 'board' | 'commits' | 'desktop') => void;
   taskCount: number;
   commitCount: number;
+  membersCount?: number;
+  pendingInvitesCount?: number;
+  onOpenMembersModal?: () => void;
+  onOpenInvitesModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -38,6 +44,10 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   taskCount,
   commitCount,
+  membersCount,
+  pendingInvitesCount,
+  onOpenMembersModal,
+  onOpenInvitesModal,
 }) => {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') {
@@ -121,6 +131,24 @@ export const Header: React.FC<HeaderProps> = ({
               <Plus className="size-3.5" />
               <span>New</span>
             </Button>
+
+            {currentProject && onOpenMembersModal && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onOpenMembersModal}
+                title="Manage Project Members & Invites"
+                className="h-7 text-xs px-2.5 gap-1.5"
+              >
+                <Users className="size-3.5 text-primary" />
+                <span>Members</span>
+                {membersCount !== undefined && membersCount > 0 && (
+                  <span className="font-mono text-[10px] bg-secondary px-1 rounded">
+                    {membersCount}
+                  </span>
+                )}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -170,7 +198,19 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Right: DB & Logged In User */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          {pendingInvitesCount !== undefined && pendingInvitesCount > 0 && onOpenInvitesModal && (
+            <Button
+              size="sm"
+              onClick={onOpenInvitesModal}
+              title="You have pending project invitations"
+              className="h-7 text-xs px-2.5 gap-1.5 shadow-xs"
+            >
+              <Mail className="size-3.5" />
+              <span>{pendingInvitesCount} Invite{pendingInvitesCount > 1 ? 's' : ''}</span>
+            </Button>
+          )}
+
           <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs">
             <CheckCircle2 className="size-3" />
             <span className="font-mono text-[10px]">Supabase Live</span>

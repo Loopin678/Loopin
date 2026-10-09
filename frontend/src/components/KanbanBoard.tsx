@@ -21,7 +21,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { GripVerticalIcon, Plus, GitCommit, Calendar } from "lucide-react"
-import type { List, Task as GlobalTask } from "../types"
+import type { List, Task as GlobalTask, ProjectMember } from "../types"
 
 export interface BoardTask {
   id: string
@@ -138,8 +138,9 @@ interface TaskColumnProps extends Omit<
   tasks: BoardTask[]
   isOverlay?: boolean
   columnTitle: string
+  members?: ProjectMember[]
   onSelectTask?: (task: GlobalTask) => void
-  onQuickAddTask?: (listId: string, title: string, priority: "low" | "medium" | "high", dueDate?: string) => void
+  onQuickAddTask?: (listId: string, title: string, priority: "low" | "medium" | "high", dueDate?: string, assigneeId?: string) => void
 }
 
 function TaskColumn({
@@ -147,6 +148,7 @@ function TaskColumn({
   tasks,
   isOverlay,
   columnTitle,
+  members,
   onSelectTask,
   onQuickAddTask,
   ...props
@@ -155,13 +157,15 @@ function TaskColumn({
   const [newTitle, setNewTitle] = useState("")
   const [newPriority, setNewPriority] = useState<"low" | "medium" | "high">("medium")
   const [newDueDate, setNewDueDate] = useState("")
+  const [newAssigneeId, setNewAssigneeId] = useState("")
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTitle.trim()) return
-    onQuickAddTask?.(value, newTitle.trim(), newPriority, newDueDate.trim() || undefined)
+    onQuickAddTask?.(value, newTitle.trim(), newPriority, newDueDate.trim() || undefined, newAssigneeId || undefined)
     setNewTitle("")
     setNewDueDate("")
+    setNewAssigneeId("")
     setIsAdding(false)
   }
 
@@ -222,12 +226,27 @@ function TaskColumn({
                       <option value="high">High</option>
                     </select>
 
+                    {members && members.length > 0 && (
+                      <select
+                        value={newAssigneeId}
+                        onChange={(e) => setNewAssigneeId(e.target.value)}
+                        className="rounded border border-input bg-background px-2 py-0.5 text-[11px] text-muted-foreground max-w-[90px] truncate"
+                      >
+                        <option value="">Assignee</option>
+                        {members.map((m) => (
+                          <option key={m.userId} value={m.userId}>
+                            {m.user?.name || m.user?.email || 'Member'}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+
                     <input
                       type="text"
                       placeholder="Due: Jan 15"
                       value={newDueDate}
                       onChange={(e) => setNewDueDate(e.target.value)}
-                      className="w-24 rounded border border-input bg-background px-2 py-0.5 text-[11px] text-muted-foreground"
+                      className="w-20 rounded border border-input bg-background px-2 py-0.5 text-[11px] text-muted-foreground"
                     />
                   </div>
 
@@ -267,8 +286,9 @@ function TaskColumn({
 interface KanbanBoardProps {
   lists: List[]
   tasks: GlobalTask[]
+  members?: ProjectMember[]
   onCreateList: (name: string) => void
-  onCreateTask: (listId: string, title: string, priority?: string, dueDate?: string) => void
+  onCreateTask: (listId: string, title: string, priority?: string, dueDate?: string, assigneeId?: string) => void
   onMoveTask: (taskId: string, newListId: string, newPosition: number) => void
   onSelectTask: (task: GlobalTask) => void
 }
@@ -276,6 +296,7 @@ interface KanbanBoardProps {
 export function KanbanBoard({
   lists,
   tasks,
+  members,
   onCreateList,
   onCreateTask,
   onMoveTask,
@@ -310,7 +331,7 @@ export function KanbanBoard({
         title: task.title,
         priority,
         description: task.description || undefined,
-        assignee: task.assignee?.name || undefined,
+        assignee: task.assignee?.name || task.assignee?.email || undefined,
         assigneeAvatar: task.assigneeAvatar,
         dueDate: task.dueDate || undefined,
         stack: task.stack || undefined,
@@ -347,9 +368,10 @@ export function KanbanBoard({
     listId: string,
     title: string,
     priority: "low" | "medium" | "high",
-    dueDate?: string
+    dueDate?: string,
+    assigneeId?: string
   ) => {
-    onCreateTask(listId, title, priority, dueDate)
+    onCreateTask(listId, title, priority, dueDate, assigneeId)
   }
 
   return (
@@ -377,6 +399,7 @@ export function KanbanBoard({
                   value={columnValue}
                   tasks={colTasks}
                   columnTitle={getColumnTitle(columnValue)}
+                  members={members}
                   onSelectTask={onSelectTask}
                   onQuickAddTask={handleQuickAddTask}
                 />

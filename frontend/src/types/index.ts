@@ -8,6 +8,7 @@ export interface Project {
   id: string;
   name: string;
   createdAt: string;
+  members?: ProjectMember[];
 }
 
 export interface ProjectMember {
@@ -15,7 +16,29 @@ export interface ProjectMember {
   userId: string;
   projectId: string;
   stack: string;
+  role?: "OWNER" | "MEMBER" | string;
+  status?: "PENDING" | "ACTIVE" | string;
   user?: User;
+}
+
+export interface ProjectInvite {
+  id: string;
+  projectId: string;
+  email: string;
+  stack: string;
+  role?: string;
+  invitedById: string;
+  status: "pending" | "accepted" | "declined";
+  createdAt: string;
+  project?: {
+    id: string;
+    name: string;
+  };
+  invitedBy?: {
+    id: string;
+    name: string;
+    email: string;
+  };
 }
 
 export interface List {

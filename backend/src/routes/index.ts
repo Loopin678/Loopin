@@ -12,12 +12,8 @@ indexRouter.use("/auth", authRoutes);
 indexRouter.use("/projects", projectRoutes);
 indexRouter.use("/project", projectRoutes);
 indexRouter.use("/project/member", projectMemberRoutes);
+indexRouter.use("/invites", projectMemberRoutes);
 indexRouter.use("/tasks", requireAuth, flatTaskRoutes);
 indexRouter.use("/commits", commitRoutes);
 
 export default indexRouter;
-
-/*
-    gonna setup all routes behind the /api endpoint
-    make /api look like a complete tree
-*/

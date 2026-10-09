@@ -1,4 +1,4 @@
-import type { Project, List, Task, Commit, User } from '../types';
+import type { Project, List, Task, Commit, User, ProjectMember, ProjectInvite } from '../types';
 
 const API_BASE = '/api';
 
@@ -221,6 +221,81 @@ export const api = {
     return request<Commit>('/commits', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+  },
+
+  // Project Members
+  async getProjectMembers(projectId: string): Promise<ProjectMember[]> {
+    try {
+      const data = await request<{ members: ProjectMember[] } | ProjectMember[]>(`/projects/${projectId}/members`);
+      if (Array.isArray(data)) return data;
+      return data.members || [];
+    } catch {
+      return [];
+    }
+  },
+
+  async addProjectMember(projectId: string, emailOrUserId: string, stack: string = 'fullstack'): Promise<ProjectMember> {
+    const isEmail = emailOrUserId.includes('@');
+    const body = isEmail ? { email: emailOrUserId, stack } : { userId: emailOrUserId, stack };
+    const data = await request<{ member: ProjectMember } | ProjectMember>(`/projects/${projectId}/members`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    return (data as any).member || data;
+  },
+
+  async removeProjectMember(projectId: string, userId: string): Promise<void> {
+    await request(`/projects/${projectId}/members/${userId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Project Invites
+  async getProjectInvites(projectId: string): Promise<ProjectInvite[]> {
+    try {
+      const data = await request<{ invites: ProjectInvite[] } | ProjectInvite[]>(`/projects/${projectId}/invites`);
+      if (Array.isArray(data)) return data;
+      return data.invites || [];
+    } catch {
+      return [];
+    }
+  },
+
+  async sendProjectInvite(projectId: string, email: string, stack: string = 'fullstack', role: string = 'MEMBER'): Promise<ProjectInvite> {
+    const data = await request<{ invite: ProjectInvite } | ProjectInvite>(`/projects/${projectId}/invites`, {
+      method: 'POST',
+      body: JSON.stringify({ email, stack, role }),
+    });
+    return (data as any).invite || data;
+  },
+
+  async cancelProjectInvite(projectId: string, inviteId: string): Promise<void> {
+    await request(`/projects/${projectId}/invites/${inviteId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // User Invites
+  async getMyInvites(): Promise<ProjectInvite[]> {
+    try {
+      const data = await request<{ invites: ProjectInvite[] } | ProjectInvite[]>('/invites/my');
+      if (Array.isArray(data)) return data;
+      return data.invites || [];
+    } catch {
+      return [];
+    }
+  },
+
+  async acceptInvite(inviteId: string): Promise<{ message: string; project?: Project }> {
+    return request<{ message: string; project?: Project }>(`/invites/${inviteId}/accept`, {
+      method: 'POST',
+    });
+  },
+
+  async declineInvite(inviteId: string): Promise<{ message: string }> {
+    return request<{ message: string }>(`/invites/${inviteId}/decline`, {
+      method: 'POST',
     });
   },
 };

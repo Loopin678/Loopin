@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { api } from './api/client';
-import type { Project, List, Task, Commit, User } from './types';
+import type { Project, List, Task, Commit, User, ProjectMember, ProjectInvite } from './types';
 import { Header } from './components/Header';
 import { KanbanBoard } from './components/KanbanBoard';
 import { CommitsView } from './components/CommitsView';
 import { DesktopSyncView } from './components/DesktopSyncView';
 import { TaskModal } from './components/TaskModal';
 import { CreateProjectModal } from './components/CreateProjectModal';
+import { ProjectMembersModal } from './components/ProjectMembersModal';
+import { InvitesModal } from './components/InvitesModal';
 import { AuthScreen } from './components/AuthScreen';
 import { AlertCircle, FolderPlus, Sparkles, Loader2 } from 'lucide-react';
 
@@ -16,6 +18,8 @@ export const App: React.FC = () => {
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
+  const [members, setMembers] = useState<ProjectMember[]>([]);
+  const [myInvites, setMyInvites] = useState<ProjectInvite[]>([]);
   const [lists, setLists] = useState<List[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [commits, setCommits] = useState<Commit[]>([]);
@@ -23,6 +27,8 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'board' | 'commits' | 'desktop'>('board');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
+  const [isInvitesModalOpen, setIsInvitesModalOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // 1. Check existing session on mount
@@ -46,6 +52,8 @@ export const App: React.FC = () => {
     if (!currentUser) {
       setProjects([]);
       setCurrentProject(null);
+      setMembers([]);
+      setMyInvites([]);
       setLists([]);
       setTasks([]);
       setCommits([]);
@@ -75,17 +83,28 @@ export const App: React.FC = () => {
       .finally(() => {
         setLoading(false);
       });
+
+    // Check pending invitations for current user
+    refreshMyInvites();
+
+    // Check if invite ID was passed in query parameter
+    const params = new URLSearchParams(window.location.search);
+    const inviteParam = params.get('invite');
+    if (inviteParam) {
+      setIsInvitesModalOpen(true);
+    }
   }, [currentUser]);
 
-  // 3. Fetch project data (lists, tasks, commits) when active project changes
+  // 3. Fetch project data (lists, tasks, commits, members) when active project changes
   const refreshProjectData = async (projectId: string) => {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const [fetchedLists, fetchedTasks, fetchedCommits] = await Promise.all([
+      const [fetchedLists, fetchedTasks, fetchedCommits, fetchedMembers] = await Promise.all([
         api.getLists(projectId),
         api.getTasks(projectId),
         api.getCommits(projectId),
+        api.getProjectMembers(projectId),
       ]);
 
       if (fetchedLists.length === 0) {
@@ -101,11 +120,44 @@ export const App: React.FC = () => {
 
       setTasks(fetchedTasks);
       setCommits(fetchedCommits);
+      setMembers(fetchedMembers);
     } catch (err: any) {
       console.error('Failed to load project data:', err);
       setErrorMsg(err.message || 'Error connecting to project data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const refreshProjectMembers = async (projectId: string) => {
+    try {
+      const m = await api.getProjectMembers(projectId);
+      setMembers(m);
+    } catch (e) {
+      console.error('Failed to refresh members:', e);
+    }
+  };
+
+  const refreshMyInvites = async () => {
+    if (!currentUser) return;
+    try {
+      const invs = await api.getMyInvites();
+      setMyInvites(invs);
+    } catch (e) {
+      console.error('Failed to fetch invites:', e);
+    }
+  };
+
+  const handleInviteHandled = async (acceptedProject?: Project) => {
+    await refreshMyInvites();
+    if (acceptedProject) {
+      const projs = await api.getProjects();
+      setProjects(projs);
+      const found = projs.find((p) => p.id === acceptedProject.id) || projs[0];
+      if (found) {
+        setCurrentProject(found);
+      }
+      setIsInvitesModalOpen(false);
     }
   };
 
@@ -116,6 +168,7 @@ export const App: React.FC = () => {
       setLists([]);
       setTasks([]);
       setCommits([]);
+      setMembers([]);
     }
   }, [currentProject?.id]);
 
@@ -129,6 +182,8 @@ export const App: React.FC = () => {
     setCurrentUser(null);
     setProjects([]);
     setCurrentProject(null);
+    setMembers([]);
+    setMyInvites([]);
     setTasks([]);
     setLists([]);
     setCommits([]);
@@ -155,9 +210,11 @@ export const App: React.FC = () => {
     listId: string,
     title: string,
     priority: string = 'medium',
-    dueDate?: string
+    dueDate?: string,
+    assigneeId?: string
   ) => {
     if (!currentProject || !currentUser) return;
+    const targetAssigneeId = assigneeId || currentUser.id;
     try {
       const created = await api.createTask({
         title,
@@ -165,10 +222,11 @@ export const App: React.FC = () => {
         projectId: currentProject.id,
         priority,
         dueDate,
-        assigneeId: currentUser.id,
+        assigneeId: targetAssigneeId,
       });
       setTasks((prev) => [...prev, created]);
     } catch {
+      const assignedMember = members.find((m) => m.userId === targetAssigneeId);
       const localTask: Task = {
         id: `task-${Date.now()}`,
         title,
@@ -179,8 +237,8 @@ export const App: React.FC = () => {
         dueDate: dueDate || null,
         listId,
         projectId: currentProject.id,
-        assigneeId: currentUser.id,
-        assignee: { id: currentUser.id, name: currentUser.name, email: currentUser.email },
+        assigneeId: targetAssigneeId,
+        assignee: assignedMember?.user || { id: currentUser.id, name: currentUser.name, email: currentUser.email },
         commitId: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -191,9 +249,10 @@ export const App: React.FC = () => {
 
   const handleMoveTask = async (taskId: string, newListId: string, newPosition: number) => {
     setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, listId: newListId, position: newPosition } : t))
+      prev.map((t) =>
+        t.id === taskId ? { ...t, listId: newListId, position: newPosition } : t
+      )
     );
-
     try {
       await api.moveTask(taskId, newListId, newPosition);
     } catch (e) {
@@ -209,9 +268,31 @@ export const App: React.FC = () => {
       stack?: string;
       priority?: string;
       dueDate?: string;
+      assigneeId?: string;
     }
   ) => {
-    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t)));
+    let assigneeObj: { id: string; name: string; email: string } | null | undefined = undefined;
+    if (updates.assigneeId) {
+      const member = members.find((m) => m.userId === updates.assigneeId);
+      if (member?.user) {
+        assigneeObj = member.user;
+      }
+    } else if (updates.assigneeId === '') {
+      assigneeObj = null;
+    }
+
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === taskId
+          ? {
+              ...t,
+              ...updates,
+              ...(assigneeObj !== undefined ? { assignee: assigneeObj } : {}),
+            }
+          : t
+      )
+    );
+
     try {
       await api.updateTask(taskId, updates);
     } catch (e) {
@@ -287,6 +368,10 @@ export const App: React.FC = () => {
         setActiveTab={setActiveTab}
         taskCount={tasks.length}
         commitCount={commits.length}
+        membersCount={members.length}
+        pendingInvitesCount={myInvites.length}
+        onOpenMembersModal={() => setIsMembersModalOpen(true)}
+        onOpenInvitesModal={() => setIsInvitesModalOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -314,7 +399,7 @@ export const App: React.FC = () => {
             </div>
             <h2 className="text-2xl font-bold text-foreground mb-2">No Projects Found</h2>
             <p className="text-sm text-muted-foreground mb-6">
-              Your account ({currentUser.email}) has isolated access. Create your first project to start tracking tasks and commits!
+              Your account ({currentUser.email}) has isolated access. Create your first project or accept a pending invitation to start collaborating!
             </p>
             <button
               onClick={() => setIsNewProjectOpen(true)}
@@ -330,6 +415,7 @@ export const App: React.FC = () => {
               <KanbanBoard
                 lists={lists}
                 tasks={tasks}
+                members={members}
                 onCreateList={handleCreateList}
                 onCreateTask={handleCreateTask}
                 onMoveTask={handleMoveTask}
@@ -364,6 +450,7 @@ export const App: React.FC = () => {
       {/* Modals */}
       <TaskModal
         task={selectedTask}
+        members={members}
         onClose={() => setSelectedTask(null)}
         onUpdate={handleUpdateTask}
         onDelete={handleDeleteTask}
@@ -373,6 +460,21 @@ export const App: React.FC = () => {
         isOpen={isNewProjectOpen}
         onClose={() => setIsNewProjectOpen(false)}
         onCreate={handleCreateProject}
+      />
+
+      <ProjectMembersModal
+        isOpen={isMembersModalOpen}
+        onClose={() => setIsMembersModalOpen(false)}
+        project={currentProject}
+        currentUser={currentUser}
+        onMembersUpdated={() => currentProject && refreshProjectMembers(currentProject.id)}
+      />
+
+      <InvitesModal
+        isOpen={isInvitesModalOpen}
+        onClose={() => setIsInvitesModalOpen(false)}
+        invites={myInvites}
+        onInviteHandled={handleInviteHandled}
       />
     </div>
   );
