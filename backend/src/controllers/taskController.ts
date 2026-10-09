@@ -3,7 +3,7 @@ import { taskService } from "../services/taskService";
 
 export async function createTask(req: Request, res: Response): Promise<void> {
   try {
-    const { title, listId, description, stack, assigneeId } = req.body;
+    const { title, listId, description, stack, priority, dueDate, assigneeId } = req.body;
 // Again here we are not taking the project id from the params because we need to first create a task using the service 
 // And then only we can check whether the project id in the url is same as the one found up by the repository function using the listId
 // Could put some check later on when needed
@@ -17,7 +17,7 @@ export async function createTask(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const task = await taskService.createTask({ title, listId, description, stack, assigneeId });
+    const task = await taskService.createTask({ title, listId, description, stack, priority, dueDate, assigneeId });
 
     res.status(201).json({ task });
   } catch (error) {
@@ -55,14 +55,14 @@ export async function getTaskDetail(req: Request, res: Response): Promise<void> 
 export async function updateTask(req: Request, res: Response): Promise<void> {
   try {
     const { taskId } = req.params;
-    const { title, description, stack, assigneeId } = req.body;
+    const { title, description, stack, priority, dueDate, assigneeId } = req.body;
 
     if (typeof taskId !== "string") {
       res.status(400).json({ message: "Invalid taskId" });
       return;
     }
 
-    const task = await taskService.updateTask({ taskId, title, description, stack, assigneeId });
+    const task = await taskService.updateTask({ taskId, title, description, stack, priority, dueDate, assigneeId });
 
     res.status(200).json({ task });
   } catch (error) {

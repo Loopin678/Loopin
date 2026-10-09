@@ -90,9 +90,10 @@ export const App: React.FC = () => {
 
       if (fetchedLists.length === 0) {
         setLists([
-          { id: 'list-todo', name: 'To Do', position: 0, projectId },
+          { id: 'list-backlog', name: 'Backlog', position: 0, projectId },
           { id: 'list-inprogress', name: 'In Progress', position: 1, projectId },
-          { id: 'list-done', name: 'Done', position: 2, projectId },
+          { id: 'list-review', name: 'Review', position: 2, projectId },
+          { id: 'list-done', name: 'Done', position: 3, projectId },
         ]);
       } else {
         setLists(fetchedLists);
@@ -150,13 +151,20 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleCreateTask = async (listId: string, title: string) => {
+  const handleCreateTask = async (
+    listId: string,
+    title: string,
+    priority: string = 'medium',
+    dueDate?: string
+  ) => {
     if (!currentProject || !currentUser) return;
     try {
       const created = await api.createTask({
         title,
         listId,
         projectId: currentProject.id,
+        priority,
+        dueDate,
         assigneeId: currentUser.id,
       });
       setTasks((prev) => [...prev, created]);
@@ -167,9 +175,12 @@ export const App: React.FC = () => {
         description: null,
         position: tasks.filter((t) => t.listId === listId).length,
         stack: 'Fullstack',
+        priority: priority as any,
+        dueDate: dueDate || null,
         listId,
         projectId: currentProject.id,
         assigneeId: currentUser.id,
+        assignee: { id: currentUser.id, name: currentUser.name, email: currentUser.email },
         commitId: null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -192,7 +203,13 @@ export const App: React.FC = () => {
 
   const handleUpdateTask = async (
     taskId: string,
-    updates: { title?: string; description?: string; stack?: string }
+    updates: {
+      title?: string;
+      description?: string;
+      stack?: string;
+      priority?: string;
+      dueDate?: string;
+    }
   ) => {
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t)));
     try {
@@ -242,10 +259,10 @@ export const App: React.FC = () => {
   // If session is checking
   if (isAuthChecking) {
     return (
-      <div className="min-h-screen bg-neutral-950 text-neutral-100 flex items-center justify-center">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-          <span className="text-sm text-neutral-400 font-medium">Loading Loopin Workspace...</span>
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          <span className="text-sm text-muted-foreground font-medium">Loading Loopin Workspace...</span>
         </div>
       </div>
     );
@@ -257,7 +274,7 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans selection:bg-indigo-500/30 selection:text-indigo-300">
+    <div className="min-h-screen bg-background text-foreground flex flex-col font-sans selection:bg-primary/25 selection:text-primary">
       {/* Header */}
       <Header
         projects={projects}
@@ -275,14 +292,14 @@ export const App: React.FC = () => {
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
         {errorMsg && (
-          <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-2 flex items-center justify-between text-xs text-amber-300">
+          <div className="bg-destructive/10 border-b border-destructive/20 px-6 py-2 flex items-center justify-between text-xs text-destructive">
             <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4" />
               <span>{errorMsg}</span>
             </div>
             <button
               onClick={() => currentProject && refreshProjectData(currentProject.id)}
-              className="underline hover:text-white"
+              className="underline hover:text-foreground"
             >
               Retry
             </button>
@@ -292,16 +309,16 @@ export const App: React.FC = () => {
         {/* If user has no projects yet */}
         {projects.length === 0 && !loading ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto">
-            <div className="w-16 h-16 rounded-2xl bg-indigo-600/15 border border-indigo-500/20 flex items-center justify-center mb-5 text-indigo-400 shadow-xl">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-5 text-primary shadow-xl">
               <FolderPlus className="w-8 h-8" />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">No Projects Found</h2>
-            <p className="text-sm text-neutral-400 mb-6">
+            <h2 className="text-2xl font-bold text-foreground mb-2">No Projects Found</h2>
+            <p className="text-sm text-muted-foreground mb-6">
               Your account ({currentUser.email}) has isolated access. Create your first project to start tracking tasks and commits!
             </p>
             <button
               onClick={() => setIsNewProjectOpen(true)}
-              className="py-3 px-5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/20 flex items-center gap-2 text-sm transition"
+              className="py-3 px-5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl shadow-lg shadow-primary/20 flex items-center gap-2 text-sm transition"
             >
               <Sparkles className="w-4 h-4" />
               <span>Create First Project</span>

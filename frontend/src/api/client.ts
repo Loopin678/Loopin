@@ -154,6 +154,8 @@ export const api = {
     projectId: string;
     description?: string;
     stack?: string;
+    priority?: string;
+    dueDate?: string;
     assigneeId?: string;
   }): Promise<Task> {
     const res = await request<{ task: Task } | Task>(`/projects/${data.projectId}/tasks`, {
@@ -169,6 +171,8 @@ export const api = {
       title?: string;
       description?: string;
       stack?: string;
+      priority?: string;
+      dueDate?: string;
       assigneeId?: string;
     }
   ): Promise<Task> {

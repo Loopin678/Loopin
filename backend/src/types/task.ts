@@ -3,6 +3,8 @@ export interface CreateTaskInput {
     listId: string;
     description?: string;
     stack?: string;
+    priority?: string;
+    dueDate?: string;
     assigneeId?: string;
 }
 
@@ -11,6 +13,8 @@ export interface TaskSummary { // to show the tasks on the list
     title: string;
     position: number;
     stack: string | null;
+    priority?: string | null;
+    dueDate?: string | null;
     assigneeId: string | null;
 }
 
@@ -18,13 +22,15 @@ export interface TaskDetail {
     id: string;
     title: string;
     description: string | null;
+    position?: number;
     stack: string | null;
     listId: string; // to get the list from the modal only like what list it is on
     projectId: string; // to get the different asignees for the task
     assigneeId: string | null;
     commitId: string | null;
     priority?: string | null;
-    dueDate?: Date | null;
+    dueDate?: string | null;
+    assignee?: { id: string; name: string; email: string } | null;
     tags?: string[];
     createdAt: Date;
     updatedAt: Date;
@@ -36,6 +42,8 @@ export interface CreatedTask {
     description: string | null;
     position: number;
     stack: string | null;
+    priority?: string | null;
+    dueDate?: string | null;
     listId: string;
     projectId: string;
     assigneeId: string | null;
@@ -48,6 +56,8 @@ export interface UpdateTaskInput {
     title?: string;
     description?: string;
     stack?: string;
+    priority?: string;
+    dueDate?: string;
     assigneeId?: string;
 }
 

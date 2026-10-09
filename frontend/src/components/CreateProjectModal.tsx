@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, FolderPlus } from 'lucide-react';
+import { Button } from './ui/button';
 
 interface CreateProjectModalProps {
   isOpen: boolean;
@@ -25,24 +26,24 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-        <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+        <div className="p-4 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <FolderPlus className="w-5 h-5 text-sky-400" />
-            <span className="font-bold text-white text-base">New Project</span>
+            <FolderPlus className="size-4.5 text-primary" />
+            <span className="font-bold text-foreground text-sm">New Project</span>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+            className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-muted transition"
           >
-            <X className="w-5 h-5" />
+            <X className="size-4.5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
               Project Name
             </label>
             <input
@@ -52,24 +53,27 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
               placeholder="e.g. Loopin Desktop App, Mobile Client..."
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full bg-slate-800 text-slate-100 text-sm px-3.5 py-2.5 rounded-xl border border-slate-700 focus:outline-none focus:border-sky-500"
+              className="w-full bg-background text-foreground text-xs px-3 py-2 rounded-xl border border-input focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <button
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white"
+              className="text-xs"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="px-5 py-2 bg-sky-500 hover:bg-sky-400 text-white rounded-xl text-xs font-semibold shadow-lg shadow-sky-500/20"
+              size="sm"
+              className="text-xs"
             >
               Create Project
-            </button>
+            </Button>
           </div>
         </form>
       </div>

@@ -1,240 +1,444 @@
-import React, { useState } from 'react';
-import type { List, Task } from '../types';
-import { Plus, MoreHorizontal, ArrowRight, ArrowLeft, GitCommit, Tag, Layers } from 'lucide-react';
+"use client"
 
-interface KanbanBoardProps {
-  lists: List[];
-  tasks: Task[];
-  onCreateList: (name: string) => void;
-  onCreateTask: (listId: string, title: string) => void;
-  onMoveTask: (taskId: string, newListId: string, newPosition: number) => void;
-  onSelectTask: (task: Task) => void;
+import { useState, useEffect, type ComponentProps } from "react"
+import { Badge } from "@/components/reui/badge"
+import {
+  Kanban,
+  KanbanBoard as ReuiKanbanBoard,
+  KanbanColumn,
+  KanbanColumnContent,
+  KanbanColumnHandle,
+  KanbanItem,
+  KanbanItemHandle,
+  KanbanOverlay,
+} from "@/components/reui/kanban"
+
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { GripVerticalIcon, Plus, GitCommit, Calendar } from "lucide-react"
+import type { List, Task as GlobalTask } from "../types"
+
+export interface BoardTask {
+  id: string
+  title: string
+  priority: "low" | "medium" | "high"
+  description?: string
+  assignee?: string
+  assigneeAvatar?: string
+  dueDate?: string
+  stack?: string
+  commitId?: string
+  listId?: string
+  originalTask: GlobalTask
 }
 
-export const KanbanBoard: React.FC<KanbanBoardProps> = ({
+const DEFAULT_COLUMN_TITLES: Record<string, string> = {
+  backlog: "Backlog",
+  inProgress: "In Progress",
+  review: "Review",
+  done: "Done",
+}
+
+interface TaskCardProps extends Omit<
+  ComponentProps<typeof KanbanItem>,
+  "value" | "children" | "onSelect"
+> {
+  task: BoardTask
+  asHandle?: boolean
+  isOverlay?: boolean
+  onSelectTask?: (task: GlobalTask) => void
+}
+
+function TaskCard({ task, asHandle, isOverlay, onSelectTask, ...props }: TaskCardProps) {
+  const cardContent = (
+    <Card
+      onClick={() => !isOverlay && onSelectTask?.(task.originalTask)}
+      className="cursor-pointer hover:border-primary/50 transition-colors shadow-xs group/card bg-card/90"
+    >
+      <CardContent className="space-y-2.5 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="line-clamp-1 text-sm font-medium text-foreground group-hover/card:text-primary transition-colors">
+            {task.title}
+          </span>
+          <Badge
+            variant={
+              task.priority === "high"
+                ? "destructive-light"
+                : task.priority === "medium"
+                  ? "primary-light"
+                  : "warning-light"
+            }
+            className="pointer-events-none h-5 shrink-0 rounded-sm px-1.5 text-xs capitalize"
+          >
+            {task.priority}
+          </Badge>
+        </div>
+
+        {task.description && (
+          <p className="line-clamp-2 text-xs text-muted-foreground leading-relaxed">
+            {task.description}
+          </p>
+        )}
+
+        <div className="text-muted-foreground flex items-center justify-between text-xs pt-0.5">
+          {task.assignee ? (
+            <div className="flex items-center gap-1.5">
+              <Avatar className="size-4">
+                <AvatarImage src={task.assigneeAvatar} />
+                <AvatarFallback>{task.assignee.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <span className="line-clamp-1 text-[11px]">{task.assignee}</span>
+            </div>
+          ) : (
+            <div />
+          )}
+
+          <div className="flex items-center gap-1.5 ml-auto">
+            {task.commitId && (
+              <span
+                title={`Commit: ${task.commitId}`}
+                className="inline-flex items-center gap-0.5 text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-1 rounded"
+              >
+                <GitCommit className="size-2.5" />
+                {task.commitId.substring(0, 6)}
+              </span>
+            )}
+            {task.dueDate && (
+              <time className="text-[10px] whitespace-nowrap tabular-nums flex items-center gap-1 text-muted-foreground/90">
+                <Calendar className="size-2.5 opacity-70" />
+                {task.dueDate}
+              </time>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+
+  return (
+    <KanbanItem value={task.id} {...props}>
+      {asHandle && !isOverlay ? (
+        <KanbanItemHandle>{cardContent}</KanbanItemHandle>
+      ) : (
+        cardContent
+      )}
+    </KanbanItem>
+  )
+}
+
+interface TaskColumnProps extends Omit<
+  ComponentProps<typeof KanbanColumn>,
+  "children"
+> {
+  tasks: BoardTask[]
+  isOverlay?: boolean
+  columnTitle: string
+  onSelectTask?: (task: GlobalTask) => void
+  onQuickAddTask?: (listId: string, title: string, priority: "low" | "medium" | "high", dueDate?: string) => void
+}
+
+function TaskColumn({
+  value,
+  tasks,
+  isOverlay,
+  columnTitle,
+  onSelectTask,
+  onQuickAddTask,
+  ...props
+}: TaskColumnProps) {
+  const [isAdding, setIsAdding] = useState(false)
+  const [newTitle, setNewTitle] = useState("")
+  const [newPriority, setNewPriority] = useState<"low" | "medium" | "high">("medium")
+  const [newDueDate, setNewDueDate] = useState("")
+
+  const handleCreate = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newTitle.trim()) return
+    onQuickAddTask?.(value, newTitle.trim(), newPriority, newDueDate.trim() || undefined)
+    setNewTitle("")
+    setNewDueDate("")
+    setIsAdding(false)
+  }
+
+  return (
+    <KanbanColumn value={value} {...props}>
+      <Card className="mb-2.5 bg-card/60 border-border/80 flex flex-col max-h-[calc(100vh-140px)] shadow-md">
+        <CardHeader className="flex items-center justify-between border-b border-border/40 py-2.5 px-3.5">
+          <div className="flex items-center gap-2.5">
+            <span className="text-sm font-semibold text-foreground tracking-tight">
+              {columnTitle}
+            </span>
+            <Badge variant="outline" className="font-mono text-[11px] h-5 px-1.5">
+              {tasks.length}
+            </Badge>
+          </div>
+          <KanbanColumnHandle
+            render={(props) => (
+              <Button {...props} size="icon-xs" variant="ghost" className="text-muted-foreground hover:text-foreground">
+                <GripVerticalIcon />
+              </Button>
+            )}
+          />
+        </CardHeader>
+        <CardContent className="p-2.5 overflow-y-auto flex-1 flex flex-col gap-2.5">
+          <KanbanColumnContent value={value} className="flex flex-col gap-2.5 min-h-[50px]">
+            {tasks.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                asHandle={!isOverlay}
+                isOverlay={isOverlay}
+                onSelectTask={onSelectTask}
+              />
+            ))}
+          </KanbanColumnContent>
+
+          {/* Quick Add Task */}
+          {!isOverlay && (
+            <div className="pt-1 mt-auto">
+              {isAdding ? (
+                <form onSubmit={handleCreate} className="rounded-lg border border-border bg-card p-2.5 space-y-2">
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="Task title..."
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    className="w-full rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  <div className="flex items-center gap-2 justify-between">
+                    <select
+                      value={newPriority}
+                      onChange={(e) => setNewPriority(e.target.value as "low" | "medium" | "high")}
+                      className="rounded border border-input bg-background px-2 py-0.5 text-[11px] text-muted-foreground"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+
+                    <input
+                      type="text"
+                      placeholder="Due: Jan 15"
+                      value={newDueDate}
+                      onChange={(e) => setNewDueDate(e.target.value)}
+                      className="w-24 rounded border border-input bg-background px-2 py-0.5 text-[11px] text-muted-foreground"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <Button type="submit" size="sm" className="h-7 text-xs px-2.5">
+                      Add
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsAdding(false)}
+                      className="h-7 text-xs px-2"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <Button
+                  variant="ghost"
+                  onClick={() => setIsAdding(true)}
+                  className="w-full justify-start text-xs text-muted-foreground hover:text-foreground h-8 border border-dashed border-border/70 hover:border-border"
+                >
+                  <Plus className="size-3.5 mr-1" />
+                  Add task
+                </Button>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </KanbanColumn>
+  )
+}
+
+interface KanbanBoardProps {
+  lists: List[]
+  tasks: GlobalTask[]
+  onCreateList: (name: string) => void
+  onCreateTask: (listId: string, title: string, priority?: string, dueDate?: string) => void
+  onMoveTask: (taskId: string, newListId: string, newPosition: number) => void
+  onSelectTask: (task: GlobalTask) => void
+}
+
+export function KanbanBoard({
   lists,
   tasks,
   onCreateList,
   onCreateTask,
   onMoveTask,
   onSelectTask,
-}) => {
-  const [newListName, setNewListName] = useState('');
-  const [isAddingList, setIsAddingList] = useState(false);
-  const [addingTaskInList, setAddingTaskInList] = useState<string | null>(null);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
+}: KanbanBoardProps) {
+  const [columns, setColumns] = useState<Record<string, BoardTask[]>>({})
+  const [isAddingList, setIsAddingList] = useState(false)
+  const [newListName, setNewListName] = useState("")
+
+  // Convert incoming lists and tasks to Board columns
+  useEffect(() => {
+    const nextCols: Record<string, BoardTask[]> = {}
+
+    // Ensure all lists exist in columns
+    for (const list of lists) {
+      nextCols[list.id] = []
+    }
+
+    // Populate tasks
+    for (const task of tasks) {
+      const colId = task.listId
+      if (!nextCols[colId]) {
+        nextCols[colId] = []
+      }
+
+      const priority = (task.priority === "high" || task.priority === "low" || task.priority === "medium")
+        ? task.priority
+        : "medium"
+
+      const boardTask: BoardTask = {
+        id: task.id,
+        title: task.title,
+        priority,
+        description: task.description || undefined,
+        assignee: task.assignee?.name || undefined,
+        assigneeAvatar: task.assigneeAvatar,
+        dueDate: task.dueDate || undefined,
+        stack: task.stack || undefined,
+        commitId: task.commitId || undefined,
+        listId: task.listId,
+        originalTask: task,
+      }
+      nextCols[colId].push(boardTask)
+    }
+
+    // Sort each column by position
+    for (const key of Object.keys(nextCols)) {
+      nextCols[key].sort((a, b) => a.originalTask.position - b.originalTask.position)
+    }
+
+    setColumns(nextCols)
+  }, [lists, tasks])
+
+  const getColumnTitle = (colId: string) => {
+    const foundList = lists.find((l) => l.id === colId)
+    if (foundList) return foundList.name
+    return DEFAULT_COLUMN_TITLES[colId] || colId
+  }
 
   const handleCreateList = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newListName.trim()) return;
-    onCreateList(newListName.trim());
-    setNewListName('');
-    setIsAddingList(false);
-  };
+    e.preventDefault()
+    if (!newListName.trim()) return
+    onCreateList(newListName.trim())
+    setNewListName("")
+    setIsAddingList(false)
+  }
 
-  const handleCreateTask = (listId: string) => {
-    if (!newTaskTitle.trim()) return;
-    onCreateTask(listId, newTaskTitle.trim());
-    setNewTaskTitle('');
-    setAddingTaskInList(null);
-  };
+  const handleQuickAddTask = (
+    listId: string,
+    title: string,
+    priority: "low" | "medium" | "high",
+    dueDate?: string
+  ) => {
+    onCreateTask(listId, title, priority, dueDate)
+  }
 
   return (
     <div className="flex-1 overflow-x-auto p-6">
-      <div className="flex gap-5 items-start min-h-[calc(100vh-140px)]">
-        {lists.map((list, listIndex) => {
-          const listTasks = tasks
-            .filter((t) => t.listId === list.id)
-            .sort((a, b) => a.position - b.position);
+      <Kanban
+        value={columns}
+        onValueChange={setColumns}
+        getItemValue={(item) => item.id}
+        onValueCommit={(_next, meta) => {
+          if (meta.kind === "item") {
+            const taskId = String(meta.event.active.id)
+            const targetListId = meta.overContainer
+            const targetIndex = meta.overIndex
+            if (targetListId) {
+              onMoveTask(taskId, targetListId, targetIndex)
+            }
+          }
+        }}
+      >
+        <div className="flex gap-4 items-start min-h-[calc(100vh-140px)]">
+          <ReuiKanbanBoard className="flex gap-4 items-start auto-rows-auto grid-cols-none sm:grid-cols-none">
+            {Object.entries(columns).map(([columnValue, colTasks]) => (
+              <div key={columnValue} className="w-80 shrink-0">
+                <TaskColumn
+                  value={columnValue}
+                  tasks={colTasks}
+                  columnTitle={getColumnTitle(columnValue)}
+                  onSelectTask={onSelectTask}
+                  onQuickAddTask={handleQuickAddTask}
+                />
+              </div>
+            ))}
+          </ReuiKanbanBoard>
 
-          const prevList = listIndex > 0 ? lists[listIndex - 1] : null;
-          const nextList = listIndex < lists.length - 1 ? lists[listIndex + 1] : null;
-
-          return (
-            <div
-              key={list.id}
-              className="w-80 shrink-0 bg-slate-900/70 border border-slate-800 rounded-2xl flex flex-col max-h-[calc(100vh-140px)] shadow-xl shadow-black/20"
-            >
-              {/* List Header */}
-              <div className="p-4 border-b border-slate-800/80 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className="font-semibold text-slate-100 text-sm">{list.name}</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">
-                    {listTasks.length}
-                  </span>
+          {/* Add Column button */}
+          <div className="w-80 shrink-0">
+            {isAddingList ? (
+              <form onSubmit={handleCreateList} className="rounded-xl border border-border bg-card p-3.5 space-y-3">
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Column name (e.g. In Review)..."
+                  value={newListName}
+                  onChange={(e) => setNewListName(e.target.value)}
+                  className="w-full rounded-lg border border-input bg-background px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <div className="flex items-center gap-2">
+                  <Button type="submit" size="sm" className="h-7 text-xs">
+                    Create Column
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsAddingList(false)}
+                    className="h-7 text-xs"
+                  >
+                    Cancel
+                  </Button>
                 </div>
-                <button className="text-slate-500 hover:text-slate-300 p-1 rounded-lg">
-                  <MoreHorizontal className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Tasks Container */}
-              <div className="p-3 overflow-y-auto flex-1 space-y-3">
-                {listTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    onClick={() => onSelectTask(task)}
-                    className="group bg-slate-800/80 hover:bg-slate-800 border border-slate-700/60 hover:border-sky-500/50 rounded-xl p-3.5 transition-all shadow-md hover:shadow-sky-500/5 cursor-pointer relative"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="text-sm font-medium text-slate-100 group-hover:text-sky-300 transition-colors leading-snug">
-                        {task.title}
-                      </h4>
-                    </div>
-
-                    {task.description && (
-                      <p className="text-xs text-slate-400 mt-1.5 line-clamp-2 leading-relaxed">
-                        {task.description}
-                      </p>
-                    )}
-
-                    {/* Metadata / Tags */}
-                    <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                      {task.stack && (
-                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-medium">
-                          <Layers className="w-2.5 h-2.5" />
-                          {task.stack}
-                        </span>
-                      )}
-
-                      {task.priority && (
-                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium">
-                          <Tag className="w-2.5 h-2.5" />
-                          {task.priority}
-                        </span>
-                      )}
-
-                      {task.commitId && (
-                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono">
-                          <GitCommit className="w-2.5 h-2.5" />
-                          {task.commitId.substring(0, 7)}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Move Quick Controls */}
-                    <div className="mt-3 pt-2 border-t border-slate-700/40 flex items-center justify-between text-[11px] text-slate-500">
-                      <div>
-                        {prevList && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onMoveTask(task.id, prevList.id, 0);
-                            }}
-                            className="hover:text-sky-400 flex items-center gap-0.5 p-1 rounded"
-                            title={`Move to ${prevList.name}`}
-                          >
-                            <ArrowLeft className="w-3 h-3" />
-                            <span>{prevList.name}</span>
-                          </button>
-                        )}
-                      </div>
-
-                      <div>
-                        {nextList && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onMoveTask(task.id, nextList.id, 0);
-                            }}
-                            className="hover:text-sky-400 flex items-center gap-0.5 p-1 rounded"
-                            title={`Move to ${nextList.name}`}
-                          >
-                            <span>{nextList.name}</span>
-                            <ArrowRight className="w-3 h-3" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Inline Add Task Form */}
-                {addingTaskInList === list.id ? (
-                  <div className="bg-slate-800 border border-slate-700 rounded-xl p-3 space-y-2">
-                    <input
-                      type="text"
-                      autoFocus
-                      placeholder="Task title..."
-                      value={newTaskTitle}
-                      onChange={(e) => setNewTaskTitle(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleCreateTask(list.id);
-                        if (e.key === 'Escape') setAddingTaskInList(null);
-                      }}
-                      className="w-full bg-slate-900 text-slate-100 text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:border-sky-500"
-                    />
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleCreateTask(list.id)}
-                        className="px-2.5 py-1 bg-sky-500 hover:bg-sky-400 text-white rounded text-xs font-medium"
-                      >
-                        Add
-                      </button>
-                      <button
-                        onClick={() => setAddingTaskInList(null)}
-                        className="px-2.5 py-1 text-slate-400 hover:text-slate-200 text-xs"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setAddingTaskInList(list.id);
-                      setNewTaskTitle('');
-                    }}
-                    className="w-full py-2 px-3 border border-dashed border-slate-800 hover:border-slate-700 rounded-xl text-slate-400 hover:text-slate-200 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Task</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
-
-        {/* Add List Column */}
-        <div className="w-80 shrink-0">
-          {isAddingList ? (
-            <form onSubmit={handleCreateList} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
-              <input
-                type="text"
-                autoFocus
-                placeholder="List name (e.g. In Review)..."
-                value={newListName}
-                onChange={(e) => setNewListName(e.target.value)}
-                className="w-full bg-slate-800 text-slate-100 text-sm px-3 py-2 rounded-xl border border-slate-700 focus:outline-none focus:border-sky-500"
-              />
-              <div className="flex items-center gap-2">
-                <button
-                  type="submit"
-                  className="px-3 py-1.5 bg-sky-500 hover:bg-sky-400 text-white rounded-lg text-xs font-medium"
-                >
-                  Create List
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsAddingList(false)}
-                  className="px-3 py-1.5 text-slate-400 hover:text-slate-200 text-xs"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          ) : (
-            <button
-              onClick={() => setIsAddingList(true)}
-              className="w-full py-4 border-2 border-dashed border-slate-800 hover:border-slate-700 hover:bg-slate-900/40 rounded-2xl text-slate-400 hover:text-slate-200 text-sm font-medium flex items-center justify-center gap-2 transition"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add another list</span>
-            </button>
-          )}
+              </form>
+            ) : (
+              <button
+                onClick={() => setIsAddingList(true)}
+                className="w-full py-3.5 border-2 border-dashed border-border/80 hover:border-primary/50 hover:bg-card/40 rounded-xl text-muted-foreground hover:text-foreground text-xs font-medium flex items-center justify-center gap-1.5 transition"
+              >
+                <Plus className="size-4" />
+                <span>Add another list</span>
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+
+        <KanbanOverlay className="bg-muted/10 rounded-md border-2 border-dashed">
+          {({ value, variant }) => {
+            if (variant === "item") {
+              let foundTask: BoardTask | undefined
+              for (const col of Object.values(columns)) {
+                foundTask = col.find((t) => t.id === value)
+                if (foundTask) break
+              }
+              if (foundTask) {
+                return <TaskCard task={foundTask} isOverlay />
+              }
+            }
+            return <div className="bg-muted/20 size-full rounded-md" />
+          }}
+        </KanbanOverlay>
+      </Kanban>
     </div>
-  );
-};
+  )
+}

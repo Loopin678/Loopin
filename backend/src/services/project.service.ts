@@ -27,8 +27,9 @@ export async function createProjectService(data:{ name: string,
     });
 
     try {
-      await listRepository.createList({ projectId: project.id, name: "To Do" });
+      await listRepository.createList({ projectId: project.id, name: "Backlog" });
       await listRepository.createList({ projectId: project.id, name: "In Progress" });
+      await listRepository.createList({ projectId: project.id, name: "Review" });
       await listRepository.createList({ projectId: project.id, name: "Done" });
     } catch (e) {
       console.error("Failed to create default lists:", e);

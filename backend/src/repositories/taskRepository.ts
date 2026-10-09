@@ -19,11 +19,13 @@ async function createTask(data: CreateTaskInput): Promise<CreatedTask> {
 
     const position = lastTask ? lastTask.position + 1 : 0;
 
-    const task = prisma.task.create({
+    const task = await prisma.task.create({
         data: {
             title: data.title,
             description: data.description,
             stack: data.stack,
+            priority: data.priority ?? 'medium',
+            dueDate: data.dueDate,
             assigneeId: data.assigneeId,
             listId: data.listId,
             projectId: list.projectId,
@@ -41,11 +43,21 @@ async function getTaskDetail(taskId: string): Promise<TaskDetail> {
             id: true,
             title: true,
             description: true,
+            position: true,
             stack: true,
+            priority: true,
+            dueDate: true,
             listId: true,
             projectId: true,
             assigneeId: true,
             commitId: true,
+            assignee: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true
+                }
+            },
             createdAt: true,
             updatedAt: true
         } 
@@ -66,7 +78,31 @@ async function updateTask(data: UpdateTaskInput): Promise<TaskDetail> {
         title: data.title,
         description: data.description,
         stack: data.stack,
+        priority: data.priority,
+        dueDate: data.dueDate,
         assigneeId: data.assigneeId
+      },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        position: true,
+        stack: true,
+        priority: true,
+        dueDate: true,
+        listId: true,
+        projectId: true,
+        assigneeId: true,
+        commitId: true,
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        createdAt: true,
+        updatedAt: true
       }
     });
     return task;
@@ -90,6 +126,8 @@ async function moveTask(data: MoveTaskInput): Promise<MovedTask> {
             title: true,
             position: true,
             stack: true,
+            priority: true,
+            dueDate: true,
             assigneeId: true,
             listId: true
         }
@@ -120,11 +158,21 @@ async function getTasksByProjectId(projectId: string): Promise<TaskDetail[]> {
             id: true,
             title: true,
             description: true,
+            position: true,
             stack: true,
+            priority: true,
+            dueDate: true,
             listId: true,
             projectId: true,
             assigneeId: true,
             commitId: true,
+            assignee: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true
+                }
+            },
             createdAt: true,
             updatedAt: true
         },

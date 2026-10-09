@@ -36,8 +36,10 @@ export interface Task {
   projectId: string;
   assigneeId: string | null;
   commitId: string | null;
-  priority?: string | null;
+  priority?: "low" | "medium" | "high" | string | null;
   dueDate?: string | null;
+  assignee?: { id: string; name: string; email: string } | null;
+  assigneeAvatar?: string;
   tags?: string[];
   createdAt: string;
   updatedAt: string;

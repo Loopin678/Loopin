@@ -62,6 +62,8 @@ model Task {
   description String?
   position    Int
   stack       String?
+  priority    String?   @default("medium")
+  dueDate     String?
   listId      String
   projectId   String
   assigneeId  String?
