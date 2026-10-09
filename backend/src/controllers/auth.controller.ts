@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getUserById,loginUser ,registerUser, loginWithGoogle } from "../services/auth.service";
+import { getUserById, loginUser, registerUser, loginWithGoogle, generateToken } from "../services/auth.service";
 import { findUserById } from "../repositories/user.repository";
 import { getGoogleUser, getGoogleAuthUrl } from "../services/google.service";
 
@@ -33,8 +33,10 @@ export async function register(req: Request, res: Response): Promise<void>{
         }
 
         const user = await registerUser(name, email, password);
+        const token = generateToken(user.id);
+        setAuthCookie(res, token);
 
-        res.status(201).json({user});
+        res.status(201).json({ user, token });
 
     } catch (error) {
         if(error instanceof Error){
@@ -112,6 +114,7 @@ export async function login(
 
     res.status(200).json({
       user,
+      token,
     });
   } catch (error) {
     if (

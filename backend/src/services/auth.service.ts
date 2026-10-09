@@ -18,7 +18,7 @@ export type PublicUser = {
     createdAt: Date;
 };
 
-function generateToken(userId: string): string {
+export function generateToken(userId: string): string {
   return jwt.sign(
     {
       userId,

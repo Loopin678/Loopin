@@ -2,38 +2,120 @@ import type { Project, List, Task, Commit, User } from '../types';
 
 const API_BASE = '/api';
 
+function getToken(): string | null {
+  return localStorage.getItem('loopin_token');
+}
+
+export function setAuthToken(token: string | null) {
+  if (token) {
+    localStorage.setItem('loopin_token', token);
+  } else {
+    localStorage.removeItem('loopin_token');
+  }
+}
+
+async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const token = getToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string> || {}),
+  };
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${API_BASE}${endpoint}`, {
+    ...options,
+    headers,
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    let errorMsg = res.statusText;
+    try {
+      const errJson = await res.json();
+      errorMsg = errJson.message || JSON.stringify(errJson);
+    } catch {
+      // ignore
+    }
+    throw new Error(errorMsg || `Request failed with status ${res.status}`);
+  }
+
+  return res.json() as Promise<T>;
+}
+
 export const api = {
-  // Projects
+  // Auth
+  async login(email: string, password: string): Promise<{ user: User; token: string }> {
+    const data = await request<{ user: User; token: string }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    if (data.token) {
+      setAuthToken(data.token);
+    }
+    return data;
+  },
+
+  async register(name: string, email: string, password: string): Promise<{ user: User; token: string }> {
+    const data = await request<{ user: User; token: string }>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ name, email, password }),
+    });
+    if (data.token) {
+      setAuthToken(data.token);
+    }
+    return data;
+  },
+
+  async getMe(): Promise<User | null> {
+    try {
+      const data = await request<{ user: User }>('/auth/me');
+      return data.user || null;
+    } catch {
+      return null;
+    }
+  },
+
+  async logout(): Promise<void> {
+    try {
+      await request('/auth/logout', { method: 'POST' });
+    } catch {
+      // ignore
+    }
+    setAuthToken(null);
+  },
+
+  // Projects - Scoped strictly to the logged-in user
   async getProjects(): Promise<Project[]> {
     try {
-      const res = await fetch(`${API_BASE}/projects`);
-      if (!res.ok) {
-        // Fallback: if protected or empty, query directly or return empty list
-        return [];
-      }
-      const data = await res.json();
-      return Array.isArray(data) ? data : (data.projects || []);
-    } catch {
+      const data = await request<{ projects: Project[] } | Project[]>('/projects');
+      if (Array.isArray(data)) return data;
+      return data.projects || [];
+    } catch (err) {
+      console.error('Failed to load projects:', err);
       return [];
     }
   },
 
-  async createProject(name: string): Promise<Project> {
-    const res = await fetch(`${API_BASE}/projects`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
-    });
-    const data = await res.json();
+  async getProject(projectId: string): Promise<Project> {
+    const data = await request<{ project: Project }>(`/projects/${projectId}`);
     return data.project || data;
+  },
+
+  async createProject(name: string, stack: string = 'fullstack'): Promise<Project> {
+    const data = await request<{ project: Project }>('/projects', {
+      method: 'POST',
+      body: JSON.stringify({ name, stack }),
+    });
+    return data.project || (data as unknown as Project);
   },
 
   // Lists
   async getLists(projectId: string): Promise<List[]> {
     try {
-      const res = await fetch(`${API_BASE}/projects/${projectId}/lists`);
-      if (!res.ok) return [];
-      const data = await res.json();
+      const data = await request<{ lists: List[] } | List[]>(`/projects/${projectId}/lists`);
       return Array.isArray(data) ? data : (data.lists || []);
     } catch {
       return [];
@@ -41,31 +123,25 @@ export const api = {
   },
 
   async createList(projectId: string, name: string): Promise<List> {
-    const res = await fetch(`${API_BASE}/projects/${projectId}/lists`, {
+    const data = await request<{ list: List } | List>(`/projects/${projectId}/lists`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
     });
-    const data = await res.json();
-    return data.list || data;
+    return (data as any).list || data;
   },
 
   async renameList(projectId: string, listId: string, name: string): Promise<List> {
-    const res = await fetch(`${API_BASE}/projects/${projectId}/lists/${listId}`, {
+    const data = await request<{ list: List } | List>(`/projects/${projectId}/lists/${listId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
     });
-    const data = await res.json();
-    return data.list || data;
+    return (data as any).list || data;
   },
 
   // Tasks
   async getTasks(projectId: string): Promise<Task[]> {
     try {
-      const res = await fetch(`${API_BASE}/projects/${projectId}/tasks`);
-      if (!res.ok) return [];
-      const data = await res.json();
+      const data = await request<{ tasks: Task[] } | Task[]>(`/projects/${projectId}/tasks`);
       return Array.isArray(data) ? data : (data.tasks || []);
     } catch {
       return [];
@@ -80,13 +156,11 @@ export const api = {
     stack?: string;
     assigneeId?: string;
   }): Promise<Task> {
-    const res = await fetch(`${API_BASE}/projects/${data.projectId}/tasks`, {
+    const res = await request<{ task: Task } | Task>(`/projects/${data.projectId}/tasks`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    const result = await res.json();
-    return result.task || result;
+    return (res as any).task || res;
   },
 
   async updateTask(
@@ -98,13 +172,11 @@ export const api = {
       assigneeId?: string;
     }
   ): Promise<Task> {
-    const res = await fetch(`${API_BASE}/tasks/${taskId}`, {
+    const data = await request<{ task: Task } | Task>(`/tasks/${taskId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
     });
-    const data = await res.json();
-    return data.task || data;
+    return (data as any).task || data;
   },
 
   async moveTask(
@@ -112,27 +184,23 @@ export const api = {
     newListId: string,
     newPosition: number
   ): Promise<Task> {
-    const res = await fetch(`${API_BASE}/tasks/${taskId}/move`, {
+    const data = await request<{ task: Task } | Task>(`/tasks/${taskId}/move`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ newListId, newPosition }),
     });
-    const data = await res.json();
-    return data.task || data;
+    return (data as any).task || data;
   },
 
   async deleteTask(taskId: string): Promise<void> {
-    await fetch(`${API_BASE}/tasks/${taskId}`, {
+    await request(`/tasks/${taskId}`, {
       method: 'DELETE',
     });
   },
 
-  // Commits (Desktop Sync)
+  // Commits (Git & Desktop Sync)
   async getCommits(projectId: string): Promise<Commit[]> {
     try {
-      const res = await fetch(`${API_BASE}/projects/${projectId}/commits`);
-      if (!res.ok) return [];
-      const data = await res.json();
+      const data = await request<{ commits: Commit[] } | Commit[]>(`/projects/${projectId}/commits`);
       return Array.isArray(data) ? data : (data.commits || []);
     } catch {
       return [];
@@ -146,31 +214,9 @@ export const api = {
     authorId: string;
     taskIds?: string[];
   }): Promise<Commit> {
-    const res = await fetch(`${API_BASE}/commits`, {
+    return request<Commit>('/commits', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return res.json();
-  },
-
-  // Users / Auth Mock / Pre-set list from Supabase DB
-  getKnownUsers(): User[] {
-    return [
-      { id: 'c23b1c1e-6598-4a53-8bcb-0d9de5e14e34', name: 'Arnav', email: 'arnavtest@teamsync.com' },
-      { id: 'd1685b29-d8e8-4c0c-af00-9fbf4900e348', name: 'Test User', email: 'testuser_1786972564218@example.com' },
-      { id: '0e7406f3-fb3e-41b0-ba1d-ea9c1ce30636', name: 'WHO THEY ?', email: 'arnavgandhi16@gmail.com' },
-      { id: '82a7fca7-8f24-405f-8ca2-a22fd6197798', name: 'AI Assistant', email: 'ai@loopin.system' },
-    ];
-  },
-
-  getKnownProjects(): Project[] {
-    return [
-      { id: 'ad0936cf-fcec-4f69-8d7f-24a997cdbab2', name: 'Loopin Test Project', createdAt: new Date().toISOString() },
-      { id: '72df182e-06df-49d8-907d-5103b390e3e9', name: "Shivansh's Project", createdAt: new Date().toISOString() },
-      { id: '0f09ff31-c110-4713-a10d-e77e55e5da4f', name: 'Project 2', createdAt: new Date().toISOString() },
-      { id: 'c4cda019-9eda-4a83-bbb2-c608833cb2c2', name: 'Test Project', createdAt: new Date().toISOString() },
-      { id: '1e3eb1b1-a372-44ef-bb2d-b0c4e42a6edb', name: 'Cross-Project Move Test', createdAt: new Date().toISOString() },
-    ];
   },
 };

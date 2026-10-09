@@ -7,23 +7,77 @@ import { CommitsView } from './components/CommitsView';
 import { DesktopSyncView } from './components/DesktopSyncView';
 import { TaskModal } from './components/TaskModal';
 import { CreateProjectModal } from './components/CreateProjectModal';
-import { AlertCircle } from 'lucide-react';
+import { AuthScreen } from './components/AuthScreen';
+import { AlertCircle, FolderPlus, Sparkles, Loader2 } from 'lucide-react';
 
 export const App: React.FC = () => {
-  const users = api.getKnownUsers();
-  const [currentUser, setCurrentUser] = useState<User>(users[0]);
-  const [projects, setProjects] = useState<Project[]>(api.getKnownProjects());
-  const [currentProject, setCurrentProject] = useState<Project | null>(api.getKnownProjects()[0]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [lists, setLists] = useState<List[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [commits, setCommits] = useState<Commit[]>([]);
-  const [, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'board' | 'commits' | 'desktop'>('board');
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Fetch project data (lists, tasks, commits)
+  // 1. Check existing session on mount
+  useEffect(() => {
+    api.getMe()
+      .then((user) => {
+        if (user) {
+          setCurrentUser(user);
+        }
+      })
+      .catch(() => {
+        setCurrentUser(null);
+      })
+      .finally(() => {
+        setIsAuthChecking(false);
+      });
+  }, []);
+
+  // 2. Fetch projects whenever currentUser changes
+  useEffect(() => {
+    if (!currentUser) {
+      setProjects([]);
+      setCurrentProject(null);
+      setLists([]);
+      setTasks([]);
+      setCommits([]);
+      return;
+    }
+
+    setLoading(true);
+    api.getProjects()
+      .then((userProjects) => {
+        setProjects(userProjects);
+        if (userProjects.length > 0) {
+          // Select previous or first project
+          setCurrentProject((prev) => {
+            if (prev && userProjects.some((p) => p.id === prev.id)) {
+              return prev;
+            }
+            return userProjects[0];
+          });
+        } else {
+          setCurrentProject(null);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load user projects:', err);
+        setErrorMsg('Failed to fetch your projects');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [currentUser]);
+
+  // 3. Fetch project data (lists, tasks, commits) when active project changes
   const refreshProjectData = async (projectId: string) => {
     setLoading(true);
     setErrorMsg(null);
@@ -34,7 +88,6 @@ export const App: React.FC = () => {
         api.getCommits(projectId),
       ]);
 
-      // If no lists returned from API yet, initialize default view
       if (fetchedLists.length === 0) {
         setLists([
           { id: 'list-todo', name: 'To Do', position: 0, projectId },
@@ -49,39 +102,44 @@ export const App: React.FC = () => {
       setCommits(fetchedCommits);
     } catch (err: any) {
       console.error('Failed to load project data:', err);
-      setErrorMsg(err.message || 'Error connecting to backend');
+      setErrorMsg(err.message || 'Error connecting to project data');
     } finally {
       setLoading(false);
     }
   };
 
-  // Initial load
-  useEffect(() => {
-    // Also try to fetch latest projects from DB
-    api.getProjects().then((dbProjects) => {
-      if (dbProjects && dbProjects.length > 0) {
-        setProjects(dbProjects);
-        if (!currentProject) {
-          setCurrentProject(dbProjects[0]);
-        }
-      }
-    });
-  }, []);
-
   useEffect(() => {
     if (currentProject) {
       refreshProjectData(currentProject.id);
+    } else {
+      setLists([]);
+      setTasks([]);
+      setCommits([]);
     }
   }, [currentProject?.id]);
 
-  // Handlers for Kanban operations
+  // Auth Handlers
+  const handleAuthSuccess = (user: User) => {
+    setCurrentUser(user);
+  };
+
+  const handleLogout = async () => {
+    await api.logout();
+    setCurrentUser(null);
+    setProjects([]);
+    setCurrentProject(null);
+    setTasks([]);
+    setLists([]);
+    setCommits([]);
+  };
+
+  // Kanban Handlers
   const handleCreateList = async (name: string) => {
     if (!currentProject) return;
     try {
       const newList = await api.createList(currentProject.id, name);
       setLists((prev) => [...prev, newList]);
     } catch {
-      // Local fallback
       const localList: List = {
         id: `list-${Date.now()}`,
         name,
@@ -93,7 +151,7 @@ export const App: React.FC = () => {
   };
 
   const handleCreateTask = async (listId: string, title: string) => {
-    if (!currentProject) return;
+    if (!currentProject || !currentUser) return;
     try {
       const created = await api.createTask({
         title,
@@ -103,7 +161,6 @@ export const App: React.FC = () => {
       });
       setTasks((prev) => [...prev, created]);
     } catch {
-      // Local fallback
       const localTask: Task = {
         id: `task-${Date.now()}`,
         title,
@@ -122,7 +179,6 @@ export const App: React.FC = () => {
   };
 
   const handleMoveTask = async (taskId: string, newListId: string, newPosition: number) => {
-    // Optimistic UI update
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, listId: newListId, position: newPosition } : t))
     );
@@ -130,7 +186,7 @@ export const App: React.FC = () => {
     try {
       await api.moveTask(taskId, newListId, newPosition);
     } catch (e) {
-      console.warn('Backend move error (or demo mode):', e);
+      console.warn('Backend move error:', e);
     }
   };
 
@@ -160,19 +216,14 @@ export const App: React.FC = () => {
       const newProj = await api.createProject(name);
       setProjects((prev) => [newProj, ...prev]);
       setCurrentProject(newProj);
-    } catch {
-      const localProj: Project = {
-        id: `proj-${Date.now()}`,
-        name,
-        createdAt: new Date().toISOString(),
-      };
-      setProjects((prev) => [localProj, ...prev]);
-      setCurrentProject(localProj);
+    } catch (err: any) {
+      console.error('Failed to create project:', err);
+      setErrorMsg(err.message || 'Failed to create project');
     }
   };
 
   const handleReportCommit = async (sha: string, message: string, taskIds: string[]) => {
-    if (!currentProject) return;
+    if (!currentProject || !currentUser) return;
     try {
       const commit = await api.reportCommit({
         sha,
@@ -182,15 +233,31 @@ export const App: React.FC = () => {
         taskIds,
       });
       setCommits((prev) => [commit, ...prev]);
-      // Refresh tasks to get updated commitId associations
       if (currentProject) refreshProjectData(currentProject.id);
     } catch (e) {
       console.error('Failed to report commit:', e);
     }
   };
 
+  // If session is checking
+  if (isAuthChecking) {
+    return (
+      <div className="min-h-screen bg-neutral-950 text-neutral-100 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+          <span className="text-sm text-neutral-400 font-medium">Loading Loopin Workspace...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // If not logged in, show Auth Screen
+  if (!currentUser) {
+    return <AuthScreen onAuthSuccess={handleAuthSuccess} />;
+  }
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-sky-500/30 selection:text-sky-300">
+    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans selection:bg-indigo-500/30 selection:text-indigo-300">
       {/* Header */}
       <Header
         projects={projects}
@@ -198,8 +265,7 @@ export const App: React.FC = () => {
         onSelectProject={(p) => setCurrentProject(p)}
         onOpenNewProject={() => setIsNewProjectOpen(true)}
         currentUser={currentUser}
-        users={users}
-        onSelectUser={(u) => setCurrentUser(u)}
+        onLogout={handleLogout}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         taskCount={tasks.length}
@@ -208,12 +274,11 @@ export const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
-        {/* Error / Alert banner if any */}
         {errorMsg && (
           <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-2 flex items-center justify-between text-xs text-amber-300">
             <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4" />
-              <span>{errorMsg} (Make sure your backend is running on http://localhost:3000)</span>
+              <span>{errorMsg}</span>
             </div>
             <button
               onClick={() => currentProject && refreshProjectData(currentProject.id)}
@@ -224,37 +289,58 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* View Switcher */}
-        {activeTab === 'board' && (
-          <KanbanBoard
-            lists={lists}
-            tasks={tasks}
-            onCreateList={handleCreateList}
-            onCreateTask={handleCreateTask}
-            onMoveTask={handleMoveTask}
-            onSelectTask={(task) => setSelectedTask(task)}
-          />
-        )}
+        {/* If user has no projects yet */}
+        {projects.length === 0 && !loading ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto">
+            <div className="w-16 h-16 rounded-2xl bg-indigo-600/15 border border-indigo-500/20 flex items-center justify-center mb-5 text-indigo-400 shadow-xl">
+              <FolderPlus className="w-8 h-8" />
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">No Projects Found</h2>
+            <p className="text-sm text-neutral-400 mb-6">
+              Your account ({currentUser.email}) has isolated access. Create your first project to start tracking tasks and commits!
+            </p>
+            <button
+              onClick={() => setIsNewProjectOpen(true)}
+              className="py-3 px-5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/20 flex items-center gap-2 text-sm transition"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Create First Project</span>
+            </button>
+          </div>
+        ) : (
+          <>
+            {activeTab === 'board' && (
+              <KanbanBoard
+                lists={lists}
+                tasks={tasks}
+                onCreateList={handleCreateList}
+                onCreateTask={handleCreateTask}
+                onMoveTask={handleMoveTask}
+                onSelectTask={(task) => setSelectedTask(task)}
+              />
+            )}
 
-        {activeTab === 'commits' && (
-          <CommitsView
-            commits={commits}
-            currentProject={currentProject}
-            currentUser={currentUser}
-            tasks={tasks}
-            onReportCommit={handleReportCommit}
-            onSelectTaskById={(taskId) => {
-              const t = tasks.find((x) => x.id === taskId);
-              if (t) setSelectedTask(t);
-            }}
-          />
-        )}
+            {activeTab === 'commits' && (
+              <CommitsView
+                commits={commits}
+                currentProject={currentProject}
+                currentUser={currentUser}
+                tasks={tasks}
+                onReportCommit={handleReportCommit}
+                onSelectTaskById={(taskId) => {
+                  const t = tasks.find((x) => x.id === taskId);
+                  if (t) setSelectedTask(t);
+                }}
+              />
+            )}
 
-        {activeTab === 'desktop' && (
-          <DesktopSyncView
-            currentProject={currentProject}
-            currentUser={currentUser}
-          />
+            {activeTab === 'desktop' && (
+              <DesktopSyncView
+                currentProject={currentProject}
+                currentUser={currentUser}
+              />
+            )}
+          </>
         )}
       </main>
 

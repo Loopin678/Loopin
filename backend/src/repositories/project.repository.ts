@@ -13,26 +13,24 @@ export async function findProjectById(projectId: string){
   const project = await prisma.project.findUnique({
       where:{
         id: projectId,
-      }
+      },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
   })
 
   return project;
 }
-
-
-// export async function findProjectsByOwnerId(
-//   ownerId: string
-// ): Promise<Project[]> {
-//   const userProjects: Project[] = [];
-
-//   for (const project of projects.values()) {
-//     if (project.ownerId === ownerId) {
-//       userProjects.push(project);
-//     }
-//   }
-
-//   return userProjects;
-// }
 
 export async function findProjectsByUserId(userId: string){
   const userProjects = await prisma.project.findMany({
@@ -42,7 +40,19 @@ export async function findProjectsByUserId(userId: string){
           userId,
         },
       },
-      
+    },
+    include: {
+      members: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      },
     },
     orderBy:{
       createdAt: "desc",

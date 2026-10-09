@@ -2,11 +2,12 @@ import { createProject, findProjectById, findProjectsByUserId
      ,updateProject, deleteProject } from "../repositories/project.repository";
 
 import { createProjectMember } from "../repositories/project-member.repository";   
+import { listRepository } from "../repositories/listRepository";
 
 
 export async function createProjectService(data:{ name: string,
   userId: string;
-  stack: string;
+  stack?: string;
 }){
      if(!data.name || data.name.trim().length === 0){
           throw new Error("Project Name is Required");
@@ -15,17 +16,23 @@ export async function createProjectService(data:{ name: string,
     throw new Error("User ID is Required");
   }
 
-  if (!data.stack || data.stack.trim().length === 0) {
-    throw new Error("Stack is Required")
-  }
+  const stack = data.stack?.trim() || "fullstack";
   // creating project with basic name
      const project = await createProject({name: data.name.trim()});
-// creating project with main user's data n more shit 
+// creating project with main user's data
     await createProjectMember({
       userId: data.userId,
       projectId: project.id,
-      stack: data.stack.trim(),
+      stack,
     });
+
+    try {
+      await listRepository.createList({ projectId: project.id, name: "To Do" });
+      await listRepository.createList({ projectId: project.id, name: "In Progress" });
+      await listRepository.createList({ projectId: project.id, name: "Done" });
+    } catch (e) {
+      console.error("Failed to create default lists:", e);
+    }
 
      return project;
 }

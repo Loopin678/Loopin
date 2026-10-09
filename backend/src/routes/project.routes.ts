@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireAuth } from "../middleware/auth.middleware";
 import {
   createProject,
+  getMyProjects,
   getProjectById,
   getProjectsByUserId,
   updateProject,
@@ -20,6 +21,7 @@ projectRoutes.use("/:projectId/lists", listRoutes);
 projectRoutes.get("/:projectId/commits", getProjectCommits);
 
 // Protected endpoints requiring authenticated user session
+projectRoutes.get("/", requireAuth, getMyProjects);
 projectRoutes.post("/", requireAuth, createProject);
 projectRoutes.get("/user/:userId", requireAuth, getProjectsByUserId);
 projectRoutes.get("/:projectId", requireAuth, getProjectById);

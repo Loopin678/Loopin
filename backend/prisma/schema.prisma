@@ -65,9 +65,6 @@ model Task {
   listId      String
   projectId   String
   assigneeId  String?
-  priority    String?
-  dueDate     DateTime?
-  tags        String[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -76,17 +73,6 @@ model Task {
   assignee User?     @relation("TaskAssignee", fields: [assigneeId], references: [id])
   Commit   Commit?   @relation(fields: [commitId], references: [id])
   commitId String?
-  subtasks Subtask[]
-}
-
-model Subtask {
-  id          String   @id @default(uuid())
-  title       String
-  isCompleted Boolean  @default(false)
-  taskId      String
-  createdAt   DateTime @default(now())
-
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
 }
 
 model Message {
