@@ -40,7 +40,45 @@ The Loopin Harness transforms AI agents (Claude Code, Cursor, Windsurf, Antigrav
 
 ## 🚀 Getting Started
 
-### 1. Harness CLI & MCP
+### 1. Backend Server (Node.js/Express + Supabase)
+The backend handles business logic, database connections, and WebSockets (Socket.io) for real-time features.
+```bash
+cd backend
+npm install
+```
+**Environment Variables (`backend/.env`):**
+Create a `.env` file with the following variables:
+```env
+PORT=3000
+DATABASE_URL="postgres://[user]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres"
+JWT_SECRET="your-development-jwt-secret"
+JWT_EXPIRES_IN="7d"
+```
+**Run the server:**
+```bash
+npm run build
+npm run start    # Starts the API and WebSocket server on http://localhost:3000
+```
+*(Note: Because of Socket.io, the backend cannot be hosted on Serverless platforms like Netlify/Vercel. Use Render or Railway for production deployment.)*
+
+### 2. Frontend Web App (React + Vite)
+```bash
+cd frontend
+npm install
+```
+**Run the app:**
+```bash
+npm run dev      # Starts on http://localhost:5173 with Hot Module Replacement
+```
+*You can copy your `User ID` from the bottom-left sidebar menu and `Project ID` from the top-right "More actions" menu on any board.*
+
+### 3. Desktop App (C++ / Qt6 QML)
+The desktop app allows you to commit code and link it directly to your Loopin tasks. It uses `gemini-2.5-flash` natively to generate intelligent commit messages.
+- Open `LoopinSetup.exe` (built via NSIS `makensis installer.nsi`) to install.
+- Go to the **Settings** tab in the app and input your `Backend URL` (e.g., `http://localhost:3000`), `Project ID`, and `User ID`.
+- To configure OpenRouter credentials, create a `.env` file in the root directory: `OPENROUTER_API_KEY="sk-or-..."`.
+
+### 4. Harness CLI & MCP
 ```bash
 cd harness
 npm install
@@ -49,19 +87,4 @@ npm test
 
 # Run CLI
 ./bin/loopin.js --help
-# Or link globally: npm link && loopin --help
-```
-
-### 2. Backend Server
-```bash
-cd backend
-npm install
-npm run dev      # Starts on http://localhost:3000
-```
-
-### 3. Frontend Web App
-```bash
-cd frontend
-npm install
-npm run dev      # Starts on http://localhost:5173
 ```
