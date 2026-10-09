@@ -58,7 +58,7 @@ function TaskCard({ task, asHandle, isOverlay, onSelectTask, ...props }: TaskCar
   const cardContent = (
     <Card
       onClick={() => !isOverlay && onSelectTask?.(task.originalTask)}
-      className="cursor-pointer hover:border-primary/50 transition-colors shadow-xs group/card bg-card/90"
+      className="cursor-pointer hover:border-primary/50 transition-colors shadow-xs group/card bg-card border-border"
     >
       <CardContent className="space-y-2.5 p-3">
         <div className="flex items-center justify-between gap-2">
@@ -102,7 +102,7 @@ function TaskCard({ task, asHandle, isOverlay, onSelectTask, ...props }: TaskCar
             {task.commitId && (
               <span
                 title={`Commit: ${task.commitId}`}
-                className="inline-flex items-center gap-0.5 text-[10px] text-emerald-400 font-mono bg-emerald-500/10 px-1 rounded"
+                className="inline-flex items-center gap-0.5 text-[10px] text-emerald-600 dark:text-emerald-400 font-mono bg-emerald-500/10 px-1 rounded"
               >
                 <GitCommit className="size-2.5" />
                 {task.commitId.substring(0, 6)}
@@ -167,8 +167,8 @@ function TaskColumn({
 
   return (
     <KanbanColumn value={value} {...props}>
-      <Card className="mb-2.5 bg-card/60 border-border/80 flex flex-col max-h-[calc(100vh-140px)] shadow-md">
-        <CardHeader className="flex items-center justify-between border-b border-border/40 py-2.5 px-3.5">
+      <Card className="mb-2.5 bg-muted/40 dark:bg-card/80 border-border flex flex-col max-h-[calc(100vh-140px)] shadow-2xs">
+        <CardHeader className="flex items-center justify-between border-b border-border/50 py-2.5 px-3.5 bg-card/60 dark:bg-card/40">
           <div className="flex items-center gap-2.5">
             <span className="text-sm font-semibold text-foreground tracking-tight">
               {columnTitle}

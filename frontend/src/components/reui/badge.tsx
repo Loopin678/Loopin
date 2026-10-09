@@ -23,13 +23,13 @@ const badgeVariants = cva(
         "primary-light":
           "border-primary/20 bg-primary/10 text-primary dark:border-primary/25 dark:bg-primary/15 dark:text-primary",
         "warning-light":
-          "border-amber-500/25 bg-amber-500/10 text-amber-400 dark:border-amber-500/25 dark:bg-amber-500/15 dark:text-amber-400",
+          "border-warning/20 bg-warning/10 text-warning-foreground dark:border-warning/25 dark:bg-warning/15 dark:text-warning",
         "success-light":
-          "border-emerald-500/25 bg-emerald-500/10 text-emerald-400 dark:border-emerald-500/25 dark:bg-emerald-500/15 dark:text-emerald-400",
+          "border-success/20 bg-success/10 text-success-foreground dark:border-success/25 dark:bg-success/15 dark:text-success",
         "info-light":
-          "border-violet-500/25 bg-violet-500/10 text-violet-400 dark:border-violet-500/25 dark:bg-violet-500/15 dark:text-violet-400",
+          "border-info/20 bg-info/10 text-info-foreground dark:border-info/25 dark:bg-info/15 dark:text-info",
         "destructive-light":
-          "border-rose-500/25 bg-rose-500/10 text-rose-400 dark:border-rose-500/25 dark:bg-rose-500/15 dark:text-rose-400",
+          "border-destructive/20 bg-destructive/10 text-destructive-foreground dark:border-destructive/25 dark:bg-destructive/15 dark:text-destructive",
         "invert-light":
           "border-invert/15 bg-invert/10 text-foreground dark:border-invert/45 dark:bg-invert/35 dark:text-invert-foreground",
         "focus-light":
@@ -37,13 +37,13 @@ const badgeVariants = cva(
         "primary-outline":
           "bg-background border-border text-primary dark:bg-input/30",
         "warning-outline":
-          "bg-background border-border text-amber-400 dark:bg-input/30",
+          "bg-background border-border text-warning-foreground dark:bg-input/30",
         "success-outline":
-          "bg-background border-border text-emerald-400 dark:bg-input/30",
+          "bg-background border-border text-success-foreground dark:bg-input/30",
         "info-outline":
-          "bg-background border-border text-violet-400 dark:bg-input/30",
+          "bg-background border-border text-info-foreground dark:bg-input/30",
         "destructive-outline":
-          "bg-background border-border text-rose-400 dark:bg-input/30",
+          "bg-background border-border text-destructive-foreground dark:bg-input/30",
         "invert-outline":
           "bg-background border-border text-invert-foreground dark:bg-input/30",
         "focus-outline":

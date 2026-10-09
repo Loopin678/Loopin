@@ -35,35 +35,67 @@
 }
 
 :root {
-  color-scheme: dark;
-  --background: #090d16;
-  --foreground: #f8fafc;
-  --card: #111625;
-  --card-foreground: #f8fafc;
-  --popover: #111625;
-  --popover-foreground: #f8fafc;
-  --primary: #6366f1;
+  color-scheme: light;
+  --background: #f8fafc;
+  --foreground: #09090b;
+  --card: #ffffff;
+  --card-foreground: #09090b;
+  --popover: #ffffff;
+  --popover-foreground: #09090b;
+  --primary: #2563eb;
   --primary-foreground: #ffffff;
-  --secondary: #171f30;
-  --secondary-foreground: #e2e8f0;
-  --muted: #1e283d;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --destructive: #ef4444;
+  --destructive-foreground: #991b1b;
+  --warning: #f59e0b;
+  --warning-foreground: #854d0e;
+  --success: #10b981;
+  --success-foreground: #065f46;
+  --info: #3b82f6;
+  --info-foreground: #1e40af;
+  --invert: #09090b;
+  --invert-foreground: #f8fafc;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #2563eb;
+  --radius: 0.5rem;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: #09090b;
+  --foreground: #f8fafc;
+  --card: #121215;
+  --card-foreground: #f8fafc;
+  --popover: #121215;
+  --popover-foreground: #f8fafc;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #18181b;
+  --secondary-foreground: #f8fafc;
+  --muted: #18181b;
   --muted-foreground: #94a3b8;
-  --accent: #1e283d;
+  --accent: #18181b;
   --accent-foreground: #f8fafc;
-  --destructive: #f43f5e;
-  --destructive-foreground: #fb7185;
+  --destructive: #ef4444;
+  --destructive-foreground: #f87171;
   --warning: #f59e0b;
   --warning-foreground: #fbbf24;
   --success: #10b981;
   --success-foreground: #34d399;
-  --info: #8b5cf6;
-  --info-foreground: #a78bfa;
+  --info: #60a5fa;
+  --info-foreground: #93c5fd;
   --invert: #27272a;
-  --invert-foreground: #f4f4f5;
-  --border: #1e293b;
-  --input: #1e293b;
-  --ring: #6366f1;
-  --radius: 0.625rem;
+  --invert-foreground: #f8fafc;
+  --border: #27272a;
+  --input: #27272a;
+  --ring: #3b82f6;
+  --radius: 0.5rem;
 }
 
 body {
@@ -83,14 +115,14 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #090d16;
+  background: var(--background);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: var(--border);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: var(--muted-foreground);
 }

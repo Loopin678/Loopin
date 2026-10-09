@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Project, User } from '../types';
 import { 
   FolderGit2, 
@@ -8,7 +8,9 @@ import {
   Laptop, 
   CheckCircle2, 
   UserCircle,
-  LogOut
+  LogOut,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { Button } from './ui/button';
 
@@ -37,8 +39,41 @@ export const Header: React.FC<HeaderProps> = ({
   taskCount,
   commitCount,
 }) => {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('loopin-theme');
+      if (saved === 'dark' || saved === 'light') return saved;
+      return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+    }
+    return 'light';
+  });
+
+  useEffect(() => {
+    const saved = localStorage.getItem('loopin-theme');
+    if (saved === 'dark') {
+      document.documentElement.classList.add('dark');
+      setTheme('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      setTheme('light');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(nextTheme);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('loopin-theme', nextTheme);
+      if (nextTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+  };
+
   return (
-    <header className="border-b border-border bg-card/80 backdrop-blur sticky top-0 z-30 px-6 py-3">
+    <header className="border-b border-border bg-card/95 backdrop-blur sticky top-0 z-30 px-6 py-2.5 shadow-2xs">
       <div className="flex items-center justify-between gap-4">
         {/* Left: Branding & Project Selector */}
         <div className="flex items-center gap-5">
@@ -136,10 +171,25 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right: DB & Logged In User */}
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs">
+          <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs">
             <CheckCircle2 className="size-3" />
             <span className="font-mono text-[10px]">Supabase Live</span>
           </div>
+
+          {/* Theme Toggle Button */}
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            className="size-7 rounded-lg border border-border/80 hover:bg-muted text-foreground"
+          >
+            {theme === 'dark' ? (
+              <Sun className="size-3.5 text-amber-400" />
+            ) : (
+              <Moon className="size-3.5 text-muted-foreground hover:text-foreground" />
+            )}
+          </Button>
 
           {/* User profile & Logout */}
           <div className="flex items-center gap-2.5 pl-3 border-l border-border">
