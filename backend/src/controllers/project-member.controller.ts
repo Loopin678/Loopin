@@ -6,6 +6,9 @@ import {
   getProjectMembersService,
   getProjectMembershipsByUserIdService,
   removeProjectMemberService,
+  getPendingProjectInvitationService,
+  acceptProjectInvitationService,
+  declineProjectInvitationService,
 } from "../services/project-member.service";
 
 export async function addProjectMember(req: Request,res: Response): Promise<void> {
@@ -192,4 +195,85 @@ catch (error) {
 
      res.status(500).json({message: "Internal Server Error",});
 }
+}
+
+export async function getPendingProjectInvitations(req: Request, res: Response):Promise<void>{
+try {
+    const userId = req.user?.id;
+
+    if(!userId){
+      res.status(401).json({
+        message: "Authentication Required"
+      });
+      return; // return here tells TS after the check that userId must be a string
+    }
+    const invitations = await getPendingProjectInvitationService(userId);
+
+    res.status(200).json({invitations})
+} catch (err) {
+  console.error(err);
+}
+}
+export async function acceptProjectInvitation(req: Request, res: Response): Promise<void>{
+try {
+  const {projectId} = req.params;
+  const userId = req.user?.id;
+
+  if(typeof projectId !== "string"){
+    res.status(400).json({message: "Invalid projectId"});
+    return;
+  }
+  if(!userId){
+    res.status(401).json({message:"Authentication required"});
+    return;
+  }
+  await acceptProjectInvitationService(projectId, userId);
+
+  res.status(200).json({
+    message:"Invitation Accepted"
+  });
+  
+}catch (err){
+  if(err instanceof Error && err.message === "INVITE_NOT_FOUND_OR_NOT_PENDING"){
+      res.status(404).json({message: "Pending invitation not found"});
+      return;
+    }
+
+    console.error(err);
+
+    res.status(500).json({
+      message: "Internal Server Error",
+    });}
+}
+
+export async function declineProjectInvitation(req: Request,res: Response): Promise<void> {
+  try {
+    const {projectId} = req.params;
+    const userId = req.user?.id;
+
+    if(typeof projectId !== "string"){
+      res.status(400).json({message: "Invalid projectId"});
+      return;
+    }
+
+    if(!userId){
+      res.status(401).json({message: "Authentication required"});
+      return;
+    }
+
+    await declineProjectInvitationService(projectId, userId);
+
+    res.status(200).json({message: "Invitation declined"});
+  }catch (error) {
+    if (error instanceof Error && error.message === "INVITE_NOT_FOUND_OR_NOT_PENDING"){
+      res.status(404).json({message: "Pending invitation not found"});
+      return;
+    }
+
+    console.error(error);
+
+    res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 }

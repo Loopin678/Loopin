@@ -79,3 +79,46 @@ export async function deleteProjectMember(
      });
      return true;
 }
+
+export async function findPendingProjectInvitations(userId: string){
+     return await prisma.projectMember.findMany({
+          where:{
+               userId, 
+               status: MembershipStatus.PENDING,
+          },
+          include:{
+               project:{
+                    select:{
+                         id: true,
+                         name: true
+                    }}
+          },
+          orderBy:{
+               id: "asc",
+          },
+
+     });
+}
+
+export async function acceptPendingProjectInvitation(projectId: string, userId: string){
+     return await prisma.projectMember.updateMany({
+          where:{
+               projectId,
+               userId,
+               status: MembershipStatus.PENDING,
+          },
+          data:{
+               status: MembershipStatus.ACTIVE,
+          },
+     });
+}
+// just delete the invite in case of decline lmao deleteMany
+export async function declinePendingProjectInvitation(projectId: string, userId: string){
+     return await prisma.projectMember.deleteMany({
+          where:{
+               projectId,
+               userId,
+               status: MembershipStatus.PENDING,
+          },
+     });
+}

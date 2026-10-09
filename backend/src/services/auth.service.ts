@@ -7,6 +7,7 @@ import {
     findUserByGoogleId, 
     findUserById,
 } from "../repositories/user.repository";
+import { JWT_SECRET, JWT_EXPIRES_IN } from "../library/auth";
 
 export type PublicUser = {
     id: string;
@@ -20,9 +21,9 @@ function generateToken(userId: string): string {
     {
       userId,
     },
-    process.env.JWT_SECRET!,
+    JWT_SECRET,
     {
-      expiresIn: process.env.JWT_EXPIRES_IN! as "7d",
+      expiresIn: JWT_EXPIRES_IN,
     }
   );
 }

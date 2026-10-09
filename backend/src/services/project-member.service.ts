@@ -1,7 +1,10 @@
 import { MemberRole, MembershipStatus } from "@prisma/client";
 import { findUserByEmail } from "../repositories/user.repository";
 import {createProjectMember,findProjectMember,findProjectMembers,findProjectMembershipsByUserId,
-  deleteProjectMember,} from "../repositories/project-member.repository";
+  deleteProjectMember,
+  findPendingProjectInvitations,
+  acceptPendingProjectInvitation,
+  declinePendingProjectInvitation} from "../repositories/project-member.repository";
 
 export async function addProjectMemberService(data: {
   email: string;
@@ -67,4 +70,24 @@ export async function removeProjectMemberService(
      if (!removed) {
      throw new Error("Project member not found");
      }
+}
+
+export async function getPendingProjectInvitationService(userId: string){
+  return await findPendingProjectInvitations(userId);
+}
+
+export async function acceptProjectInvitationService(projectId: string, userId: string){
+    const result = await acceptPendingProjectInvitation(projectId, userId);
+
+    if(result.count === 0){
+        throw new Error("INVITE_NOT_FOUND_OR_NOT_PENDING");
+    }
+}
+
+export async function declineProjectInvitationService(projectId: string, userId: string){
+  const result = await declinePendingProjectInvitation(projectId, userId);
+  if(result.count === 0){
+        throw new Error("INVITE_NOT_FOUND_OR_NOT_PENDING");
+    }
+  
 }
