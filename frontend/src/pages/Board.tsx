@@ -50,6 +50,9 @@ function TaskCard({
   const hash = (task.stack ?? '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
   const hue = hash % 360;
 
+  const onlineUserIds = useBoardStore(state => state.onlineUserIds);
+  const isAssigneeOnline = task.assigneeId ? onlineUserIds.has(task.assigneeId) : false;
+
   return (
     <div
       ref={setNodeRef}
@@ -109,11 +112,22 @@ function TaskCard({
       {/* Assignee avatar */}
       {task.assigneeId && (
         <div className="mt-3 flex justify-end">
-          <div
-            className="w-6 h-6 rounded-full bg-[#1C2127] border border-[rgba(255,255,255,0.10)] flex items-center justify-center text-[10px] font-bold text-[#8A9099]"
-            title={task.assigneeId}
-          >
-            {task.assigneeId.slice(0, 2).toUpperCase()}
+          <div className="relative">
+            <div
+              className="w-6 h-6 rounded-full bg-[#1C2127] border border-[rgba(255,255,255,0.10)] flex items-center justify-center text-[10px] font-bold text-[#8A9099]"
+              title={task.assigneeId}
+            >
+              {task.assigneeId.slice(0, 2).toUpperCase()}
+            </div>
+            <span
+              className={cn(
+                "absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#161A1F]",
+                isAssigneeOnline
+                  ? "bg-[#5EE6B0] shadow-[0_0_6px_rgba(94,230,176,0.6)]"
+                  : "bg-[#5B616A]"
+              )}
+              title={isAssigneeOnline ? "Assignee online" : "Assignee offline"}
+            />
           </div>
         </div>
       )}
@@ -323,8 +337,23 @@ export function Board() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const { listOrder, tasksById, setBoard, clearBoard, moveTask, addList, updateList, addTask, updateTask, removeTask } =
-    useBoardStore();
+  const {
+    listOrder,
+    tasksById,
+    setBoard,
+    clearBoard,
+    moveTask,
+    addList,
+    updateList,
+    addTask,
+    updateTask,
+    removeTask,
+    onlineUserIds,
+    setPresenceSnapshot,
+    setUserOnline,
+    setUserOffline,
+    clearPresence,
+  } = useBoardStore();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -367,14 +396,25 @@ export function Board() {
     // 2. Connect socket (already authenticated via cookie)
     const socket = connectSocket();
 
+    console.log('[DEBUG Board] useEffect run. socket:', socket.id, 'connected:', socket.connected, 'existing _joinedProjects:', (socket as any)._joinedProjects);
+
+    const joinedProjects: Set<string> = (socket as any)._joinedProjects ?? new Set();
+    (socket as any)._joinedProjects = joinedProjects;
+
     const handleConnect = () => {
       setSocketConnected(true);
-      socket.emit('join-project', projectId);
+      console.log('[DEBUG Board] handleConnect called. socket:', socket.id, 'connected:', socket.connected, 'has project?', joinedProjects.has(projectId));
+      if (!joinedProjects.has(projectId)) {
+        console.log('[DEBUG Board] EMITTING join-project for', projectId, 'socket.id:', socket.id, new Error().stack);
+        socket.emit('join-project', projectId);
+        joinedProjects.add(projectId);
+      }
     };
 
     socket.on('connect', handleConnect);
 
     if (socket.connected) {
+      console.log('[DEBUG Board] socket was already connected! Calling handleConnect()');
       handleConnect();
     }
 
@@ -396,6 +436,21 @@ export function Board() {
       removeTask(deleted.id, deleted.listId);
     });
 
+    // Presence handlers
+    const handlePresenceSnapshot = (data: { onlineUserIds: string[] }) => {
+      setPresenceSnapshot(data?.onlineUserIds ?? []);
+    };
+    const handlePresenceOnline = (data: { userId: string }) => {
+      if (data?.userId) setUserOnline(data.userId);
+    };
+    const handlePresenceOffline = (data: { userId: string }) => {
+      if (data?.userId) setUserOffline(data.userId);
+    };
+
+    socket.on('presence:snapshot', handlePresenceSnapshot);
+    socket.on('presence:online', handlePresenceOnline);
+    socket.on('presence:offline', handlePresenceOffline);
+
     return () => {
       socket.off('connect', handleConnect);
       socket.off('disconnect');
@@ -406,6 +461,10 @@ export function Board() {
       socket.off('task:updated');
       socket.off('task:moved');
       socket.off('task:deleted');
+      socket.off('presence:snapshot', handlePresenceSnapshot);
+      socket.off('presence:online', handlePresenceOnline);
+      socket.off('presence:offline', handlePresenceOffline);
+      clearPresence();
       clearBoard();
     };
   }, [projectId]);
@@ -544,6 +603,15 @@ export function Board() {
           >
             <Users size={13} />
             <span>Members</span>
+            {onlineUserIds.size > 0 && (
+              <span
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-mono text-[#5EE6B0] bg-[#5EE6B0]/10 border border-[#5EE6B0]/20"
+                title={`${onlineUserIds.size} member${onlineUserIds.size > 1 ? 's' : ''} online`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-[#5EE6B0] animate-pulse" />
+                {onlineUserIds.size}
+              </span>
+            )}
           </Link>
 
           <Link

@@ -9,6 +9,13 @@ export interface BoardState {
   tasksById: Record<string, AnyTask>;
   taskIdsByList: Record<string, string[]>;
 
+  // Presence
+  onlineUserIds: Set<string>;
+  setPresenceSnapshot: (userIds: string[]) => void;
+  setUserOnline: (userId: string) => void;
+  setUserOffline: (userId: string) => void;
+  clearPresence: () => void;
+
   setBoard: (lists: ListWithTasks[]) => void;
   clearBoard: () => void;
 
@@ -26,6 +33,23 @@ export const useBoardStore = create<BoardState>((set) => ({
   listOrder: [],
   tasksById: {},
   taskIdsByList: {},
+
+  // Presence
+  onlineUserIds: new Set<string>(),
+  setPresenceSnapshot: (userIds: string[]) => set({ onlineUserIds: new Set(userIds) }),
+  setUserOnline: (userId: string) =>
+    set(state => {
+      const next = new Set(state.onlineUserIds);
+      next.add(userId);
+      return { onlineUserIds: next };
+    }),
+  setUserOffline: (userId: string) =>
+    set(state => {
+      const next = new Set(state.onlineUserIds);
+      next.delete(userId);
+      return { onlineUserIds: next };
+    }),
+  clearPresence: () => set({ onlineUserIds: new Set<string>() }),
 
   setBoard: (lists) => {
     const listsById: Record<string, Omit<ListWithTasks, 'tasks'>> = {};
@@ -48,7 +72,13 @@ export const useBoardStore = create<BoardState>((set) => ({
   },
 
   clearBoard: () => {
-    set({ listsById: {}, listOrder: [], tasksById: {}, taskIdsByList: {} });
+    set({
+      listsById: {},
+      listOrder: [],
+      tasksById: {},
+      taskIdsByList: {},
+      onlineUserIds: new Set<string>(),
+    });
   },
 
   addList: (listInput) => {

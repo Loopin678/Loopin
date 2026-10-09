@@ -3,6 +3,7 @@ import { tasksApi, membersApi, TaskDetail, ProjectMember } from '../../api/clien
 import { useBoardStore } from '../../store/boardStore';
 import { X, Loader2, Trash2, Calendar, Tag, User, Code2, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { cn } from '../../utils/cn';
 
 interface TaskModalProps {
   taskId: string;
@@ -12,7 +13,7 @@ interface TaskModalProps {
 
 export function TaskModal({ taskId, projectId, onClose }: TaskModalProps) {
   const navigate = useNavigate();
-  const { updateTask, removeTask } = useBoardStore();
+  const { updateTask, removeTask, onlineUserIds } = useBoardStore();
 
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [members, setMembers] = useState<ProjectMember[]>([]);
@@ -161,8 +162,17 @@ export function TaskModal({ taskId, projectId, onClose }: TaskModalProps) {
               {/* Assignee + Stack */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="flex items-center gap-1.5 text-xs font-semibold text-[#5B616A] uppercase tracking-wider mb-1.5">
-                    <User size={12} /> Assignee
+                  <label className="flex items-center justify-between text-xs font-semibold text-[#5B616A] uppercase tracking-wider mb-1.5">
+                    <span className="flex items-center gap-1.5"><User size={12} /> Assignee</span>
+                    {assigneeId && (
+                      <span className={cn(
+                        "inline-flex items-center gap-1 text-[10px] font-mono normal-case",
+                        onlineUserIds.has(assigneeId) ? "text-[#5EE6B0]" : "text-[#5B616A]"
+                      )}>
+                        <span className={cn("w-1.5 h-1.5 rounded-full", onlineUserIds.has(assigneeId) ? "bg-[#5EE6B0] animate-pulse" : "bg-[#5B616A]")} />
+                        {onlineUserIds.has(assigneeId) ? "Online" : "Offline"}
+                      </span>
+                    )}
                   </label>
                   <select
                     value={assigneeId}
@@ -170,11 +180,15 @@ export function TaskModal({ taskId, projectId, onClose }: TaskModalProps) {
                     className="w-full bg-[#161A1F] border border-[rgba(255,255,255,0.08)] rounded-lg px-3 py-2 text-sm text-[#ECEAE4] focus:outline-none focus:border-[#5EE6B0] transition-colors"
                   >
                     <option value="">Unassigned</option>
-                    {members.map(m => (
-                      <option key={m.userId} value={m.userId}>
-                        {m.user?.name || m.userId} {m.stack ? `(${m.stack})` : ''}
-                      </option>
-                    ))}
+                    {members.map(m => {
+                      const isOnline = onlineUserIds.has(m.userId) || (m.user?.id ? onlineUserIds.has(m.user.id) : false);
+                      return (
+                        <option key={m.userId} value={m.userId}>
+                          {isOnline ? '● ' : '○ '}
+                          {m.user?.name || m.userId} {m.stack ? `(${m.stack})` : ''} {isOnline ? '— Online' : ''}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 

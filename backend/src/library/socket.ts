@@ -6,6 +6,41 @@ import { registerMessageHandlers } from "../Sockets/message.socket";
 
 let io: SocketIOServer | null = null;
 
+const presence = new Map<string, Map<string, number>>();
+
+function incrementPresence(projectId: string, userId: string): boolean {
+  if (!presence.has(projectId)) {
+    presence.set(projectId, new Map());
+  }
+  const projectPresence = presence.get(projectId)!;
+  const currentCount = projectPresence.get(userId) ?? 0;
+  projectPresence.set(userId, currentCount + 1);
+  return currentCount === 0;
+}
+
+function decrementPresence(projectId: string, userId: string): boolean {
+  const projectPresence = presence.get(projectId);
+  if (!projectPresence) return false;
+
+  const currentCount = projectPresence.get(userId) ?? 0;
+  if (currentCount <= 1) {
+    projectPresence.delete(userId);
+    if (projectPresence.size === 0) {
+      presence.delete(projectId);
+    }
+    return true;
+  }
+
+  projectPresence.set(userId, currentCount - 1);
+  return false;
+}
+
+function getOnlineUserIds(projectId: string): string[] {
+  const projectPresence = presence.get(projectId);
+  if (!projectPresence) return [];
+  return Array.from(projectPresence.keys());
+}
+
 function extractTokenFromCookieHeader(cookieHeader: string | undefined):string | null{
     if (!cookieHeader) return null;
 
@@ -59,23 +94,56 @@ export function initSocket(httpServer: HTTPServer): SocketIOServer {
         }
     })
 
-    io.on("connection" , (socket) => { //Waits for frontend to create a socket connection and then runs this and then the event listeners listen to further requests
-        // event listeners for this connection go here
+    io.on("connection", (socket) => {
+        const claimed = new Set<string>(); // projects this socket has started joining
 
         socket.on("join-project", async (projectId: string) => {
-        const userId = socket.data.userId as string;
+            const userId = socket.data.userId as string;
 
-        const membership = await findProjectMember(projectId, userId);
+            // Must run before any await, so two back-to-back events can't both pass
+            if (claimed.has(projectId)) {
+                socket.emit("presence:snapshot", { onlineUserIds: getOnlineUserIds(projectId) });
+                return;
+            }
+            claimed.add(projectId);
 
-        if (!membership) {
-            socket.emit("error", { message: "You are not a member of this project" });
-            return;
-        }
+            const membership = await findProjectMember(projectId, userId);
 
-        socket.join(`project:${projectId}`);
-        });
+            if (!membership || !socket.connected) {
+                claimed.delete(projectId);
+                if (!membership) {
+                    socket.emit("error", { message: "You are not a member of this project" });
+                }
+                return;
+            }
+
+            socket.join(`project:${projectId}`);
+
+            if (!socket.data.joinedProjects) {
+                socket.data.joinedProjects = new Set<string>();
+            }
+            socket.data.joinedProjects.add(projectId);
+
+            if (incrementPresence(projectId, userId)) {
+                socket.to(`project:${projectId}`).emit("presence:online", { userId });
+            }
+
+            socket.emit("presence:snapshot", { onlineUserIds: getOnlineUserIds(projectId) });
+    });
 
         registerMessageHandlers(getIO(), socket);
+
+        socket.on("disconnect", () => {
+            const userId = socket.data.userId as string;
+            const joinedProjects: Set<string> = socket.data.joinedProjects ?? new Set();
+
+            joinedProjects.forEach((projectId) => {
+                const wasLastConnection = decrementPresence(projectId, userId);
+                if (wasLastConnection) {
+                getIO().to(`project:${projectId}`).emit("presence:offline", { userId });
+                }
+            });
+        });
 
     });
 

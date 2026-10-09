@@ -1,13 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { membersApi, ProjectMember } from '../api/client';
+import { useBoardStore } from '../store/boardStore';
+import { connectSocket } from '../api/socket';
 import { Loader2, UserPlus, Trash2, Users } from 'lucide-react';
+import { cn } from '../utils/cn';
 
 export function Members() {
   const { projectId } = useParams<{ projectId: string }>();
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Presence state from Zustand board store
+  const {
+    onlineUserIds,
+    setPresenceSnapshot,
+    setUserOnline,
+    setUserOffline,
+    clearPresence,
+  } = useBoardStore();
 
   // Add member form
   const [userId, setUserId] = useState('');
@@ -16,7 +28,45 @@ export function Members() {
   const [addError, setAddError] = useState('');
 
   useEffect(() => {
-    if (projectId) loadMembers();
+    if (!projectId) return;
+
+    loadMembers();
+
+    // Setup Socket connection and presence listeners
+    const socket = connectSocket();
+
+    const handleConnect = () => {
+      socket.emit('join-project', projectId);
+    };
+
+    const handleSnapshot = (data: { onlineUserIds: string[] }) => {
+      setPresenceSnapshot(data?.onlineUserIds ?? []);
+    };
+
+    const handleOnline = (data: { userId: string }) => {
+      if (data?.userId) setUserOnline(data.userId);
+    };
+
+    const handleOffline = (data: { userId: string }) => {
+      if (data?.userId) setUserOffline(data.userId);
+    };
+
+    socket.on('connect', handleConnect);
+    socket.on('presence:snapshot', handleSnapshot);
+    socket.on('presence:online', handleOnline);
+    socket.on('presence:offline', handleOffline);
+
+    if (socket.connected) {
+      handleConnect();
+    }
+
+    return () => {
+      socket.off('connect', handleConnect);
+      socket.off('presence:snapshot', handleSnapshot);
+      socket.off('presence:online', handleOnline);
+      socket.off('presence:offline', handleOffline);
+      clearPresence();
+    };
   }, [projectId]);
 
   const loadMembers = async () => {
@@ -41,7 +91,6 @@ export function Members() {
     setAddError('');
     try {
       // POST /api/project/member/:projectId { userId, stack }
-      // NOTE: userId must be an actual user ID (UUID), not an email address
       const member = await membersApi.add(projectId, {
         userId: userId.trim(),
         stack: stack.trim(),
@@ -67,6 +116,24 @@ export function Members() {
       alert(err.message || 'Failed to remove member');
     }
   };
+
+  // Helper to check if a member is online
+  const isMemberOnline = (member: ProjectMember) => {
+    return onlineUserIds.has(member.userId) || (member.user?.id ? onlineUserIds.has(member.user.id) : false);
+  };
+
+  // Sort members: online members first, then alphabetically
+  const sortedMembers = [...members].sort((a, b) => {
+    const aOnline = isMemberOnline(a);
+    const bOnline = isMemberOnline(b);
+    if (aOnline && !bOnline) return -1;
+    if (!aOnline && bOnline) return 1;
+    const nameA = a.user?.name || a.userId;
+    const nameB = b.user?.name || b.userId;
+    return nameA.localeCompare(nameB);
+  });
+
+  const onlineCount = members.filter(isMemberOnline).length;
 
   if (loading) {
     return (
@@ -150,11 +217,19 @@ export function Members() {
 
         {/* Members List */}
         <div className="bg-[#111418] border border-[rgba(255,255,255,0.06)] rounded-2xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.06)] bg-[#161A1F] flex items-center gap-2">
-            <Users size={16} className="text-[#5B616A]" />
-            <h2 className="text-xs font-bold text-[#8A9099] uppercase tracking-wider">
-              Active Members ({members.length})
-            </h2>
+          <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.06)] bg-[#161A1F] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Users size={16} className="text-[#5B616A]" />
+              <h2 className="text-xs font-bold text-[#8A9099] uppercase tracking-wider">
+                Active Members ({members.length})
+              </h2>
+            </div>
+            {members.length > 0 && (
+              <span className="flex items-center gap-1.5 text-xs font-mono text-[#5EE6B0] bg-[#5EE6B0]/10 border border-[#5EE6B0]/20 px-2.5 py-0.5 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#5EE6B0] animate-pulse" />
+                {onlineCount} online
+              </span>
+            )}
           </div>
 
           {members.length === 0 ? (
@@ -165,38 +240,74 @@ export function Members() {
             </div>
           ) : (
             <div className="divide-y divide-[rgba(255,255,255,0.04)]">
-              {members.map(member => (
-                <div
-                  key={member.id}
-                  className="flex items-center justify-between px-6 py-4 hover:bg-[#161A1F] transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-[#1C2127] border border-[rgba(255,255,255,0.08)] flex items-center justify-center text-sm font-bold text-[#8A9099] shrink-0">
-                      {(member.user?.name || member.userId).charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold text-[#ECEAE4]">
-                        {member.user?.name || 'Unknown User'}
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {member.user?.email && (
-                          <span className="text-xs text-[#5B616A]">{member.user.email}</span>
-                        )}
-                        <span className="text-xs text-[#5EE6B0] bg-[rgba(94,230,176,0.10)] px-2 py-0.5 rounded-full font-medium">
-                          {member.stack}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleRemove(member.userId)}
-                    className="p-2 text-[#5B616A] hover:text-red-400 hover:bg-red-950/30 rounded-lg transition-all"
-                    title="Remove member"
+              {sortedMembers.map(member => {
+                const isOnline = isMemberOnline(member);
+                return (
+                  <div
+                    key={member.id}
+                    className="flex items-center justify-between px-6 py-4 hover:bg-[#161A1F] transition-colors"
                   >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              ))}
+                    <div className="flex items-center gap-3">
+                      {/* Avatar with status dot */}
+                      <div className="relative shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-[#1C2127] border border-[rgba(255,255,255,0.08)] flex items-center justify-center text-sm font-bold text-[#8A9099]">
+                          {(member.user?.name || member.userId).charAt(0).toUpperCase()}
+                        </div>
+                        {/* Status dot (8-10px with 2px border matching background) */}
+                        <span
+                          className={cn(
+                            "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#111418]",
+                            isOnline
+                              ? "bg-[#5EE6B0] shadow-[0_0_8px_rgba(94,230,176,0.6)]"
+                              : "bg-[#5B616A]"
+                          )}
+                          title={isOnline ? "Online" : "Offline"}
+                        />
+                      </div>
+
+                      <div>
+                        <div className="text-sm font-semibold text-[#ECEAE4] flex items-center gap-2">
+                          <span>{member.user?.name || 'Unknown User'}</span>
+                          {/* Online status chip */}
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border",
+                              isOnline
+                                ? "text-[#5EE6B0] bg-[#5EE6B0]/10 border-[#5EE6B0]/25"
+                                : "text-[#5B616A] bg-[#161A1F] border-[rgba(255,255,255,0.05)]"
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                "w-1.5 h-1.5 rounded-full",
+                                isOnline ? "bg-[#5EE6B0] animate-pulse" : "bg-[#5B616A]"
+                              )}
+                            />
+                            {isOnline ? "online" : "offline"}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {member.user?.email && (
+                            <span className="text-xs text-[#5B616A]">{member.user.email}</span>
+                          )}
+                          <span className="text-xs text-[#5EE6B0] bg-[rgba(94,230,176,0.10)] px-2 py-0.5 rounded-full font-medium">
+                            {member.stack}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleRemove(member.userId)}
+                      className="p-2 text-[#5B616A] hover:text-red-400 hover:bg-red-950/30 rounded-lg transition-all"
+                      title="Remove member"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
