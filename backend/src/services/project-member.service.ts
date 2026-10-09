@@ -4,7 +4,8 @@ import {createProjectMember,findProjectMember,findProjectMembers,findProjectMemb
   deleteProjectMember,
   findPendingProjectInvitations,
   acceptPendingProjectInvitation,
-  declinePendingProjectInvitation} from "../repositories/project-member.repository";
+  declinePendingProjectInvitation,
+  transferProjectOwnership} from "../repositories/project-member.repository";
 
 export async function addProjectMemberService(data: {
   email: string;
@@ -60,16 +61,40 @@ export async function getProjectMembershipsByUserIdService(userId: string){
   return memberships;
 }
 
-export async function removeProjectMemberService(
-  projectId: string,
-  userId: string
-){
-     const removed = await deleteProjectMember(projectId, userId);
+export async function removeProjectMemberService(projectId: string, requesterId: string,
+  userIdToRemove: string){
+  //confirm requester's existence
+  const requester = await findProjectMember(projectId, requesterId);
 
-     // just in case after removal the proj-mem still exists
-     if (!removed) {
-     throw new Error("Project member not found");
-     }
+  if (!requester || requester.status !== MembershipStatus.ACTIVE){
+      throw new Error("FORBIDDEN_NO_ACTIVE_MEMBERSHIP");
+  }
+
+  const target = await findProjectMember(projectId, userIdToRemove);
+
+  if(!target){
+    throw new Error("Project member not found");
+  }
+
+  if(requester.role === MemberRole.MEMBER){
+    if(userIdToRemove !== requesterId){
+      throw new Error("FORBIDDEN_MEMBER_CANNOT_REMOVE_OTHERS");
+    }
+  } else if (requester.role === MemberRole.OWNER) {
+    if (userIdToRemove === requesterId) {
+      throw new Error("OWNER_CANNOT_REMOVE_SELF");
+    }
+
+    if (target.role !== MemberRole.MEMBER) {
+      throw new Error("FORBIDDEN_OWNER_CANNOT_REMOVE_OWNER");
+    }
+  }
+
+  const removed = await deleteProjectMember(projectId, userIdToRemove);
+  // just in case to recheck project member still exitst
+  if (!removed) {
+    throw new Error("Project member not found");
+  }
 }
 
 export async function getPendingProjectInvitationService(userId: string){
@@ -91,3 +116,10 @@ export async function declineProjectInvitationService(projectId: string, userId:
     }
   
 }
+export async function transferProjectOwnershipService(projectId: string, currentOwnerId: string, 
+  newOwnerId: string){
+    if(currentOwnerId === newOwnerId){
+    throw new Error("CANNOT_TRANSFER_OWNERSHIP_TO_SELF");
+    }
+    await transferProjectOwnership(projectId, currentOwnerId, newOwnerId);
+  }

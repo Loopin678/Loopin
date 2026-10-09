@@ -9,6 +9,7 @@ import {
   getPendingProjectInvitationService,
   acceptProjectInvitationService,
   declineProjectInvitationService,
+  transferProjectOwnershipService
 } from "../services/project-member.service";
 
 export async function addProjectMember(req: Request,res: Response): Promise<void> {
@@ -165,37 +166,63 @@ catch (error) {
   }
 }
 
-export async function removeProjectMember(
-  req: Request,
-  res: Response
-): Promise<void> {
+export async function removeProjectMember(req: Request,res: Response): Promise<void>{
 try {
     const { projectId, userId } = req.params;
+    const requesterId = req.user?.id;
 
-     if (typeof projectId !== "string" || typeof userId !== "string"){
+
+    if(typeof projectId !== "string" || typeof userId !== "string"){
       res.status(400).json({
         message: "Invalid projectId or userId",
       });
       return;
     }
+    if(!requesterId){
+      res.status(401).json({
+        message: "Authentication required",
+      });
+      return;
+    }
 
-    await removeProjectMemberService(projectId, userId);
+    await removeProjectMemberService(projectId, requesterId, userId);
 
     res.status(204).send();
 } 
 catch (error) {
-     if (error instanceof Error && error.message === "Project member not found"){
-          res.status(404).json({
-          message: error.message,
-          });
-          return;
-     }
+    if (!(error instanceof Error)) {
+      res.status(500).json({ message: "Internal Server Error" });
+      return;
+    }
 
-     console.error(error);
+    const forbiddenMessages: Record<string, string> = {
+      FORBIDDEN_NO_ACTIVE_MEMBERSHIP:
+        "You must be an active project member to perform this action",
+      FORBIDDEN_MEMBER_CANNOT_REMOVE_OTHERS:
+        "Members can only remove themselves",
+      OWNER_CANNOT_REMOVE_SELF:
+        "Transfer ownership or delete the project instead of removing yourself as owner",
+      FORBIDDEN_OWNER_CANNOT_REMOVE_OWNER:
+        "An owner cannot remove another owner",
+    };
 
-     res.status(500).json({message: "Internal Server Error",});
+    if (forbiddenMessages[error.message]) {
+      res.status(403).json({
+        message: forbiddenMessages[error.message],
+      });
+      return;
+    }
+
+    if (error.message === "Project member not found") {
+      res.status(404).json({ message: error.message });
+      return;
+    }
+
+    console.error(error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
 }
-}
+
 
 export async function getPendingProjectInvitations(req: Request, res: Response):Promise<void>{
 try {
@@ -275,5 +302,64 @@ export async function declineProjectInvitation(req: Request,res: Response): Prom
     res.status(500).json({
       message: "Internal Server Error",
     });
+  }
+}
+
+export async function transferProjectOwnershipController(req: Request,res: Response): Promise<void> {
+  try {
+    const { projectId } = req.params;
+    const currentOwnerId = req.user?.id;
+    const { newOwnerId } = req.body;
+
+    if(typeof projectId !== "string"){
+      res.status(400).json({ message: "Invalid projectId" });
+      return;
+    }
+
+    if(!currentOwnerId){
+      res.status(401).json({
+        message: "Authentication required",
+      });
+      return;
+    }
+
+    if(typeof newOwnerId !== "string" || !newOwnerId.trim()){
+      res.status(400).json({
+        message: "newOwnerId is required",
+      });
+      return;
+    }
+
+    await transferProjectOwnershipService(projectId, currentOwnerId, newOwnerId.trim());
+
+    res.status(200).json({
+      message: "Project ownership transferred successfully",
+    });
+  }catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "NOT_PROJECT_OWNER") {
+        res.status(403).json({
+          message: "Only the active project owner can transfer ownership",
+        });
+        return;
+      }
+
+      if (error.message === "TARGET_NOT_ACTIVE_MEMBER") {
+        res.status(400).json({
+          message: "The new owner must be an active project member",
+        });
+        return;
+      }
+
+      if (error.message === "CANNOT_TRANSFER_OWNERSHIP_TO_SELF") {
+        res.status(400).json({
+          message: "You are already the project owner",
+        });
+        return;
+      }
+    }
+
+    console.error(error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 }

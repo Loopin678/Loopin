@@ -46,7 +46,10 @@ export async function findProjectMembershipsByUserId(userId: string) {
 
 export async function findProjectMembers(projectId: string){
 
-  const members = await prisma.projectMember.findMany({where: {projectId,},
+  const members = await prisma.projectMember.findMany({where: {
+     projectId,
+     status: MembershipStatus.ACTIVE,
+},
                                                        orderBy: {
                                                             id: "asc",
                                                        },
@@ -122,3 +125,42 @@ export async function declinePendingProjectInvitation(projectId: string, userId:
           },
      });
 }
+
+export async function transferProjectOwnership(projectId: string, currentOwnerId: string,
+     newOwnerId: string){
+
+          // we gonna use transaction here cuz both changes are made simultaneously using this
+          // owner is converted to member and desired member is made owner
+          return await prisma.$transaction(async(tx)=>{
+               const targetUpdate = await tx.projectMember.updateMany({
+                    where:{
+                         projectId,
+                         userId: newOwnerId,
+                         role: MemberRole.MEMBER,
+                         status: MembershipStatus.ACTIVE,
+                    },
+                    data:{
+                         role: MemberRole.OWNER,
+                    },
+               });
+               if(targetUpdate.count !== 1){
+                    throw new Error("TARGET_NOT_ACTIVE_MEMBER");
+               }
+               // current requester must still be active owner
+               const ownerUpdate = await tx.projectMember.updateMany({
+                    where: {
+                         projectId,
+                         userId: currentOwnerId,
+                         role: MemberRole.OWNER,
+                         status: MembershipStatus.ACTIVE,
+                         },
+                    data: {
+                         role: MemberRole.MEMBER,
+                         },
+               })
+               if (ownerUpdate.count !== 1) {
+                    throw new Error("NOT_PROJECT_OWNER");
+               }
+
+          });
+     }
