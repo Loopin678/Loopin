@@ -1,4 +1,4 @@
-import {prisma } from "../library/prisma"
+import {prisma } from "../library/prisma.js"
 
 
 export async function createProject(data: {name: string;}){
