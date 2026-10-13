@@ -9,12 +9,16 @@ import {
   getPendingProjectInvitations,
   acceptProjectInvitation,
   declineProjectInvitation,
-  transferProjectOwnershipController
-} from "../controllers/project-member.controller";
+  transferProjectOwnershipController,
+  getOutgoingProjectInvitations} from "../controllers/project-member.controller";
 
 const projectMemberRoutes = Router();
 
 projectMemberRoutes.use(requireAuth);
+
+
+projectMemberRoutes.get("/:projectId/invites", getOutgoingProjectInvitations);
+
 
 projectMemberRoutes.patch("/:projectId/transfer-owner", transferProjectOwnershipController)
 

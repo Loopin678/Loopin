@@ -95,7 +95,15 @@ export function initSocket(httpServer: HTTPServer): SocketIOServer {
     })
 
     io.on("connection", (socket) => {
-        const claimed = new Set<string>(); // projects this socket has started joining
+
+        // Personal room: lets us reach this user directly (invites, removal
+        // notices) no matter which project or page they're on.
+        socket.join(`user:${socket.data.userId as string}`);
+        
+        // Projects this socket has started joining. Also stored on socket.data so
+        // the helpers below can reset it when a member is removed.
+        const claimed = new Set<string>();
+        socket.data.claimed = claimed;
 
         socket.on("join-project", async (projectId: string) => {
             const userId = socket.data.userId as string;
@@ -107,11 +115,20 @@ export function initSocket(httpServer: HTTPServer): SocketIOServer {
             }
             claimed.add(projectId);
 
-            const membership = await findProjectMember(projectId, userId);
-
-            if (!membership || !socket.connected) {
+            let membership;
+            try {
+                membership = await findProjectMember(projectId, userId);
+            } catch (error) {
                 claimed.delete(projectId);
-                if (!membership) {
+                socket.emit("error", { message: "Could not verify project membership" });
+                return;
+            }
+
+            const isActive = membership?.status === "ACTIVE";
+
+            if (!isActive || !socket.connected) {
+                claimed.delete(projectId);
+                if (!isActive) {
                     socket.emit("error", { message: "You are not a member of this project" });
                 }
                 return;
@@ -129,7 +146,7 @@ export function initSocket(httpServer: HTTPServer): SocketIOServer {
             }
 
             socket.emit("presence:snapshot", { onlineUserIds: getOnlineUserIds(projectId) });
-    });
+        });
 
         registerMessageHandlers(getIO(), socket);
 
@@ -155,4 +172,50 @@ export function getIO(): SocketIOServer {
         throw new Error("Socket.IO has not been initialized yet");
     }
     return io;
+}
+
+// Called after a member is removed (or leaves). Their sockets stop receiving
+// board and presence events now, not at their next reconnect.
+export function removeUserFromProjectRoom(projectId: string, userId: string): void {
+    const io = getIO();
+    const room = `project:${projectId}`;
+
+    io.sockets.sockets.forEach((s) => {
+        if (s.data.userId !== userId) return;
+
+        s.data.joinedProjects?.delete(projectId); // so disconnect doesn't decrement presence again
+        s.data.claimed?.delete(projectId);        // so they can join again if re-invited
+        s.leave(room);
+    });
+
+    // Remove them from presence in one go (they may have had several tabs open)
+    const projectPresence = presence.get(projectId);
+    const wasOnline = projectPresence?.delete(userId) ?? false;
+    if (projectPresence && projectPresence.size === 0) {
+        presence.delete(projectId);
+    }
+
+    if (wasOnline) {
+        io.to(room).emit("presence:offline", { userId });
+    }
+}
+
+// Called after a project is deleted. Tells everyone, then empties the room.
+export function closeProjectRoom(projectId: string, memberIds: string[]): void {
+    const io = getIO();
+    const room = `project:${projectId}`;
+
+    // Notify the room, plus each member's personal room, so members who are on the
+    // All Projects page (and never joined the project room) hear about it too.
+    // A socket in several of these rooms still receives the event once.
+    io.to([room, ...memberIds.map((id) => `user:${id}`)]).emit("project:deleted", { projectId });
+
+    io.sockets.sockets.forEach((s) => {
+        if (!s.rooms.has(room)) return;
+        s.data.joinedProjects?.delete(projectId);
+        s.data.claimed?.delete(projectId);
+        s.leave(room);
+    });
+
+    presence.delete(projectId);
 }

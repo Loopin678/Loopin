@@ -1,9 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { NavLink, useParams, useLocation } from 'react-router-dom';
+import React, { useEffect, useState, useCallback } from 'react';
+import { NavLink, useParams, useLocation, useNavigate } from 'react-router-dom';
+import { connectSocket, disconnectSocket } from '../../api/socket';
 import { useAuth } from '../../context/AuthContext';
 import { projectsApi, Project } from '../../api/client';
 import { Menu, X, LogOut, FolderKanban, LayoutGrid, Users, Copy, Check, MessageSquare } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useInvitations } from '../../hooks/useInvitations';
+import { NotificationBell } from '../common/NotificationBell';
 
 function NavItem({ to, icon: Icon, label }: { to: string; icon: React.ElementType; label: string }) {
   return (
@@ -29,9 +32,109 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const { projectId } = useParams<{ projectId?: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Callback to refresh projects after accepting an invitation (so the new project appears)
+  // We store a counter that Projects.tsx can watch via context — simpler: expose via a
+  // top-level refresh trigger. Since Projects is a sibling, we use a simple callback ref
+  // pattern: AppShell passes a refresh prop to its child if it's Projects, but that
+  // would couple them tightly. Instead we use a lightweight approach: expose the
+  // invitations state at the AppShell level and pass it down via a context or render prop.
+  // For simplicity (matching the existing architecture which has no global state manager
+  // beyond Zustand for board), we'll let Projects.tsx fetch its own data but trigger via
+  // a shared refreshKey that increments after accept.
+  const [projectsRefreshKey, setProjectsRefreshKey] = useState(0);
+
+  const handleAfterAccept = useCallback(() => {
+    setProjectsRefreshKey(k => k + 1);
+  }, []);
+
+  const {
+    invitations,
+    pendingCount,
+    loading: invLoading,
+    error: invError,
+    actioningId,
+    refreshInvitations,
+    syncInvitations,
+    acceptInvitation,
+    declineInvitation,
+  } = useInvitations(handleAfterAccept);
+
+  // Fetch invitations when the authenticated user is known
+  useEffect(() => {
+    if (user) {
+      refreshInvitations();
+    }
+  }, [user]);
+
+  // Always points at the latest refreshInvitations, so socket listeners
+  // never call a stale copy
+  const refreshInvitationsRef = useRef(refreshInvitations);
+  refreshInvitationsRef.current = refreshInvitations;
+
+    // Live updates: one socket for the whole app, connected as soon as we have a user
+  useEffect(() => {
+    if (!user) return;
+
+    const socket = connectSocket();
+
+    // invite:received goes only to the invitee's personal room
+    const handleInviteReceived = () => { syncInvitations(); };
+
+    // invite:revoked also goes to the project room, so check it's about me
+    const handleInviteRevoked = (data: { userId?: string }) => {
+      if (data?.userId === user.id) syncInvitations();
+    };
+
+    // I accepted/declined in another tab
+    const handleInviteResolved = (data: { accepted?: boolean }) => {
+      syncInvitations();
+      if (data?.accepted) handleAfterAccept(); // reload the projects list
+    };
+
+    // I was removed from a project
+    const handleMemberRemoved = (data: { projectId?: string; userId?: string }) => {
+      if (data?.userId !== user.id) return;
+      handleAfterAccept(); // project disappears from All Projects
+      if (data.projectId && data.projectId === projectId) {
+        navigate('/projects'); // kick them off that project's pages
+      }
+    };
+
+        // The project was deleted by its owner
+    const handleProjectDeleted = (data: { projectId?: string }) => {
+      handleAfterAccept(); // reload the projects list
+      if (data?.projectId && data.projectId === projectId) {
+        navigate('/projects');
+      }
+    };
+
+    // Events sent while offline are lost, so resync after a reconnect
+    const handleReconnect = () => {
+      syncInvitations();
+      handleAfterAccept();
+    };
+
+    socket.on('invite:received', handleInviteReceived);
+    socket.on('invite:revoked', handleInviteRevoked);
+    socket.on('invite:resolved', handleInviteResolved);
+    socket.on('member:removed', handleMemberRemoved);
+    socket.on('project:deleted', handleProjectDeleted);
+    socket.io.on('reconnect', handleReconnect);
+
+    return () => {
+      socket.off('invite:received', handleInviteReceived);
+      socket.off('invite:revoked', handleInviteRevoked);
+      socket.off('invite:resolved', handleInviteResolved);
+      socket.off('member:removed', handleMemberRemoved);
+      socket.off('project:deleted', handleProjectDeleted);
+      socket.io.off('reconnect', handleReconnect);
+    };
+  }, [user?.id, projectId, handleAfterAccept, syncInvitations]);
 
   useEffect(() => {
     if (projectId) {
@@ -52,6 +155,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // Breadcrumb
   const isMembers = location.pathname.includes('/members');
+
+  // The socket authenticated with the old user's cookie when it connected,
+  // so it must be closed on logout or the next login would reuse it.
+  const handleLogout = () => {
+    disconnectSocket();
+    logout();
+  };
 
   return (
     <div className="flex h-screen bg-[#0B0D10] text-[#ECEAE4] font-sans overflow-hidden">
@@ -133,7 +243,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <div className="text-[10px] text-[#5B616A] truncate">{user?.email}</div>
             </div>
             <button
-              onClick={logout}
+              onClick={handleLogout}
               className="p-1.5 text-[#5B616A] hover:text-red-400 hover:bg-red-950/30 rounded-lg transition-all shrink-0"
               title="Sign out"
             >
@@ -181,11 +291,38 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               )}
             </div>
           </div>
+          {/* Right side of topbar — notification bell */}
+          <div className="flex items-center gap-2">
+            {user && (
+              <NotificationBell
+                invitations={invitations}
+                pendingCount={pendingCount}
+                loading={invLoading}
+                error={invError}
+                actioningId={actioningId}
+                onOpen={syncInvitations}
+                onAccept={acceptInvitation}
+                onDecline={declineInvitation}
+                onRetry={refreshInvitations}
+              />
+            )}
+          </div>
         </header>
 
-        {/* Page content */}
+        {/* Page content — pass refreshKey as prop so Projects can re-fetch after accept */}
         <main className="flex-1 overflow-hidden bg-[#0B0D10]">
-          {children}
+          {React.isValidElement(children)
+            ? React.cloneElement(children as React.ReactElement<any>, {
+                _invitationsRefreshKey: projectsRefreshKey,
+                _invitations: invitations,
+                _invLoading: invLoading,
+                _invError: invError,
+                _actioningId: actioningId,
+                _onAcceptInvite: acceptInvitation,
+                _onDeclineInvite: declineInvitation,
+                _onRefreshInvites: refreshInvitations,
+              })
+            : children}
         </main>
       </div>
     </div>

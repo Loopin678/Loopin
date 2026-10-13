@@ -1,5 +1,6 @@
 import { listRepository } from "../repositories/listRepository";
 import { CreateListInput, ListWithoutTasks, ListWithTasks, RenameListInput} from "../types/list";
+import { assertActiveMember } from "./access.service";
 
 async function assertUniqueListName(projectId: string, name: string, excludeListId?: string): Promise<void> {
     const lists = await listRepository.getListsByProject(projectId);
@@ -9,25 +10,23 @@ async function assertUniqueListName(projectId: string, name: string, excludeList
     }
 }
 
-async function createList(data: CreateListInput): Promise<ListWithoutTasks> {
+async function createList(data: CreateListInput, requesterId: string): Promise<ListWithoutTasks> {
+    await assertActiveMember(data.projectId, requesterId);
     await assertUniqueListName(data.projectId, data.name);
     const list = await listRepository.createList(data);
     return list;
 }
 
-async function getListsByProject(projectId: string): Promise<ListWithTasks[]> {
-  // TODO: once teammate's project-management code is merged into main, add a check here
-  // to confirm this projectId actually exists before querying — right now, a nonexistent
-  // projectId silently returns an empty array (findMany never throws), which is
-  // indistinguishable from "this is a real project with zero lists in it."
-  // Likely fix: import projectRepository (or whatever it ends up being called) and
-  // call something like `if (!(await projectRepository.exists(projectId))) throw new Error('Project not found')`
-  // before calling listRepository.getListsByProject.
+async function getListsByProject(projectId: string, requesterId: string): Promise<ListWithTasks[]> {
+  // Non-members, and anyone asking about a project that doesn't exist, get a 403.
+  // That also settles the old TODO about nonexistent project ids.
+  await assertActiveMember(projectId, requesterId);
   return listRepository.getListsByProject(projectId);
 }
 
-async function renameList(data: RenameListInput): Promise<ListWithoutTasks> {
+async function renameList(data: RenameListInput, requesterId: string): Promise<ListWithoutTasks> {
     const list = await listRepository.getListById(data.listId)
+    await assertActiveMember(list.projectId, requesterId);
     await assertUniqueListName(list.projectId, data.name, data.listId);
     const updatedList = await listRepository.renameList(data);
     return updatedList;

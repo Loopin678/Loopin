@@ -396,47 +396,30 @@ export function Board() {
     // 2. Connect socket (already authenticated via cookie)
     const socket = connectSocket();
 
-    console.log('[DEBUG Board] useEffect run. socket:', socket.id, 'connected:', socket.connected, 'existing _joinedProjects:', (socket as any)._joinedProjects);
-
-    const joinedProjects: Set<string> = (socket as any)._joinedProjects ?? new Set();
-    (socket as any)._joinedProjects = joinedProjects;
+    // The server ignores duplicate joins and just re-sends the presence
+    // snapshot, so it's safe to emit on every mount and every (re)connect.
+    const join = () => socket.emit('join-project', projectId);
 
     const handleConnect = () => {
       setSocketConnected(true);
-      console.log('[DEBUG Board] handleConnect called. socket:', socket.id, 'connected:', socket.connected, 'has project?', joinedProjects.has(projectId));
-      if (!joinedProjects.has(projectId)) {
-        console.log('[DEBUG Board] EMITTING join-project for', projectId, 'socket.id:', socket.id, new Error().stack);
-        socket.emit('join-project', projectId);
-        joinedProjects.add(projectId);
-      }
+      join();
+    };
+    const handleDisconnect = () => setSocketConnected(false);
+    const handleError = (data: { message: string }) => {
+      console.warn('Socket error:', data.message);
     };
 
-    socket.on('connect', handleConnect);
-
-    if (socket.connected) {
-      console.log('[DEBUG Board] socket was already connected! Calling handleConnect()');
-      handleConnect();
-    }
-
-    socket.on('disconnect', () => setSocketConnected(false));
-
-    socket.on('error', (data: { message: string }) => {
-      console.warn('Socket error:', data.message);
-    });
-
-    // Socket event handlers (idempotent - handled by store)
-    socket.on('list:created', (list: ListWithTasks) => addList(list));
-    socket.on('list:renamed', (list: ListWithTasks) => updateList(list));
-    socket.on('task:created', (task: TaskDetail) => addTask(task));
-    socket.on('task:updated', (task: TaskDetail) => updateTask(task));
-    socket.on('task:moved', (task: TaskDetail) => {
+    // Board events (handlers must stay idempotent, the store handles that)
+    const handleListCreated = (list: ListWithTasks) => addList(list);
+    const handleListRenamed = (list: ListWithTasks) => updateList(list);
+    const handleTaskCreated = (task: TaskDetail) => addTask(task);
+    const handleTaskUpdated = (task: TaskDetail) => updateTask(task);
+    const handleTaskMoved = (task: TaskDetail) =>
       moveTask(task.id, task.listId, task.position);
-    });
-    socket.on('task:deleted', (deleted: { id: string; listId: string; projectId: string }) => {
+    const handleTaskDeleted = (deleted: { id: string; listId: string; projectId: string }) =>
       removeTask(deleted.id, deleted.listId);
-    });
 
-    // Presence handlers
+    // Presence events
     const handlePresenceSnapshot = (data: { onlineUserIds: string[] }) => {
       setPresenceSnapshot(data?.onlineUserIds ?? []);
     };
@@ -447,20 +430,32 @@ export function Board() {
       if (data?.userId) setUserOffline(data.userId);
     };
 
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+    socket.on('error', handleError);
+    socket.on('list:created', handleListCreated);
+    socket.on('list:renamed', handleListRenamed);
+    socket.on('task:created', handleTaskCreated);
+    socket.on('task:updated', handleTaskUpdated);
+    socket.on('task:moved', handleTaskMoved);
+    socket.on('task:deleted', handleTaskDeleted);
     socket.on('presence:snapshot', handlePresenceSnapshot);
     socket.on('presence:online', handlePresenceOnline);
     socket.on('presence:offline', handlePresenceOffline);
 
+    // Already connected (e.g. navigated here from another page)
+    if (socket.connected) handleConnect();
+
     return () => {
       socket.off('connect', handleConnect);
-      socket.off('disconnect');
-      socket.off('error');
-      socket.off('list:created');
-      socket.off('list:renamed');
-      socket.off('task:created');
-      socket.off('task:updated');
-      socket.off('task:moved');
-      socket.off('task:deleted');
+      socket.off('disconnect', handleDisconnect);
+      socket.off('error', handleError);
+      socket.off('list:created', handleListCreated);
+      socket.off('list:renamed', handleListRenamed);
+      socket.off('task:created', handleTaskCreated);
+      socket.off('task:updated', handleTaskUpdated);
+      socket.off('task:moved', handleTaskMoved);
+      socket.off('task:deleted', handleTaskDeleted);
       socket.off('presence:snapshot', handlePresenceSnapshot);
       socket.off('presence:online', handlePresenceOnline);
       socket.off('presence:offline', handlePresenceOffline);

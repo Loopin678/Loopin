@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import { getIO, removeUserFromProjectRoom } from "../library/socket";
 
 import {
   addProjectMemberService,
@@ -9,68 +10,136 @@ import {
   getPendingProjectInvitationService,
   acceptProjectInvitationService,
   declineProjectInvitationService,
-  transferProjectOwnershipService
-} from "../services/project-member.service";
+  transferProjectOwnershipService,
+  getOutgoingProjectInvitationsService} from "../services/project-member.service";
 
-export async function addProjectMember(req: Request,res: Response): Promise<void> {
+
+export async function getOutgoingProjectInvitations(
+  req: Request,
+  res: Response
+) {
+  const projectId = req.params.projectId;
+  const requesterId = req.user?.id;
+
+  if (typeof projectId !== "string" || !projectId.trim()) {
+    return res.status(400).json({ message: "Valid Project ID is required" });
+  }
+
+  if (!requesterId) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  try {
+    const invitations = await getOutgoingProjectInvitationsService(
+      projectId,
+      requesterId
+    );
+
+    return res.status(200).json({ invitations });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "FORBIDDEN_OUTGOING_INVITATIONS"
+    ) {
+      return res.status(403).json({ message: "Active project member access required" });
+    }
+
+    console.error("Failed to fetch outgoing invitations:", error);
+    return res.status(500).json({ message: "Failed to fetch invitations" });
+  }
+}
+
+export async function addProjectMember(
+  req: Request,
+  res: Response
+): Promise<void> {
   try {
     const { projectId } = req.params;
-    // replace userId with email since that shit is unique
     const { email, stack } = req.body;
+    const requesterId = req.user?.id;
 
-    if (typeof projectId !== "string") {
+    // 1. Validate projectId
+    if (typeof projectId !== "string" || !projectId.trim()) {
       res.status(400).json({
         message: "Invalid projectId",
       });
       return;
     }
 
-    if (!email || typeof email !== "string") {
-      res.status(400).json({
-        message: "email is required",
+    // 2. Check authentication
+    if (!requesterId) {
+      res.status(401).json({
+        message: "Unauthorized",
       });
       return;
     }
 
-    if (!stack || typeof stack !== "string") {
+    // 3. Validate email
+    if (typeof email !== "string" || !email.trim()) {
       res.status(400).json({
-        message: "stack is required",
+        message: "Valid email is required",
       });
       return;
     }
 
-    const member = await addProjectMemberService({
-      projectId,
-      email,
-      stack,
-    });
+    // 4. Validate stack
+    if (typeof stack !== "string" || !stack.trim()) {
+      res.status(400).json({
+        message: "Stack is required",
+      });
+      return;
+    }
+
+    // 5. Create invitation with requester authorization
+    const member = await addProjectMemberService(
+      {
+        projectId,
+        email,
+        stack,
+      },
+      requesterId
+    );
+
+    // Broadcast using ids from the verified returned row, not req.params/body
+    const io = getIO();
+    io.to(`user:${member.userId}`).emit("invite:received", member);
+    io.to(`project:${member.projectId}`).emit("invite:created", member);
 
     res.status(201).json({
       member,
     });
   } catch (error) {
-    if(error instanceof Error && error.message === "NO_USER_FOUND"){
-      res.status(404).json({
-        message: "No user found with that email",
-      });
-      return;
+    if (error instanceof Error) {
+      if (error.message === "FORBIDDEN_INVITE") {
+        res.status(403).json({
+          message: "Only an active project owner can invite members",
+        });
+        return;
+      }
+
+      if (error.message === "NO_USER_FOUND") {
+        res.status(404).json({
+          message: "No user found with that email",
+        });
+        return;
+      }
+
+      if (error.message === "ALREADY_MEMBER_OR_PENDING") {
+        res.status(409).json({
+          message: "User is already a member or has a pending invite",
+        });
+        return;
+      }
     }
 
-    if(error instanceof Error && error.message === "ALREADY_MEMBER_OR_PENDING"){
-      res.status(409).json({
-        message:
-          "User is already a member or has a pending invite",
-      });
-      return;
-    }
-
-    console.error(error);
+    console.error("Failed to add project member:", error);
 
     res.status(500).json({
       message: "Internal Server Error",
     });
   }
 }
+
 
 export async function getProjectMember(
   req: Request,
@@ -153,6 +222,16 @@ export async function getProjectMembershipsByUserId(req: Request,res: Response):
       return;
     }
 
+    const requesterId = req.user?.id;
+    if (!requesterId) {
+      res.status(401).json({ message: "Authentication required" });
+      return;
+    }
+    if (userId !== requesterId) {
+      res.status(403).json({ message: "You can only view your own memberships" });
+      return;
+    }
+
     const memberships = await getProjectMembershipsByUserIdService(userId);
 
     res.status(200).json({memberships,});
@@ -185,7 +264,24 @@ try {
       return;
     }
 
-    await removeProjectMemberService(projectId, requesterId, userId);
+    const removed = await removeProjectMemberService(projectId, requesterId, userId);
+
+    // ids come from the returned row, not req.params
+    const payload = { projectId: removed.projectId, userId: removed.userId };
+    const io = getIO();
+
+    if (removed.status === "PENDING") {
+      io.to(`user:${removed.userId}`)
+        .to(`project:${removed.projectId}`)
+        .emit("invite:revoked", payload);
+    } else {
+      io.to(`project:${removed.projectId}`)
+        .to(`user:${removed.userId}`)
+        .emit("member:removed", payload);
+
+      // Kick the removed member's sockets out of the project room
+      removeUserFromProjectRoom(removed.projectId, removed.userId);
+    }
 
     res.status(204).send();
 } 
@@ -223,24 +319,34 @@ catch (error) {
   }
 }
 
-
-export async function getPendingProjectInvitations(req: Request, res: Response):Promise<void>{
-try {
+export async function getPendingProjectInvitations(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
     const userId = req.user?.id;
 
-    if(!userId){
+    if (!userId) {
       res.status(401).json({
-        message: "Authentication Required"
+        message: "Authentication required",
       });
-      return; // return here tells TS after the check that userId must be a string
+      return;
     }
+
     const invitations = await getPendingProjectInvitationService(userId);
 
-    res.status(200).json({invitations})
-} catch (err) {
-  console.error(err);
+    res.status(200).json({ invitations });
+  } catch (error) {
+    console.error("Failed to fetch incoming invitations:", error);
+
+    res.status(500).json({
+      message: "Failed to fetch invitations",
+    });
+  }
 }
-}
+
+
+
 export async function acceptProjectInvitation(req: Request, res: Response): Promise<void>{
 try {
   const {projectId} = req.params;
@@ -254,7 +360,14 @@ try {
     res.status(401).json({message:"Authentication required"});
     return;
   }
+
   await acceptProjectInvitationService(projectId, userId);
+
+  // The service throws unless a PENDING row for exactly this projectId + userId
+  // was updated, so these ids are verified by the database.
+  const io = getIO();
+  io.to(`project:${projectId}`).emit("member:joined", { projectId, userId });
+  io.to(`user:${userId}`).emit("invite:resolved", { projectId, accepted: true });
 
   res.status(200).json({
     message:"Invitation Accepted"
@@ -290,7 +403,12 @@ export async function declineProjectInvitation(req: Request,res: Response): Prom
 
     await declineProjectInvitationService(projectId, userId);
 
+    const io = getIO();
+    io.to(`project:${projectId}`).emit("invite:declined", { projectId, userId });
+    io.to(`user:${userId}`).emit("invite:resolved", { projectId, accepted: false });
+
     res.status(200).json({message: "Invitation declined"});
+
   }catch (error) {
     if (error instanceof Error && error.message === "INVITE_NOT_FOUND_OR_NOT_PENDING"){
       res.status(404).json({message: "Pending invitation not found"});
@@ -330,11 +448,19 @@ export async function transferProjectOwnershipController(req: Request,res: Respo
       return;
     }
 
-    await transferProjectOwnershipService(projectId, currentOwnerId, newOwnerId.trim());
+    const newOwner = newOwnerId.trim();
+    await transferProjectOwnershipService(projectId, currentOwnerId, newOwner);
+
+    getIO().to(`project:${projectId}`).emit("ownership:transferred", {
+      projectId,
+      previousOwnerId: currentOwnerId,
+      newOwnerId: newOwner,
+    });
 
     res.status(200).json({
       message: "Project ownership transferred successfully",
     });
+
   }catch (error) {
     if (error instanceof Error) {
       if (error.message === "NOT_PROJECT_OWNER") {

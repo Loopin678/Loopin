@@ -40,6 +40,7 @@ export async function findProjectsByUserId(userId: string){
       members:{
         some:{
           userId,
+          status: "ACTIVE",
         },
       },
       

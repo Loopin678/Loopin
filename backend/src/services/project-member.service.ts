@@ -5,37 +5,61 @@ import {createProjectMember,findProjectMember,findProjectMembers,findProjectMemb
   findPendingProjectInvitations,
   acceptPendingProjectInvitation,
   declinePendingProjectInvitation,
-  transferProjectOwnership} from "../repositories/project-member.repository";
+  transferProjectOwnership,
+  findPendingProjectInvitationsByProject} from "../repositories/project-member.repository";
 
-export async function addProjectMemberService(data: {
-  email: string;
-  projectId: string;
-  stack: string;
-}){
-    const normalizedEmail = data.email.toLowerCase().trim();
 
-    const user = await findUserByEmail(normalizedEmail);
+export async function addProjectMemberService(
+  data: {
+    email: string;
+    projectId: string;
+    stack: string;
+  },
+  requesterId: string
+) {
+  // 1. Verify that the requester is an active project owner
+  const requester = await findProjectMember(data.projectId, requesterId);
 
-    if(!user){
-        throw new Error("NO_USER_FOUND");
+  if (
+    !requester ||
+    requester.status !== MembershipStatus.ACTIVE ||
+    requester.role !== MemberRole.OWNER
+  ) {
+    throw new Error("FORBIDDEN_INVITE");
+  }
 
-    }
-    const existingMember = await findProjectMember(data.projectId, user.id);
+  // 2. Normalize the invitee's email
+  const normalizedEmail = data.email.toLowerCase().trim();
 
-    if (existingMember) {
-      throw new Error("ALREADY_MEMBER_OR_PENDING");
-    }
+  // 3. Find the invitee's account
+  const user = await findUserByEmail(normalizedEmail);
 
-    const member = await createProjectMember({
-        userId: user.id,
-        projectId: data.projectId,
-        stack: data.stack.trim(),
-        role: MemberRole.MEMBER,
-        status: MembershipStatus.PENDING,
-    });
+  if (!user) {
+    throw new Error("NO_USER_FOUND");
+  }
 
-    return member;
+  // 4. Prevent duplicate memberships or invitations
+  const existingMember = await findProjectMember(
+    data.projectId,
+    user.id
+  );
+
+  if (existingMember) {
+    throw new Error("ALREADY_MEMBER_OR_PENDING");
+  }
+
+  // 5. Create the pending invitation
+  const member = await createProjectMember({
+    userId: user.id,
+    projectId: data.projectId,
+    stack: data.stack.trim(),
+    role: MemberRole.MEMBER,
+    status: MembershipStatus.PENDING,
+  });
+
+  return member;
 }
+
 
 
 export async function getProjectMemberService(projectId: string,userId: string){
@@ -95,6 +119,10 @@ export async function removeProjectMemberService(projectId: string, requesterId:
   if (!removed) {
     throw new Error("Project member not found");
   }
+
+  // The row as it was before deletion: tells the controller whether this
+  // was a revoked invite (PENDING) or a removed member (ACTIVE)
+  return target;
 }
 
 export async function getPendingProjectInvitationService(userId: string){
@@ -108,6 +136,20 @@ export async function acceptProjectInvitationService(projectId: string, userId: 
         throw new Error("INVITE_NOT_FOUND_OR_NOT_PENDING");
     }
 }
+
+export async function getOutgoingProjectInvitationsService(
+  projectId: string,
+  requesterId: string
+) {
+  const requester = await findProjectMember(projectId, requesterId);
+
+    if (!requester || requester.status !== MembershipStatus.ACTIVE) {
+    throw new Error("FORBIDDEN_OUTGOING_INVITATIONS");
+  }
+
+  return await findPendingProjectInvitationsByProject(projectId);
+}
+
 
 export async function declineProjectInvitationService(projectId: string, userId: string){
   const result = await declinePendingProjectInvitation(projectId, userId);

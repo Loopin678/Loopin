@@ -10,8 +10,11 @@ export async function createProjectMember(data:{
 }){
      const member = await prisma.projectMember.create({
           data,
+          include: {
+               user: { select: { id: true, email: true } },
+               project: { select: { id: true, name: true } },
+          },
      });
-
      return member;
 }
 
@@ -31,10 +34,14 @@ export async function findProjectMember(
      return member;
 }
 
-export async function findProjectMembershipsByUserId(userId: string) {
+export async function findProjectMembershipsByUserId(
+  userId: string,
+  status: MembershipStatus = MembershipStatus.ACTIVE
+) {
   const memberships = await prisma.projectMember.findMany({
     where: {
       userId,
+      status,
     },
     orderBy: {
       id: "asc",
@@ -50,9 +57,9 @@ export async function findProjectMembers(projectId: string){
      projectId,
      status: MembershipStatus.ACTIVE,
 },
-                                                       orderBy: {
-                                                            id: "asc",
-                                                       },
+     orderBy: {
+          id: "asc",
+     },
      });
 
   return members;
@@ -102,6 +109,26 @@ export async function findPendingProjectInvitations(userId: string){
 
      });
 }
+
+
+export async function findPendingProjectInvitationsByProject(projectId: string) {
+     return await prisma.projectMember.findMany({
+     where: {
+          projectId,
+          status: MembershipStatus.PENDING,
+     },
+     include: {
+          user: {
+          select: {
+               id: true,
+               email: true,
+          },
+          },
+     },
+     orderBy: { id: "asc" },
+     });
+}
+
 
 export async function acceptPendingProjectInvitation(projectId: string, userId: string){
      return await prisma.projectMember.updateMany({
