@@ -2,24 +2,41 @@ import { prisma } from "../library/prisma";
 
 const AI_USER_EMAIL = "ai@loopin.system";
 
+// The only user fields allowed to leave the server inside a message.
+// Never use `include: { sender: true }`: that sends the password hash too.
+const publicSender = { select: { id: true, name: true } } as const;
+
 export function createMessage(projectId: string, senderId: string, content: string) {
   return prisma.message.create({
     data: { projectId, senderId, content },
-    include: { sender: true },
+    include: { sender: publicSender },
   });
 }
 
-export function getMessagesByProject(projectId: string) {
-  return prisma.message.findMany({
+export async function getMessagesByProject(projectId: string) {
+  // Newest 100, flipped back to oldest-first for display
+  const messages = await prisma.message.findMany({
     where: { projectId },
-    include: { sender: true },
-    orderBy: { createdAt: "asc" },
+    include: { sender: publicSender },
+    orderBy: { createdAt: "desc" },
     take: 100,
   });
+
+  return messages.reverse();
 }
 
-export function findUsersByNames(names: string[]) {
-  return prisma.user.findMany({ where: { name: { in: names } } });
+export async function findUsersByNames(names: string[], projectId: string) {
+  // Only ACTIVE members of this project can be mentioned
+  const members = await prisma.projectMember.findMany({
+    where: {
+      projectId,
+      status: "ACTIVE",
+      user: { name: { in: names } },
+    },
+    select: { user: { select: { id: true, name: true } } },
+  });
+
+  return members.map((m) => m.user);
 }
 
 export function createMentions(messageId: string, userIds: string[]) {

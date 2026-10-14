@@ -14,12 +14,13 @@ export async function sendMessage(projectId: string, senderId: string, content: 
 
   const realNames = mentionedNames.filter((n) => n.toLowerCase() !== "ai");
   if (realNames.length > 0) {
-    const users = await messageRepo.findUsersByNames(realNames);
+    const users = await messageRepo.findUsersByNames(realNames, projectId);
     await messageRepo.createMentions(message.id, users.map((u) => u.id));
   }
 
-  const aiUser = await messageRepo.findAiUser();
-  if (isAiMentioned && aiUser) {
+  // Only look the AI user up when it was actually mentioned
+  const aiUser = isAiMentioned ? await messageRepo.findAiUser() : null;
+  if (aiUser) {
     await messageRepo.createAiMention(message.id, aiUser.id);
   }
 
