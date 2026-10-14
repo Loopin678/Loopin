@@ -1,7 +1,7 @@
 import axios, { AxiosError } from 'axios';
 
 // Backend runs on port 4000
-export const API_URL = import.meta.env.VITE_API_URL || "https://loopin-cajotsfte-solo-5153.vercel.app";
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 export class ApiError extends Error {
   status?: number;
