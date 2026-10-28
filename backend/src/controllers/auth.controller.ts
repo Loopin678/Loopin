@@ -1,7 +1,10 @@
 import { Request, Response } from "express";
-import { getUserById,loginUser ,registerUser, loginWithGoogle } from "../services/auth.service";
+import { getUserById,loginUser ,registerUser, loginWithGoogle
+  ,loginWithGithub
+ } from "../services/auth.service";
 import { getGoogleUser, getGoogleAuthUrl } from "../services/google.service";
-
+import { getGitHubAuthUrl, getGitHubUser } from "../services/github.service";
+import { randomBytes } from "crypto";
 
 function setAuthCookie(res: Response, token: string): void{
     res.cookie("auth_token", token, {
@@ -95,11 +98,8 @@ export function logout(req: Request, res: Response): void{
     })
 }
 
-export async function me(
-  req: Request,
-  res: Response
-): Promise<void> {
-  try {
+export async function me(req: Request,res: Response): Promise<void>{
+try {
     const userId = req.user?.id;
 
     if (!userId) {
@@ -121,7 +121,7 @@ export async function me(
     res.status(200).json({
       user,
     });
-  } catch (error) {
+}catch(error){
     console.error(error);
 
     res.status(500).json({
@@ -135,10 +135,7 @@ export function googleLogin(req: Request, res: Response):void{
     // this sends the authUrl from googleService toward google
     res.redirect(authUrl);
 }
-export async function googleCallback(
-  req: Request,
-  res: Response
-): Promise<void> {
+export async function googleCallback(req: Request,res: Response): Promise<void>{
   try {
     const { code } = req.query;
 
@@ -180,4 +177,84 @@ export async function googleCallback(
       message: "Google authentication failed",
     });
   }
+}
+
+export function githubLogin(req: Request, res: Response): void{
+try {
+    const state = randomBytes(32).toString("hex");
+    res.cookie("github_oauth_state", state, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 10*60*1000,
+      path:"/",
+    });
+    res.redirect(getGitHubAuthUrl(state));
+
+}catch(err){
+    console.error("Github login initialization failed", err);
+    res.status(500).json({
+      message: "Could not start github authentication"
+    });
+}
+}
+
+export async function githubCallback(req: Request, res: Response): Promise<void>{
+try{
+    const { code, state, error: oautherror } = req.query;
+
+    const savedState = req.cookies?.github_oauth_state;
+
+    res.clearCookie("github_oauth_state",{
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite:"lax",
+        path:"/"
+    })
+    if(oautherror){
+        res.status(401).json({
+            message: "GitHub authentication was cancelled or denied",
+        })
+        return;
+    }
+    if(typeof state !== "string" || typeof savedState !== "string" || state !== savedState){
+        res.status(400).json({
+            message:"Invalid OAuth state",
+        });
+        return;
+    }
+    if(typeof code !== "string"){
+        res.status(400).json({
+            message:"Github authorization code is required"
+        });
+        return;
+    }
+    const githubUser= await getGitHubUser(code);
+
+    const { user, token } = await loginWithGithub(githubUser);
+    
+    setAuthCookie(res, token);
+
+    res.status(200).json({
+        message:"Github authentication successful", user
+    });
+}catch(error){
+    if(error instanceof Error && error.message ==="EMAIL_ALREADY_REGISTERED"){
+        res.status(409).json({
+            message:"An account already exists with this email. Login to that account first."
+        });
+        return;
+    }
+    if(error instanceof Error && error.message === "GITHUB_VERIFIED_EMAIL_REQUIRED"){
+        res.status(400).json({
+            message:"Your github account needs a verified email address to sign in"
+        })
+        return;
+    }
+    console.error("Github callback failed:", error);
+
+    res.status(500).json({
+        message:"Github Authentication failed"
+    });
+}
 }

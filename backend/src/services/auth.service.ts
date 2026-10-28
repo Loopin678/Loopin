@@ -6,6 +6,7 @@ import {
     findUserByEmail, 
     findUserByGoogleId, 
     findUserById,
+    findUserByGithubId 
 } from "../repositories/user.repository";
 import { JWT_SECRET, JWT_EXPIRES_IN } from "../library/auth";
 
@@ -126,6 +127,46 @@ export async function loginWithGoogle(googleId: string, name: string, email: str
     };
 }
 
+export async function loginWithGithub(data:{
+    githubId: string;
+    githubUsername: string;
+    githubUrl: string;  
+    name: string; 
+    email: string;
+}): Promise<{ user: PublicUser; token: string }>{
+
+    const normalizedEmail = data.email.toLowerCase().trim();
+
+    // existing github acc
+    const existingGithubUser = await findUserByGithubId(data.githubId);
+
+    if(existingGithubUser){
+        const token = generateToken(existingGithubUser.id);
+
+        return{
+            user: toPublicUser(existingGithubUser),
+            token
+        }
+    }
+// we are not gonna merge an existing account by email
+    const existingEmailUser = await findUserByEmail(normalizedEmail);
+    if(existingEmailUser){
+        throw new Error("EMAIL_ALREADY_REGISTERED");
+    }
+    const user = await createUser({
+        name: data.name.trim(),
+        email: normalizedEmail,
+        githubId: data.githubId,
+        githubUsername: data.githubUsername,
+        githubUrl: data.githubUrl
+    });
+    const token = generateToken(user.id);
+    return{
+        user: toPublicUser(user),
+        token
+    };
+
+}
 export async function getUserById(id: string): Promise<PublicUser | null>{
     const user = await findUserById(id);
 

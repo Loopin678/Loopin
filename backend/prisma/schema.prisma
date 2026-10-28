@@ -19,6 +19,9 @@ model User {
   messages      Message[]
   memberships   ProjectMember[]
   assignedTasks Task[]          @relation("TaskAssignee")
+  githubId       String? @unique
+  githubUsername String?  
+  githubUrl     String?
 }
 
 model Project {
