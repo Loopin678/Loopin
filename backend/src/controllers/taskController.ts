@@ -220,9 +220,19 @@ export async function getTasksByProject(req: Request, res: Response): Promise<vo
       return;
     }
 
-    const tasks = await taskService.getTasksByProject(projectId);
+    const requesterId = req.user?.id;
+    if (!requesterId) {
+      res.status(401).json({ message: "Authentication required" });
+      return;
+    }
+
+    const tasks = await taskService.getTasksByProject(projectId, requesterId);
     res.status(200).json(tasks);
   } catch (error) {
+    if (error instanceof Error && error.message === "FORBIDDEN_NOT_PROJECT_MEMBER") {
+      res.status(403).json({ message: "You are not a member of this project" });
+      return;
+    }
     console.error("Error fetching tasks by project:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }

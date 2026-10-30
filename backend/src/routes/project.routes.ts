@@ -21,11 +21,11 @@ import { nestedTaskRoutes } from "./taskRoutes";
 
 const projectRoutes = Router();
 
-// Task listing and commits stay open for the desktop app, which has no session token;
-// task creation (inside nestedTaskRoutes) and lists require auth
+// The desktop app signs in with a client token ("Sign in with Loopin"), so
+// everything here requires auth like the rest of the API
 projectRoutes.use("/:projectId/tasks", nestedTaskRoutes);
 projectRoutes.use("/:projectId/lists", requireAuth, listRoutes);
-projectRoutes.get("/:projectId/commits", getProjectCommits);
+projectRoutes.get("/:projectId/commits", requireAuth, getProjectCommits);
 
 // Project members & invites (aliases of /project/member/*; an invite is a PENDING member)
 projectRoutes.get("/:projectId/members", requireAuth, getProjectMembers);

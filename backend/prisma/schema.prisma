@@ -35,6 +35,24 @@ model User {
   githubId       String? @unique
   githubUsername String?  
   githubUrl     String?
+  clientTokens  ClientToken[]
+}
+
+// Long-lived sign-in for the desktop app and CLI ("Sign in with Loopin").
+// Only a SHA-256 hash of the token is stored; the token itself is shown to
+// the client once. Revoked tokens stay as a record until deleted.
+model ClientToken {
+  id         String    @id @default(uuid())
+  userId     String
+  name       String    // e.g. "Loopin Desktop on fedora"
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Project {

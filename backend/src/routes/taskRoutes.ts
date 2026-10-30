@@ -3,7 +3,7 @@ import { requireAuth } from "../middleware/auth.middleware";
 import { createTask, getTaskDetail, updateTask, deleteTask, moveTask, getTasksByProject, getMyTasks } from "../controllers/taskController";
 
 const nestedTaskRoutes = Router({ mergeParams: true });
-nestedTaskRoutes.get("/", getTasksByProject);
+nestedTaskRoutes.get("/", requireAuth, getTasksByProject);
 nestedTaskRoutes.post("/", requireAuth, createTask);
 
 const flatTaskRoutes = Router();

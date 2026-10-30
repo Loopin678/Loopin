@@ -69,7 +69,8 @@ async function deleteTask(
   return { deleted, assigneeId };
 }
 
-async function getTasksByProject(projectId: string): Promise<TaskDetail[]> {
+async function getTasksByProject(projectId: string, requesterId: string): Promise<TaskDetail[]> {
+  await assertActiveMember(projectId, requesterId);
   return taskRepository.getTasksByProjectId(projectId);
 }
 

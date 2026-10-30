@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import { prisma } from "../../src/library/prisma";
 import { startServer, TestServer } from "../helpers/server";
-import { addMember, createProject, createTask, createUser } from "../helpers/factories";
+import { addMember, as, createProject, createTask, createUser } from "../helpers/factories";
 
 // The desktop app's commit <-> task linking (POST /api/commits)
 
@@ -18,17 +18,20 @@ async function setup() {
   const p = await createProject(dev.id);
   const t1 = await createTask(p.todo.id, p.project.id, { title: "one" });
   const t2 = await createTask(p.todo.id, p.project.id, { title: "two" });
+  signedIn = dev;
   return { dev, ...p, t1, t2 };
 }
 
-const report = (body: Record<string, unknown>) => api().post("/api/commits").send(body);
+// Signed in as `by`; the author is always the signed-in user
+let signedIn: { id: string };
+const report = (body: Record<string, unknown>, by = signedIn) => api().post("/api/commits").set(as(by)).send(body);
 const linked = async () =>
   (await prisma.task.findMany({ where: { commitId: SHA }, orderBy: { title: "asc" } })).map((t) => t.title);
 
 describe("POST /api/commits", () => {
   it("links, relinks and unlinks: taskIds is the complete set", async () => {
     const { dev, project, t1, t2 } = await setup();
-    const base = { sha: SHA, message: "feat: login", projectId: project.id, authorId: dev.id };
+    const base = { sha: SHA, message: "feat: login", projectId: project.id };
 
     expect((await report({ ...base, taskIds: [t1.id, t2.id] })).status).toBe(201);
     expect(await linked()).toEqual(["one", "two"]);
@@ -42,7 +45,7 @@ describe("POST /api/commits", () => {
 
   it("keeps the real commit message", async () => {
     const { dev, project } = await setup();
-    await report({ sha: SHA, message: "fix: real message", projectId: project.id, authorId: dev.id, taskIds: [] });
+    await report({ sha: SHA, message: "fix: real message", projectId: project.id, taskIds: [] });
     expect((await prisma.commit.findUniqueOrThrow({ where: { id: SHA } })).message).toBe("fix: real message");
   });
 
@@ -51,38 +54,50 @@ describe("POST /api/commits", () => {
     const other = await createProject(dev.id);
     const foreign = await createTask(other.todo.id, other.project.id);
 
-    await report({ sha: SHA, message: "x", projectId: project.id, authorId: dev.id, taskIds: [foreign.id] });
+    await report({ sha: SHA, message: "x", projectId: project.id, taskIds: [foreign.id] });
     expect((await prisma.task.findUniqueOrThrow({ where: { id: foreign.id } })).commitId).toBeNull();
   });
 
-  it("rejects authors who aren't active members, without creating ghost users or projects", async () => {
+  it("requires a session and an active membership, without creating ghost rows", async () => {
     const { project } = await setup();
     const pending = await createUser();
     await addMember(project.id, pending.id, "PENDING");
     const usersBefore = await prisma.user.count();
     const projectsBefore = await prisma.project.count();
 
-    expect((await report({ sha: SHA, message: "x", projectId: project.id, authorId: pending.id })).status).toBe(403);
-    expect((await report({ sha: SHA, message: "x", projectId: project.id, authorId: "no-such-user" })).status).toBe(403);
-    expect((await report({ sha: SHA, message: "x", projectId: "no-such-project", authorId: pending.id })).status).toBe(403);
+    expect((await api().post("/api/commits").send({ sha: SHA, message: "x", projectId: project.id })).status).toBe(401);
+    expect((await report({ sha: SHA, message: "x", projectId: project.id }, pending)).status).toBe(403);
+    expect((await report({ sha: SHA, message: "x", projectId: "no-such-project" })).status).toBe(403);
 
     expect(await prisma.user.count()).toBe(usersBefore);
     expect(await prisma.project.count()).toBe(projectsBefore);
   });
 
-  it("validates the sha and taskIds", async () => {
+  it("records the signed-in user as author, ignoring an authorId in the body", async () => {
     const { dev, project } = await setup();
-    const base = { message: "x", projectId: project.id, authorId: dev.id };
-    expect((await report({ ...base, sha: "not a sha" })).status).toBe(400);
-    expect((await report({ ...base, sha: SHA, taskIds: "t1" })).status).toBe(400);
-    expect((await report({ sha: SHA, projectId: project.id, authorId: dev.id })).status).toBe(400);
+    const someoneElse = await createUser();
+    await addMember(project.id, someoneElse.id);
+    await report({ sha: SHA, message: "x", projectId: project.id, authorId: someoneElse.id, taskIds: [] });
+    expect((await prisma.commit.findUniqueOrThrow({ where: { id: SHA } })).authorId).toBe(dev.id);
   });
 
-  it("is listed with its tasks for the desktop app", async () => {
+  it("validates the sha and taskIds", async () => {
+    const { dev, project } = await setup();
+    void dev;
+    const base = { message: "x", projectId: project.id };
+    expect((await report({ ...base, sha: "not a sha" })).status).toBe(400);
+    expect((await report({ ...base, sha: SHA, taskIds: "t1" })).status).toBe(400);
+    expect((await report({ sha: SHA, projectId: project.id })).status).toBe(400);
+  });
+
+  it("is listed with its tasks for members only", async () => {
     const { dev, project, t1 } = await setup();
-    await report({ sha: SHA, message: "feat", projectId: project.id, authorId: dev.id, taskIds: [t1.id] });
-    const res = await api().get(`/api/projects/${project.id}/commits`);
+    await report({ sha: SHA, message: "feat", projectId: project.id, taskIds: [t1.id] });
+    const res = await api().get(`/api/projects/${project.id}/commits`).set(as(dev));
     expect(res.status).toBe(200);
     expect(res.body).toEqual([expect.objectContaining({ id: SHA, tasks: [{ id: t1.id, title: "one" }] })]);
+
+    expect((await api().get(`/api/projects/${project.id}/commits`)).status).toBe(401);
+    expect((await api().get(`/api/projects/${project.id}/commits`).set(as(await createUser()))).status).toBe(403);
   });
 });

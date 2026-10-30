@@ -17,7 +17,7 @@ indexRouter.use("/projects", projectRoutes);
 indexRouter.use("/project/member", projectMemberRoutes);
 indexRouter.use("/project", projectRoutes);
 indexRouter.use("/tasks", requireAuth, flatTaskRoutes);
-indexRouter.use("/commits", commitRoutes);
+indexRouter.use("/commits", requireAuth, commitRoutes);
 indexRouter.use("/users", profileRoutes);
 indexRouter.use("/", requireAuth, messageRoutes);
 
