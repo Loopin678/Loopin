@@ -91,19 +91,19 @@ private slots:
         QVERIFY(m_dialog);
     }
 
-    void explainsMissingSettings() {
+    void explainsSigningIn() {
         m_api->setProperty("backendUrl", m_backend.url());
         m_api->setProperty("projectId", "p1");
-        m_api->setProperty("userId", "");
+        m_api->setProperty("authToken", "");
         openDialog();
         toggle("t1", true);
         QMetaObject::invokeMethod(m_dialog, "accept");
-        QTRY_VERIFY(m_inbox->property("opsStatus").toString().contains("User ID"));
+        QTRY_VERIFY(m_inbox->property("opsStatus").toString().contains("Sign in to Loopin"));
         QVERIFY(m_links.isEmpty());
     }
 
     void loadsTasks() {
-        m_api->setProperty("userId", "u1");
+        m_api->setProperty("authToken", "lpn_test");
         QMetaObject::invokeMethod(m_api, "fetchTasks");
         QMetaObject::invokeMethod(m_api, "fetchProjectCommits");
         QTRY_COMPARE(m_window->property("availableTasks").toList().size(), 3);

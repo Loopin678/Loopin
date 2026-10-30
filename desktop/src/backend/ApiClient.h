@@ -3,7 +3,9 @@
 #include <QObject>
 #include <QString>
 #include <QJsonArray>
+#include <QJsonObject>
 #include <QNetworkAccessManager>
+#include <QTimer>
 #include <QQmlEngine>
 
 class QNetworkReply;
@@ -26,6 +28,9 @@ class ApiClient : public QObject {
     Q_PROPERTY(QString openRouterApiKey READ openRouterApiKey WRITE setOpenRouterApiKey NOTIFY openRouterApiKeyChanged)
     Q_PROPERTY(QString projectId READ projectId WRITE setProjectId NOTIFY projectIdChanged)
     Q_PROPERTY(QString userId READ userId WRITE setUserId NOTIFY userIdChanged)
+    // Token from "Sign in with Loopin"; empty when signed out
+    Q_PROPERTY(QString authToken READ authToken WRITE setAuthToken NOTIFY authTokenChanged)
+    Q_PROPERTY(bool signingIn READ signingIn NOTIFY signingInChanged)
 
 public:
     explicit ApiClient(QObject* parent = nullptr);
@@ -49,6 +54,23 @@ public:
     void setUserId(const QString& u);
 
     // Fetch tasks from local backend for the current projectId
+    QString authToken() const { return m_authToken; }
+    void setAuthToken(const QString& t);
+    bool signingIn() const { return m_signInTimer.isActive(); }
+
+    // "Sign in with Loopin": asks the backend for a code (signInCodeReady),
+    // then polls until the user approves it on the website (signedIn).
+    Q_INVOKABLE void startSignIn(const QString& clientName);
+    Q_INVOKABLE void cancelSignIn();
+    // Revokes this app's token on the server (best effort) and forgets it
+    Q_INVOKABLE void signOut();
+    // GET /api/auth/me -> accountReady; a rejected token signs out
+    Q_INVOKABLE void fetchAccount();
+    // GET /api/projects -> projectsReady([{id, name}, ...])
+    Q_INVOKABLE void fetchProjects();
+    // Reads {"url": "..."} from discoveryUrl and switches backendUrl to it
+    Q_INVOKABLE void discoverBackendUrl(const QString& discoveryUrl);
+
     Q_INVOKABLE void fetchTasks();
 
     // Fetch commits from local backend for the current projectId
@@ -77,6 +99,15 @@ signals:
     void openRouterApiKeyChanged();
     void projectIdChanged();
     void userIdChanged();
+    void authTokenChanged();
+    void signingInChanged();
+    void signInCodeReady(const QString& userCode, const QString& verificationUrl);
+    void signedIn(const QJsonObject& user);
+    void signInFailed(const QString& reason);
+    void signedOut(const QString& reason);
+    void accountReady(const QJsonObject& user);
+    void projectsReady(const QJsonArray& projects);
+    void backendUrlDiscovered(const QString& url);
 
     // groups is an array of { "message": string, "files": [string, ...] }
     void commitGroupsReady(const QJsonArray& groups);
@@ -96,6 +127,11 @@ private:
     // Human-readable error for a failed backend reply, including the server's message
     static QString backendErrorText(QNetworkReply* reply, const QString& what);
     static QString ollamaChatUrl();
+    // A request to our backend, with the sign-in token attached
+    QNetworkRequest backendRequest(const QString& path) const;
+    // Reports a failed backend call; a 401 with a token means it was revoked
+    void handleBackendFailure(QNetworkReply* reply, const QString& what);
+    void pollSignIn();
 
     QNetworkAccessManager m_nam;
     QString m_backendUrl;
@@ -104,4 +140,7 @@ private:
     QString m_openRouterApiKey;
     QString m_projectId;
     QString m_userId;
+    QString m_authToken;
+    QString m_deviceCode;
+    QTimer m_signInTimer;
 };

@@ -16,6 +16,154 @@ ApiClient::ApiClient(QObject* parent) : QObject(parent), m_backendUrl(QStringLit
     }
     // Without a timeout a request to an unreachable backend or AI provider can hang forever
     m_nam.setTransferTimeout(120000);
+    m_signInTimer.setSingleShot(false);
+    connect(&m_signInTimer, &QTimer::timeout, this, &ApiClient::pollSignIn);
+}
+
+QNetworkRequest ApiClient::backendRequest(const QString& path) const {
+    QString base = m_backendUrl.trimmed();
+    while (base.endsWith('/')) base.chop(1);
+    QNetworkRequest req(QUrl(base + path));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    if (!m_authToken.isEmpty())
+        req.setRawHeader("Authorization", "Bearer " + m_authToken.toUtf8());
+    return req;
+}
+
+void ApiClient::handleBackendFailure(QNetworkReply* reply, const QString& what) {
+    const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    if (status == 401 && !m_authToken.isEmpty()) {
+        // Revoked on the website (Profile -> Connected apps) or expired
+        setAuthToken(QString());
+        emit signedOut(QStringLiteral("Your Loopin sign-in is no longer valid. Sign in again in Settings."));
+        return;
+    }
+    if (status == 401) {
+        emit backendError(QStringLiteral("Sign in to Loopin in Settings first."));
+        return;
+    }
+    emit backendError(backendErrorText(reply, what));
+}
+
+void ApiClient::setAuthToken(const QString& t) {
+    if (m_authToken == t) return;
+    m_authToken = t;
+    emit authTokenChanged();
+}
+
+void ApiClient::startSignIn(const QString& clientName) {
+    cancelSignIn();
+    QNetworkReply* reply = m_nam.post(backendRequest("/api/auth/device"),
+                                      QJsonDocument(QJsonObject{{"clientName", clientName}}).toJson());
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit signInFailed(backendErrorText(reply, "Could not start signing in"));
+            return;
+        }
+        const QJsonObject json = QJsonDocument::fromJson(reply->readAll()).object();
+        m_deviceCode = json.value("deviceCode").toString();
+        const int interval = qMax(1, json.value("interval").toInt(5));
+        m_signInTimer.start(interval * 1000);
+        emit signingInChanged();
+        emit signInCodeReady(json.value("userCode").toString(), json.value("verificationUriComplete").toString());
+    });
+}
+
+void ApiClient::cancelSignIn() {
+    const bool was = m_signInTimer.isActive();
+    m_signInTimer.stop();
+    m_deviceCode.clear();
+    if (was) emit signingInChanged();
+}
+
+void ApiClient::pollSignIn() {
+    if (m_deviceCode.isEmpty()) return;
+    QNetworkReply* reply = m_nam.post(backendRequest("/api/auth/device/token"),
+                                      QJsonDocument(QJsonObject{{"deviceCode", m_deviceCode}}).toJson());
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        if (m_deviceCode.isEmpty()) return;  // cancelled meanwhile
+        const QJsonObject json = QJsonDocument::fromJson(reply->readAll()).object();
+        const QString error = json.value("error").toString();
+
+        if (reply->error() == QNetworkReply::NoError && json.contains("token")) {
+            cancelSignIn();
+            setAuthToken(json.value("token").toString());
+            const QJsonObject user = json.value("user").toObject();
+            setUserId(user.value("id").toString());
+            emit signedIn(user);
+            return;
+        }
+        if (error == "authorization_pending") return;
+        if (error == "slow_down") {
+            m_signInTimer.setInterval(m_signInTimer.interval() + 5000);
+            return;
+        }
+        if (reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() == 0) return;  // offline for a moment: keep trying
+        cancelSignIn();
+        emit signInFailed(error == "access_denied" ? QStringLiteral("Sign-in was declined on the website.")
+                        : error == "expired_token" ? QStringLiteral("The sign-in code expired. Try again.")
+                        : json.value("message").toString(QStringLiteral("Sign-in failed.")));
+    });
+}
+
+void ApiClient::signOut() {
+    cancelSignIn();
+    if (!m_authToken.isEmpty()) {
+        QNetworkReply* reply = m_nam.deleteResource(backendRequest("/api/auth/tokens/current"));
+        connect(reply, &QNetworkReply::finished, reply, &QObject::deleteLater);
+    }
+    setAuthToken(QString());
+    setUserId(QString());
+    emit signedOut(QString());
+}
+
+void ApiClient::fetchAccount() {
+    if (m_authToken.isEmpty()) return;
+    QNetworkReply* reply = m_nam.get(backendRequest("/api/auth/me"));
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            handleBackendFailure(reply, "Could not load your Loopin account");
+            return;
+        }
+        const QJsonObject user = QJsonDocument::fromJson(reply->readAll()).object().value("user").toObject();
+        setUserId(user.value("id").toString());
+        emit accountReady(user);
+    });
+}
+
+void ApiClient::fetchProjects() {
+    if (m_authToken.isEmpty()) return;
+    QNetworkReply* reply = m_nam.get(backendRequest("/api/projects"));
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            handleBackendFailure(reply, "Could not load your projects");
+            return;
+        }
+        emit projectsReady(QJsonDocument::fromJson(reply->readAll()).object().value("projects").toArray());
+    });
+}
+
+void ApiClient::discoverBackendUrl(const QString& discoveryUrl) {
+    if (discoveryUrl.isEmpty()) return;
+    QNetworkRequest req((QUrl(discoveryUrl)));
+    // Raw GitHub files are cached for a few minutes; ask for a fresh copy
+    req.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::AlwaysNetwork);
+    QNetworkReply* reply = m_nam.get(req);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        reply->deleteLater();
+        const QString url = QJsonDocument::fromJson(reply->readAll()).object().value("url").toString();
+        if (reply->error() != QNetworkReply::NoError || !url.startsWith("http")) {
+            emit backendError(QStringLiteral("Could not find the Loopin server automatically. It may be offline; "
+                                             "you can also enter its address in Settings."));
+            return;
+        }
+        setBackendUrl(url);
+        emit backendUrlDiscovered(url);
+    });
 }
 
 // Ollama's own OLLAMA_HOST convention ("host:port" or a full URL), default local
@@ -76,9 +224,7 @@ void ApiClient::fetchTasks() {
         return;
     }
 
-    QString urlStr = QString("%1/api/projects/%2/tasks").arg(m_backendUrl, m_projectId.trimmed());
-    QNetworkRequest req((QUrl(urlStr)));
-    QNetworkReply* reply = m_nam.get(req);
+    QNetworkReply* reply = m_nam.get(backendRequest("/api/projects/" + m_projectId.trimmed() + "/tasks"));
 
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         reply->deleteLater();
@@ -90,7 +236,7 @@ void ApiClient::fetchTasks() {
                 emit tasksReady(doc.object().value("tasks").toArray());
             }
         } else {
-            emit backendError(backendErrorText(reply, "Could not load tasks"));
+            handleBackendFailure(reply, "Could not load tasks");
         }
     });
 }
@@ -98,8 +244,7 @@ void ApiClient::fetchTasks() {
 void ApiClient::fetchProjectCommits() {
     if (m_projectId.trimmed().isEmpty()) return;
 
-    QNetworkRequest req(QUrl(m_backendUrl + "/api/projects/" + m_projectId.trimmed() + "/commits"));
-    QNetworkReply* reply = m_nam.get(req);
+    QNetworkReply* reply = m_nam.get(backendRequest("/api/projects/" + m_projectId.trimmed() + "/commits"));
 
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         reply->deleteLater();
@@ -111,27 +256,26 @@ void ApiClient::fetchProjectCommits() {
                 emit projectCommitsReady(doc.object().value("commits").toArray());
             }
         } else {
-            emit backendError(backendErrorText(reply, "Could not load linked commits"));
+            handleBackendFailure(reply, "Could not load linked commits");
         }
     });
 }
 
 void ApiClient::reportCommit(const QString& commitSha, const QString& message, const QStringList& taskIds) {
     // Used to return silently here, so linking "did nothing" with no explanation
-    if (m_projectId.trimmed().isEmpty() || m_userId.trimmed().isEmpty()) {
+    if (m_authToken.isEmpty() || m_projectId.trimmed().isEmpty()) {
         if (!taskIds.isEmpty())
-            emit backendError("Set your Loopin Project ID and User ID in Settings to link commits to tasks.");
+            emit backendError("Sign in to Loopin and pick a project in Settings to link commits to tasks.");
         return;
     }
 
-    QNetworkRequest req(QUrl(m_backendUrl + "/api/commits"));
-    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    QNetworkRequest req = backendRequest("/api/commits");
 
     QJsonObject body;
     body["sha"] = commitSha;
     body["message"] = message;
     body["projectId"] = m_projectId.trimmed();
-    body["authorId"] = m_userId.trimmed();
+    // The backend takes the author from the sign-in token
     // Always send the array: it is the complete set of tasks for this commit,
     // so an empty list unlinks everything
     QJsonArray idsArray;
@@ -144,7 +288,7 @@ void ApiClient::reportCommit(const QString& commitSha, const QString& message, c
     connect(reply, &QNetworkReply::finished, this, [this, reply, commitSha]() {
         reply->deleteLater();
         if (reply->error() != QNetworkReply::NoError) {
-            emit backendError(backendErrorText(reply, "Linking commit " + commitSha.left(7) + " failed"));
+            handleBackendFailure(reply, "Linking commit " + commitSha.left(7) + " failed");
             return;
         }
         emit commitReported(commitSha);
@@ -365,8 +509,7 @@ void ApiClient::requestCommitGroups(const QJsonArray& allChanges, const QString&
     body["changes"] = changes;
     body["task_id"] = taskId;
 
-    QNetworkRequest req(QUrl(m_backendUrl + "/api/commits/group"));
-    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    QNetworkRequest req = backendRequest("/api/commits/group");
 
     QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson());
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {

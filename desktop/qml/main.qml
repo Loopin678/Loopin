@@ -24,6 +24,10 @@ ApplicationWindow {
         property string openRouterApiKey: ""
         property string projectId: ""
         property string userId: ""
+        // "Sign in with Loopin" token (plain settings file, like the AI keys)
+        property string authToken: ""
+        // Find the backend address from loopinDiscoveryUrl instead of backendUrl
+        property bool backendAutomatic: true
     }
 
     // C++ objects, instantiated once for the app's lifetime.
@@ -42,6 +46,7 @@ ApplicationWindow {
         openRouterApiKey: settings.openRouterApiKey
         projectId: settings.projectId
         userId: settings.userId
+        authToken: settings.authToken
 
         onBackendUrlChanged: settings.backendUrl = backendUrl
         onAiProviderChanged: settings.aiProvider = aiProvider
@@ -49,6 +54,28 @@ ApplicationWindow {
         onOpenRouterApiKeyChanged: settings.openRouterApiKey = openRouterApiKey
         onProjectIdChanged: settings.projectId = projectId
         onUserIdChanged: settings.userId = userId
+        onAuthTokenChanged: settings.authToken = authToken
+
+        onBackendUrlDiscovered: function(url) { window.loadLoopinData() }
+        onSignedIn: function(user) {
+            window.account = user
+            apiClient.fetchProjects()
+        }
+        onAccountReady: function(user) { window.account = user }
+        onProjectsReady: function(list) {
+            window.projects = list
+            // Forget a project I no longer belong to
+            var stillThere = false
+            for (var i = 0; i < list.length; i++) if (list[i].id === apiClient.projectId) stillThere = true
+            if (!stillThere && list.length > 0) window.chooseProject(list[0].id)
+            else if (!stillThere) window.chooseProject("")
+        }
+        onSignedOut: function(reason) {
+            window.account = null
+            window.projects = []
+            window.availableTasks = []
+            window.linkedCommits = ({})
+        }
 
         onTasksReady: function(tasksList) {
             window.availableTasks = tasksList
@@ -79,6 +106,32 @@ ApplicationWindow {
     property string currentTaskId: "TASK-DEMO-1"
     property var availableTasks: []
     property var linkedCommits: ({})
+    property var account: null      // signed-in Loopin user, or null
+    property var projects: []        // my Loopin projects [{id, name}]
+
+    // Find the backend (Automatic mode), then load everything for the signed-in user
+    function connectToLoopin() {
+        if (settings.backendAutomatic && loopinDiscoveryUrl !== "") apiClient.discoverBackendUrl(loopinDiscoveryUrl)
+        else loadLoopinData()
+    }
+    function loadLoopinData() {
+        if (apiClient.authToken === "") return
+        apiClient.fetchAccount()
+        apiClient.fetchProjects()
+        if (apiClient.projectId !== "") {
+            apiClient.fetchTasks()
+            apiClient.fetchProjectCommits()
+        }
+    }
+    function chooseProject(id) {
+        apiClient.projectId = id
+        window.availableTasks = []
+        window.linkedCommits = ({})
+        if (id !== "") {
+            apiClient.fetchTasks()
+            apiClient.fetchProjectCommits()
+        }
+    }
 
     StackView {
         id: stack
@@ -114,10 +167,7 @@ ApplicationWindow {
                         watcher.start(2000)
                     }
                 }
-                if (settings.projectId !== "") {
-                    apiClient.fetchTasks()
-                    apiClient.fetchProjectCommits()
-                }
+                window.connectToLoopin()
             }
 
             onGroupsReady: function(groups) {

@@ -11,6 +11,13 @@ ApplicationWindow {
     property alias inbox: inboxView
     property alias api: apiClient
     property alias repo: gitRepo
+    // What main.qml provides to ChangeInboxView
+    property var account: null
+    property var projects: []
+    function chooseProject(id) { apiClient.projectId = id }
+    function connectToLoopin() {}
+    function loadLoopinData() {}
+    QtObject { id: settings; property bool backendAutomatic: false }
 
     GitRepo { id: gitRepo }
     ChangeWatcher { id: changeWatcher }

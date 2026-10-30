@@ -51,6 +51,12 @@ set_target_properties(loopin_desktop PROPERTIES
 )
 target_compile_definitions(loopin_desktop PRIVATE LOOPIN_VERSION="${PROJECT_VERSION}")
 
+# Where "Automatic" mode finds the current backend address: a JSON file
+# {"url": "https://..."} that scripts/host/start.sh updates when hosting starts
+set(LOOPIN_DISCOVERY_URL "https://raw.githubusercontent.com/Loopin678/Loopin/hosting-info/backend.json"
+    CACHE STRING "URL of the JSON file announcing the current Loopin backend address")
+target_compile_definitions(loopin_desktop PRIVATE LOOPIN_DISCOVERY_URL="${LOOPIN_DISCOVERY_URL}")
+
 # Window/taskbar icon at runtime
 qt_add_resources(loopin_desktop "app_icon"
     PREFIX "/"

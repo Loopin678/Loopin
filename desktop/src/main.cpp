@@ -2,6 +2,8 @@
 #include <QGuiApplication>
 #include <QIcon>
 #include <QQmlApplicationEngine>
+#include <QQmlContext>
+#include <QSysInfo>
 #include <QSettings>
 #include <QUrl>
 
@@ -10,6 +12,9 @@
 
 #ifndef LOOPIN_VERSION
 #define LOOPIN_VERSION "dev"
+#endif
+#ifndef LOOPIN_DISCOVERY_URL
+#define LOOPIN_DISCOVERY_URL ""
 #endif
 
 // Settings used to live under the placeholder "YourCompany/CollabDesktopClient";
@@ -40,6 +45,10 @@ int main(int argc, char* argv[]) {
     QQuickStyle::setStyle("Fusion");
 
     QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty("loopinDiscoveryUrl", QStringLiteral(LOOPIN_DISCOVERY_URL));
+    // Shown on the website's approval page and in Profile -> Connected apps
+    engine.rootContext()->setContextProperty("loopinClientName",
+        QStringLiteral("Loopin Desktop on %1").arg(QSysInfo::machineHostName()));
     // qt_add_qml_module puts the module under /qt/qml/ with policy QTP0001 NEW
     // (Qt 6.5+), or at the resource root with the older default
     const QString mainQml = QFile::exists(QStringLiteral(":/qt/qml/App/main.qml"))

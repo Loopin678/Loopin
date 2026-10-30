@@ -26,6 +26,8 @@ Item {
     property string opsStatus: ""
     property bool opsIsError: false
     property var unpushedShas: []
+    property string signInCode: ""   // "Sign in with Loopin" code shown while waiting
+    property string signInUrl: ""
     
     // AI Merge Resolution State
     property var pendingConflicts: []
@@ -174,6 +176,14 @@ Item {
         function onCommitReported(sha) {
             showStatus("Task links saved for " + sha.substring(0, 7), false)
         }
+        function onSignInCodeReady(userCode, verificationUrl) {
+            root.signInCode = userCode
+            root.signInUrl = verificationUrl
+            Qt.openUrlExternally(verificationUrl)
+        }
+        function onSignInFailed(reason) { showStatus(reason, true) }
+        function onSignedIn(user) { showStatus("Signed in to Loopin as " + user.name, false) }
+        function onSignedOut(reason) { if (reason !== "") showStatus(reason, true) }
     }
 
     Rectangle { anchors.fill: parent; color: Theme.bg }
@@ -1196,59 +1206,103 @@ Item {
                                 spacing: 12
 
                                 Text {
-                                    text: "Loopin Platform Configuration"
+                                    text: "Loopin account"
                                     font.bold: true; font.pixelSize: 16; color: Theme.textPrimary
                                 }
                                 Text {
-                                    text: "Link your local commits to tasks on the Loopin collaborative platform."
+                                    text: "Sign in with your Loopin website account to link your commits to tasks."
                                     wrapMode: Text.WordWrap; Layout.fillWidth: true
                                     color: Theme.textSecondary; font.pixelSize: 13
                                 }
 
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 4
-                                    Text { text: "Backend URL:"; color: Theme.textPrimary; font.bold: true }
-                                    TextField {
-                                        Layout.fillWidth: true
-                                        text: root.api.backendUrl
-                                        placeholderText: "http://localhost:3000"
-                                        onEditingFinished: {
-                                            root.api.backendUrl = text
-                                            if (root.api.projectId !== "") {
-                                                root.api.fetchTasks()
-                                                root.api.fetchProjectCommits()
-                                            }
-                                        }
+                                // Signed out
+                                Button {
+                                    text: "Sign in to Loopin"
+                                    highlighted: true
+                                    visible: !window.account && !root.api.signingIn
+                                    onClicked: {
+                                        root.signInCode = ""
+                                        root.api.startSignIn(loopinClientName)
                                     }
                                 }
 
+                                // Waiting for approval in the browser
                                 ColumnLayout {
                                     Layout.fillWidth: true
-                                    spacing: 4
-                                    Text { text: "Project ID:"; color: Theme.textPrimary; font.bold: true }
-                                    TextField {
-                                        Layout.fillWidth: true
-                                        text: root.api.projectId
-                                        placeholderText: "Enter your project UUID"
-                                        onEditingFinished: {
-                                            root.api.projectId = text.trim()
-                                            // Refresh tasks and their commit links for the new project
-                                            root.api.fetchTasks()
-                                            root.api.fetchProjectCommits()
-                                        }
+                                    spacing: 8
+                                    visible: root.api.signingIn
+                                    Text {
+                                        text: "Your browser opened the Loopin website. Check that it shows this code, then click Approve:"
+                                        wrapMode: Text.WordWrap; Layout.fillWidth: true
+                                        color: Theme.textPrimary; font.pixelSize: 13
+                                    }
+                                    TextEdit {
+                                        text: root.signInCode
+                                        readOnly: true; selectByMouse: true
+                                        font.family: "monospace"; font.pixelSize: 26; font.bold: true
+                                        color: Theme.accent
+                                    }
+                                    RowLayout {
+                                        spacing: 8
+                                        BusyIndicator { running: root.api.signingIn; implicitWidth: 24; implicitHeight: 24 }
+                                        Button { text: "Open browser again"; onClicked: Qt.openUrlExternally(root.signInUrl) }
+                                        Button { text: "Cancel"; onClicked: root.api.cancelSignIn() }
                                     }
                                 }
 
+                                // Signed in
                                 ColumnLayout {
                                     Layout.fillWidth: true
-                                    spacing: 4
-                                    Text { text: "User ID:"; color: Theme.textPrimary; font.bold: true }
-                                    TextField {
+                                    spacing: 8
+                                    visible: !!window.account
+                                    Text {
+                                        text: window.account
+                                              ? "Signed in as " + window.account.name + (window.account.username ? " (@" + window.account.username + ")" : "")
+                                              : ""
+                                        color: Theme.success; font.bold: true
+                                    }
+                                    Text { text: "Project:"; color: Theme.textPrimary; font.bold: true }
+                                    ComboBox {
+                                        id: projectPicker
                                         Layout.fillWidth: true
-                                        text: root.api.userId
-                                        placeholderText: "Enter your user UUID"
-                                        onEditingFinished: root.api.userId = text.trim()
+                                        model: window.projects
+                                        textRole: "name"
+                                        valueRole: "id"
+                                        enabled: window.projects.length > 0
+                                        displayText: window.projects.length > 0 ? currentText : "No projects yet"
+                                        currentIndex: {
+                                            for (var i = 0; i < window.projects.length; i++)
+                                                if (window.projects[i].id === root.api.projectId) return i
+                                            return -1
+                                        }
+                                        onActivated: window.chooseProject(currentValue)
+                                    }
+                                    Text {
+                                        visible: window.projects.length === 0
+                                        text: "You're not in any projects yet. Create or join one on the Loopin website, then reopen Settings."
+                                        wrapMode: Text.WordWrap; Layout.fillWidth: true
+                                        color: Theme.textSecondary; font.pixelSize: 12
+                                    }
+                                    Button { text: "Sign out"; onClicked: root.api.signOut() }
+                                }
+
+                                Text { text: "Server"; color: Theme.textPrimary; font.bold: true; Layout.topMargin: 8 }
+                                CheckBox {
+                                    text: "Find the Loopin server automatically"
+                                    checked: settings.backendAutomatic
+                                    onToggled: {
+                                        settings.backendAutomatic = checked
+                                        if (checked) window.connectToLoopin()
+                                    }
+                                }
+                                TextField {
+                                    Layout.fillWidth: true
+                                    enabled: !settings.backendAutomatic
+                                    text: root.api.backendUrl
+                                    placeholderText: "https://… or http://localhost:3000"
+                                    onEditingFinished: {
+                                        root.api.backendUrl = text.trim()
+                                        window.loadLoopinData()
                                     }
                                 }
                             }
@@ -1605,10 +1659,10 @@ Item {
                     wrapMode: Text.WordWrap
                     visible: historyTaskPicker.count === 0
                     color: Theme.textMuted
-                    text: root.api.projectId === "" || root.api.userId === ""
-                        ? "Set your Project ID and User ID in the Settings tab to link tasks."
+                    text: root.api.authToken === "" || root.api.projectId === ""
+                        ? "Sign in to Loopin and pick a project in the Settings tab to link tasks."
                         : ((window.availableTasks || []).length === 0
-                            ? "No tasks loaded for this project. Check the Backend URL and Project ID in Settings, then press Reload."
+                            ? "No tasks loaded for this project. Check your sign-in and project in Settings, then press Reload."
                             : "No tasks match your search.")
                 }
             }

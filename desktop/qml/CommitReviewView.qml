@@ -313,10 +313,10 @@ Item {
                     wrapMode: Text.WordWrap
                     visible: newCommitTaskPicker.count === 0
                     color: Theme.textMuted
-                    text: root.api.projectId === "" || root.api.userId === ""
-                        ? "Set your Project ID and User ID in the Settings tab to link tasks."
+                    text: root.api.authToken === "" || root.api.projectId === ""
+                        ? "Sign in to Loopin and pick a project in the Settings tab to link tasks."
                         : ((window.availableTasks || []).length === 0
-                            ? "No tasks loaded for this project. Check the Backend URL and Project ID in Settings."
+                            ? "No tasks loaded for this project. Check your sign-in and project in Settings."
                             : "No tasks match your search.")
                 }
             }
