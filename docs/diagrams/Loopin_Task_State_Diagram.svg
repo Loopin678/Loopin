@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="1450" viewBox="0 0 2000 1450">
+<rect width="2000" height="1450" fill="#fff"/>
+<text x="1000" y="68" font-family="Arial" font-size="42" font-weight="700" text-anchor="middle" fill="#111">Loopin — Kanban Task State Chart</text>
+<text x="1000" y="110" font-family="Arial" font-size="18" text-anchor="middle" fill="#444">Task lifecycle inferred from current repository models and service rules</text>
+<circle cx="1000" cy="160" r="13" fill="#111"/><path d="M1000 173 V222" stroke="#111" stroke-width="3" fill="none"/><path d="M991 209 L1000 223 L1009 209" fill="none" stroke="#111" stroke-width="3"/>
+<rect x="840" y="225" width="320" height="84" rx="18" fill="#fff45c" stroke="#222" stroke-width="2.5"/><text x="1000" y="260" font-family="Arial" font-size="24" font-weight="700" text-anchor="middle">Not Created</text><text x="1000" y="288" font-family="Arial" font-size="16" text-anchor="middle">task row does not exist</text>
+<path d="M1000 309 V370" stroke="#111" stroke-width="2.5" fill="none"/><path d="M991 358 L1000 372 L1009 358" fill="none" stroke="#111" stroke-width="2.5"/><text x="1020" y="344" font-family="Arial" font-size="16">create in selected list [ACTIVE member]</text>
+<rect x="160" y="385" width="1680" height="770" rx="26" fill="#f8fafc" stroke="#607d9b" stroke-width="3"/>
+<text x="1000" y="430" font-family="Arial" font-size="26" font-weight="700" text-anchor="middle" fill="#24364b">Task exists in project board</text>
+<g font-family="Arial" fill="#111" text-anchor="middle">
+<rect x="265" y="485" width="280" height="105" rx="18" fill="#fff45c" stroke="#222" stroke-width="2.5"/><text x="405" y="528" font-size="24" font-weight="700">TODO</text><text x="405" y="558" font-size="16">ListKind.TODO</text>
+<rect x="660" y="485" width="280" height="105" rx="18" fill="#fff45c" stroke="#222" stroke-width="2.5"/><text x="800" y="528" font-size="24" font-weight="700">IN PROGRESS</text><text x="800" y="558" font-size="16">ListKind.IN_PROGRESS</text>
+<rect x="1055" y="485" width="280" height="105" rx="18" fill="#fff45c" stroke="#222" stroke-width="2.5"/><text x="1195" y="528" font-size="24" font-weight="700">DONE</text><text x="1195" y="558" font-size="16">ListKind.DONE</text>
+<rect x="1450" y="485" width="280" height="105" rx="18" fill="#fff45c" stroke="#222" stroke-width="2.5"/><text x="1590" y="528" font-size="24" font-weight="700">CUSTOM</text><text x="1590" y="558" font-size="16">ListKind.CUSTOM</text>
+</g>
+<g stroke="#222" stroke-width="2.5" fill="none">
+<path d="M545 510 H655"/><path d="M645 501 L656 510 L645 519"/>
+<path d="M940 510 H1050"/><path d="M1040 501 L1051 510 L1040 519"/>
+<path d="M1335 510 H1445"/><path d="M1435 501 L1446 510 L1435 519"/>
+<path d="M545 565 C610 650 970 650 1055 565"/><path d="M1040 570 L1055 565 L1048 582"/>
+<path d="M800 590 V720 H405 V595"/><path d="M414 607 L405 593 L396 607"/>
+<path d="M1195 590 V720 H800 V595"/><path d="M809 607 L800 593 L791 607"/>
+<path d="M1590 590 V755 H1195 V595"/><path d="M1204 607 L1195 593 L1186 607"/>
+</g>
+<g font-family="Arial" font-size="16" fill="#222">
+<text x="600" y="495">move [same project]</text><text x="950" y="495">move [same project]</text><text x="1345" y="495">move [same project]</text>
+<text x="690" y="645">move / CLI task done</text><text x="540" y="705">reopen / move</text><text x="940" y="745">move / reopen</text><text x="1420" y="780">move / CLI task done</text>
+</g>
+<g font-family="Arial" font-size="16" fill="#222">
+<text x="240" y="825" font-weight="700">Self-transitions from every list state:</text>
+<text x="260" y="858">• Edit title / description / stack / priority / due date</text>
+<text x="260" y="890">• Assign or unassign [assignee must be ACTIVE member]</text>
+<text x="260" y="922">• Reorder / update position</text>
+<text x="260" y="954">• Associate commit [optional commitId]</text>
+<text x="260" y="986">• Reject move [destination belongs to a different project] — retain current state</text>
+</g>
+<rect x="1470" y="830" width="270" height="90" rx="18" fill="#f6c7c7" stroke="#222" stroke-width="2.5"/>
+<text x="1605" y="866" font-family="Arial" font-size="24" font-weight="700" text-anchor="middle">Deleted</text><text x="1605" y="894" font-family="Arial" font-size="16" text-anchor="middle">task row removed</text>
+<g stroke="#111" stroke-width="2.5" fill="none"><path d="M405 590 V1045 H1465 V875"/><path d="M1456 890 L1465 874 L1474 890"/></g>
+<text x="895" y="1033" font-family="Arial" font-size="17" fill="#111">delete [requester is ACTIVE project member]</text>
+<path d="M1605 920 V1240" stroke="#111" stroke-width="2.5"/><path d="M1596 1226 L1605 1241 L1614 1226" stroke="#111" stroke-width="2.5" fill="none"/>
+<circle cx="1605" cy="1280" r="22" fill="white" stroke="#111" stroke-width="3"/><circle cx="1605" cy="1280" r="13" fill="#111"/>
+<g font-family="Arial" font-size="15" fill="#24364b">
+<text x="205" y="1090">Guards enforced by backend:</text>
+<text x="205" y="1120">1. requester must be an ACTIVE project member</text>
+<text x="205" y="1150">2. assignee must be an ACTIVE member of the same project</text>
+<text x="205" y="1180">3. destination list.projectId must equal task.projectId</text>
+<text x="205" y="1210">4. movement reindexes destination and source positions transactionally</text>
+<text x="205" y="1360" font-size="13" fill="#555">Based on backend/prisma/schema.prisma, taskService.ts, taskRepository.ts, taskController.ts, Board.tsx, TaskModal.tsx, boardStore.ts, and harness task command.</text>
+</g>
+</svg>
