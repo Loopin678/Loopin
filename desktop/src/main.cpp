@@ -1,3 +1,4 @@
+#include <QFile>
 #include <QGuiApplication>
 #include <QIcon>
 #include <QQmlApplicationEngine>
@@ -41,10 +42,10 @@ int main(int argc, char* argv[]) {
     QQmlApplicationEngine engine;
     // qt_add_qml_module puts the module under /qt/qml/ with policy QTP0001 NEW
     // (Qt 6.5+), or at the resource root with the older default
-    engine.load(QUrl(QStringLiteral("qrc:/qt/qml/App/main.qml")));
-    if (engine.rootObjects().isEmpty()) {
-        engine.load(QUrl(QStringLiteral("qrc:/App/main.qml")));
-    }
+    const QString mainQml = QFile::exists(QStringLiteral(":/qt/qml/App/main.qml"))
+        ? QStringLiteral("qrc:/qt/qml/App/main.qml")
+        : QStringLiteral("qrc:/App/main.qml");
+    engine.load(QUrl(mainQml));
 
     if (engine.rootObjects().isEmpty()) {
         git_libgit2_shutdown();
