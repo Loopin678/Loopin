@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { ConnectedApps } from '../components/profile/ConnectedApps';
 import { useAuth } from '../context/AuthContext';
 import { usersApi, ApiError, OwnProfile } from '../api/client';
 import { Avatar } from '../components/common/Avatar';
@@ -386,6 +387,8 @@ export function Profile() {
             </span>
           </div>
         </div>
+
+        <ConnectedApps />
       </div>
     </div>
   );

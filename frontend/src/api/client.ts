@@ -444,6 +444,40 @@ export const authApi = {
     (await apiClient.get<{ user: User }>('/auth/me')).data,
 };
 
+// ─── "Sign in with Loopin" (desktop app / CLI) ──────────────────────────────
+
+export interface DeviceRequest {
+  userCode: string;
+  clientName: string;
+  expiresAt: string;
+}
+
+export interface ConnectedApp {
+  id: string;
+  name: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
+export const deviceAuthApi = {
+  // GET /api/auth/device/:userCode → which app is asking
+  describe: async (userCode: string) =>
+    (await apiClient.get<DeviceRequest>(`/auth/device/${encodeURIComponent(userCode)}`)).data,
+
+  approve: async (userCode: string) =>
+    (await apiClient.post<{ message: string }>('/auth/device/approve', { userCode })).data,
+
+  deny: async (userCode: string) =>
+    (await apiClient.post<{ message: string }>('/auth/device/deny', { userCode })).data,
+
+  listApps: async () =>
+    (await apiClient.get<{ tokens: ConnectedApp[] }>('/auth/tokens')).data.tokens,
+
+  revokeApp: async (tokenId: string) => {
+    await apiClient.delete(`/auth/tokens/${tokenId}`);
+  },
+};
+
 // ─── Projects ────────────────────────────────────────────────────────────────
 // POST  /api/projects                    { name, userId, stack } → 201 { project }
 // GET   /api/projects/user/:userId                               → 200 { projects: Project[] }

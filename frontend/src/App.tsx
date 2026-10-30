@@ -13,6 +13,7 @@ import { AppShell } from './components/layout/AppShell';
 import { Home } from './pages/Home';
 import { getPostLoginPath } from './utils/postLoginPath';
 import { Profile } from './pages/Profile';
+import { Connect } from './pages/Connect';
 
 // Protected route wrapper
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -55,6 +56,8 @@ function AppRoutes() {
       <Route path="/" element={<GuestRoute><Landing /></GuestRoute>} />
       <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
       <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
+      {/* "Sign in with Loopin" approval page for the desktop app / CLI */}
+      <Route path="/connect" element={<ProtectedRoute><Connect /></ProtectedRoute>} />
 
       {/* Authenticated — wrapped in AppShell */}
       <Route
