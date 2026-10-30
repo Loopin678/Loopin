@@ -1,0 +1,117 @@
+@startuml
+title Loopin — Kanban Task State Chart
+hide empty description
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam state {
+  BackgroundColor #FFF45C
+  BorderColor #222222
+  FontColor #111111
+  RoundCorner 18
+}
+skinparam ArrowColor #222222
+skinparam ArrowThickness 1.2
+skinparam StateFontSize 14
+skinparam NoteBackgroundColor #EEF3FA
+skinparam NoteBorderColor #587DA8
+skinparam noteFontSize 11
+
+[*] --> NotCreated : task creation requested
+
+state "Not Created" as NotCreated
+state "Task exists in project board" as Existing {
+  state "TODO list" as TODO
+  state "IN_PROGRESS list" as InProgress
+  state "DONE list" as Done
+  state "CUSTOM list" as Custom
+
+  [*] --> TODO : created in TODO list
+  [*] --> InProgress : created in IN_PROGRESS list
+  [*] --> Done : created in DONE list
+  [*] --> Custom : created in CUSTOM list
+
+  TODO --> InProgress : drop / move\n[newList.projectId == task.projectId]
+  TODO --> Done : move / CLI task done\n[target list is DONE]
+  TODO --> Custom : move\n[same project]
+  InProgress --> TODO : move\n[same project]
+  InProgress --> Done : move / CLI task done\n[same project]
+  InProgress --> Custom : move\n[same project]
+  Done --> TODO : reopen / move\n[same project]
+  Done --> InProgress : move\n[same project]
+  Done --> Custom : move\n[same project]
+  Custom --> TODO : move\n[same project]
+  Custom --> InProgress : move\n[same project]
+  Custom --> Done : move / CLI task done\n[same project]
+  Custom --> Custom : reorder / move within or across custom lists\n[same project]
+
+  TODO --> TODO : reorder / update position
+  InProgress --> InProgress : reorder / update position
+  Done --> Done : reorder / update position
+
+  TODO --> TODO : edit title / description / stack / priority / due date
+  InProgress --> InProgress : edit title / description / stack / priority / due date
+  Done --> Done : edit title / description / stack / priority / due date
+  Custom --> Custom : edit task details
+
+  TODO --> TODO : assign / unassign\n[assignee is ACTIVE project member]
+  InProgress --> InProgress : assign / unassign\n[assignee is ACTIVE project member]
+  Done --> Done : assign / unassign\n[assignee is ACTIVE project member]
+  Custom --> Custom : assign / unassign\n[assignee is ACTIVE project member]
+
+  TODO --> TODO : associate commit\n[commit belongs to project]
+  InProgress --> InProgress : associate commit\n[commit belongs to project]
+  Done --> Done : associate commit\n[commit belongs to project]
+  Custom --> Custom : associate commit\n[commit belongs to project]
+}
+
+NotCreated --> TODO : persist Task\n[requester is ACTIVE member]
+NotCreated --> Custom : persist Task\n[requester is ACTIVE member]
+NotCreated --> InProgress : persist Task\n[requester is ACTIVE member]
+NotCreated --> Done : persist Task\n[requester is ACTIVE member]
+
+TODO --> Deleted : delete task\n[requester is ACTIVE member]
+InProgress --> Deleted : delete task\n[requester is ACTIVE member]
+Done --> Deleted : delete task\n[requester is ACTIVE member]
+Custom --> Deleted : delete task\n[requester is ACTIVE member]
+state "Deleted" as Deleted
+Deleted --> [*]
+
+TODO --> TODO : rejected move\n[different project / 400]
+InProgress --> InProgress : rejected move\n[different project / 400]
+Done --> Done : rejected move\n[different project / 400]
+Custom --> Custom : rejected move\n[different project / 400]
+
+note right of Existing
+Task fields persisted by Task:
+title, description, position, stack,
+priority, dueDate, listId, projectId,
+assigneeId?, commitId?, createdAt,
+updatedAt.
+
+A task's visible column is derived from
+its List.kind / listId association.
+end note
+
+note bottom of Existing
+Guards:
+- requester must be an ACTIVE project member
+- assignee, when set, must be ACTIVE in same project
+- destination list must belong to same project
+- move and position update run transactionally
+end note
+
+note left of TODO
+Task creation starts at the selected List.
+The list's kind is not inferred from its
+display name.
+end note
+
+note right of Done
+CLI:
+loopin task done [taskId]
+moves to a list whose title matches
+Done / Finish / Completed; otherwise
+uses the last list as fallback.
+end note
+
+@enduml
