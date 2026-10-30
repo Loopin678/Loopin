@@ -1,9 +1,10 @@
 import { Router } from "express";
+import { requireAuth } from "../middleware/auth.middleware";
 import { createTask, getTaskDetail, updateTask, deleteTask, moveTask, getTasksByProject } from "../controllers/taskController";
 
 const nestedTaskRoutes = Router({ mergeParams: true });
 nestedTaskRoutes.get("/", getTasksByProject);
-nestedTaskRoutes.post("/", createTask);
+nestedTaskRoutes.post("/", requireAuth, createTask);
 
 const flatTaskRoutes = Router();
 flatTaskRoutes.get("/:taskId", getTaskDetail);

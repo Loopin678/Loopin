@@ -18,12 +18,27 @@ export async function createTask(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const task = await taskService.createTask({ title, listId, description, stack, priority, dueDate, assigneeId });
+    const requesterId = req.user?.id;
+    if (!requesterId) {
+      res.status(401).json({ message: "Authentication required" });
+      return;
+    }
+
+    const task = await taskService.createTask({ title, listId, description, stack, priority, dueDate, assigneeId }, requesterId);
+
 
     getIO().to(`project:${task.projectId}`).emit("task:created", task);
 
     res.status(201).json({ task });
   } catch (error) {
+        if (error instanceof Error && error.message === "FORBIDDEN_NOT_PROJECT_MEMBER") {
+      res.status(403).json({ message: "You are not a member of this project" });
+      return;
+    }
+    if (error instanceof Error && error.message === "ASSIGNEE_NOT_PROJECT_MEMBER") {
+      res.status(400).json({ message: "Assignee must be an active member of this project" });
+      return;
+    }
     if (error instanceof Error && error.message === "List not found!") {
       res.status(404).json({ message: error.message });
       return;
@@ -42,10 +57,20 @@ export async function getTaskDetail(req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const task = await taskService.getTaskDetail(taskId);
+    const requesterId = req.user?.id;
+    if (!requesterId) {
+      res.status(401).json({ message: "Authentication required" });
+      return;
+    }
+
+    const task = await taskService.getTaskDetail(taskId, requesterId);
 
     res.status(200).json({ task });
   } catch (error) {
+    if (error instanceof Error && error.message === "FORBIDDEN_NOT_PROJECT_MEMBER") {
+      res.status(403).json({ message: "You are not a member of this project" });
+      return;
+    }
     if (error instanceof Error && error.message === "Task not found!") {
       res.status(404).json({ message: error.message });
       return;
@@ -65,12 +90,26 @@ export async function updateTask(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const task = await taskService.updateTask({ taskId, title, description, stack, priority, dueDate, assigneeId });
+    const requesterId = req.user?.id;
+    if (!requesterId) {
+      res.status(401).json({ message: "Authentication required" });
+      return;
+    }
+
+    const task = await taskService.updateTask({ taskId, title, description, stack, priority, dueDate, assigneeId }, requesterId);
 
     getIO().to(`project:${task.projectId}`).emit("task:updated", task);
 
     res.status(200).json({ task });
   } catch (error) {
+    if (error instanceof Error && error.message === "FORBIDDEN_NOT_PROJECT_MEMBER") {
+      res.status(403).json({ message: "You are not a member of this project" });
+      return;
+    }
+    if (error instanceof Error && error.message === "ASSIGNEE_NOT_PROJECT_MEMBER") {
+      res.status(400).json({ message: "Assignee must be an active member of this project" });
+      return;
+    }
     if (error instanceof Error && error.message === "Task not found!") {
       res.status(404).json({ message: error.message });
       return;
@@ -100,12 +139,26 @@ export async function moveTask(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const task = await taskService.moveTask({ taskId, newListId, newPosition });
+    const requesterId = req.user?.id;
+    if (!requesterId) {
+      res.status(401).json({ message: "Authentication required" });
+      return;
+    }
+
+    const task = await taskService.moveTask({ taskId, newListId, newPosition }, requesterId);
 
     getIO().to(`project:${task.projectId}`).emit("task:moved", task);
 
     res.status(200).json({ task });
   } catch (error) {
+    if (error instanceof Error && error.message === "FORBIDDEN_NOT_PROJECT_MEMBER") {
+      res.status(403).json({ message: "You are not a member of this project" });
+      return;
+    }
+    if (error instanceof Error && error.message === "Task not found!") {
+      res.status(404).json({ message: error.message });
+      return;
+    }
     if (error instanceof Error && error.message === "List not found!") {
       res.status(404).json({ message: error.message });
       return;
@@ -128,12 +181,22 @@ export async function deleteTask(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const deleted = await taskService.deleteTask(taskId);
+        const requesterId = req.user?.id;
+    if (!requesterId) {
+      res.status(401).json({ message: "Authentication required" });
+      return;
+    }
+
+    const deleted = await taskService.deleteTask(taskId, requesterId);
 
     getIO().to(`project:${deleted.projectId}`).emit("task:deleted", deleted);
 
     res.status(200).json({ deleted });
   } catch (error) {
+    if (error instanceof Error && error.message === "FORBIDDEN_NOT_PROJECT_MEMBER") {
+      res.status(403).json({ message: "You are not a member of this project" });
+      return;
+    }
     if (error instanceof Error && error.message === "Task not found!") {
       res.status(404).json({ message: error.message });
       return;

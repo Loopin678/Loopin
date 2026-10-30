@@ -11,9 +11,10 @@ const indexRouter = Router();
 
 indexRouter.use("/auth", authRoutes);
 indexRouter.use("/projects", projectRoutes);
-indexRouter.use("/project", projectRoutes);
+// /project/member must be mounted before the /project alias, or projectRoutes'
+// /:projectId/* handlers would capture "member" as a projectId
 indexRouter.use("/project/member", projectMemberRoutes);
-indexRouter.use("/invites", projectMemberRoutes);
+indexRouter.use("/project", projectRoutes);
 indexRouter.use("/tasks", requireAuth, flatTaskRoutes);
 indexRouter.use("/commits", commitRoutes);
 indexRouter.use("/", requireAuth, messageRoutes);

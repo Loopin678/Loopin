@@ -1,88 +1,47 @@
-import { prisma } from "../library/prisma";
+import {prisma } from "../library/prisma.js"
 import { MemberRole, MembershipStatus } from "@prisma/client";
 
-export async function createProjectMember(data: {
-  userId: string;
-  projectId: string;
-  stack: string;
-  role?: MemberRole;
-  status?: MembershipStatus;
-}) {
-  const member = await prisma.projectMember.create({
-    data: {
-      userId: data.userId,
-      projectId: data.projectId,
-      stack: data.stack,
-      role: data.role ?? MemberRole.MEMBER,
-      status: data.status ?? MembershipStatus.ACTIVE,
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
-    },
-  });
-
-  return member;
+export async function createProjectMember(data:{
+     userId: string;
+     projectId: string;
+     stack: string;
+     role?: "OWNER" | "MEMBER";
+     status?: "ACTIVE" | "PENDING"
+}){
+     const member = await prisma.projectMember.create({
+          data,
+          include: {
+               user: { select: { id: true, email: true } },
+               project: { select: { id: true, name: true } },
+          },
+     });
+     return member;
 }
 
-export async function updateProjectMemberStatus(
-  id: string,
-  status: MembershipStatus
+export async function findProjectMember(
+     projectId: string,
+     userId: string
+){
+     const member = await prisma.projectMember.findUnique({
+          where:{
+               userId_projectId:{
+                    userId,
+                    projectId
+               }
+          }
+     });
+
+     return member;
+}
+
+export async function findProjectMembershipsByUserId(
+  userId: string,
+  status: MembershipStatus = MembershipStatus.ACTIVE
 ) {
-  return prisma.projectMember.update({
-    where: { id },
-    data: { status },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
-    },
-  });
-}
-
-export async function findProjectMember(projectId: string, userId: string) {
-  const member = await prisma.projectMember.findUnique({
-    where: {
-      userId_projectId: {
-        userId,
-        projectId,
-      },
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
-    },
-  });
-
-  return member;
-}
-
-export async function findProjectMembershipsByUserId(userId: string) {
   const memberships = await prisma.projectMember.findMany({
     where: {
       userId,
-    },
-    include: {
-      project: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
+      status,
     },
     orderBy: {
       id: "asc",
@@ -92,170 +51,143 @@ export async function findProjectMembershipsByUserId(userId: string) {
   return memberships;
 }
 
-export async function findProjectMembers(projectId: string) {
-  const members = await prisma.projectMember.findMany({
-    where: {
-      projectId,
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
-    },
-    orderBy: {
-      id: "asc",
-    },
-  });
+export async function findProjectMembers(projectId: string){
+
+  const members = await prisma.projectMember.findMany({where: {
+     projectId,
+     status: MembershipStatus.ACTIVE,
+},
+     orderBy: {
+          id: "asc",
+     },
+     });
 
   return members;
 }
 
-export async function deleteProjectMember(projectId: string, userId: string) {
-  const member = await prisma.projectMember.findUnique({
-    where: {
-      userId_projectId: {
-        userId,
-        projectId,
-      },
-    },
-  });
+export async function deleteProjectMember(
+     projectId: string,
+     userId: string
+     ){
+     const member = await prisma.projectMember.findUnique({
+          where:{
+               userId_projectId:{
+                    userId,
+                    projectId,
+               }
+          }
+     });
 
-  if (!member) {
-    return false;
-  }
+     if(!member){
+          return false;
+     }
 
-  await prisma.projectMember.delete({
-    where: {
-      id: member.id,
-    },
-  });
-  return true;
+     await prisma.projectMember.delete({
+          where:{
+               id: member.id
+          },
+     });
+     return true;
 }
 
-/* =========================================================================
-   PROJECT INVITES REPOSITORY METHODS
-   ========================================================================= */
+export async function findPendingProjectInvitations(userId: string){
+     return await prisma.projectMember.findMany({
+          where:{
+               userId, 
+               status: MembershipStatus.PENDING,
+          },
+          include:{
+               project:{
+                    select:{
+                         id: true,
+                         name: true
+                    }}
+          },
+          orderBy:{
+               id: "asc",
+          },
 
-export async function createProjectInvite(data: {
-  projectId: string;
-  email: string;
-  stack?: string;
-  role?: string;
-  invitedById: string;
-}) {
-  const invite = await prisma.projectInvite.create({
-    data: {
-      projectId: data.projectId,
-      email: data.email.toLowerCase().trim(),
-      stack: data.stack?.trim() || "fullstack",
-      role: data.role || "MEMBER",
-      invitedById: data.invitedById,
-      status: "pending",
-    },
-    include: {
-      project: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-      invitedBy: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
-    },
-  });
-
-  return invite;
+     });
 }
 
-export async function findProjectInvites(projectId: string) {
-  return prisma.projectInvite.findMany({
-    where: {
-      projectId,
-      status: "pending",
-    },
-    include: {
-      invitedBy: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+
+export async function findPendingProjectInvitationsByProject(projectId: string) {
+     return await prisma.projectMember.findMany({
+     where: {
+          projectId,
+          status: MembershipStatus.PENDING,
+     },
+     include: {
+          user: {
+          select: {
+               id: true,
+               email: true,
+          },
+          },
+     },
+     orderBy: { id: "asc" },
+     });
 }
 
-export async function findPendingInvitesByEmail(email: string) {
-  return prisma.projectInvite.findMany({
-    where: {
-      email: email.toLowerCase().trim(),
-      status: "pending",
-    },
-    include: {
-      project: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-      invitedBy: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+
+export async function acceptPendingProjectInvitation(projectId: string, userId: string){
+     return await prisma.projectMember.updateMany({
+          where:{
+               projectId,
+               userId,
+               status: MembershipStatus.PENDING,
+          },
+          data:{
+               status: MembershipStatus.ACTIVE,
+          },
+     });
+}
+// just delete the invite in case of decline lmao deleteMany
+export async function declinePendingProjectInvitation(projectId: string, userId: string){
+     return await prisma.projectMember.deleteMany({
+          where:{
+               projectId,
+               userId,
+               status: MembershipStatus.PENDING,
+          },
+     });
 }
 
-export async function findInviteById(inviteId: string) {
-  return prisma.projectInvite.findUnique({
-    where: {
-      id: inviteId,
-    },
-    include: {
-      project: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-      invitedBy: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
-    },
-  });
-}
+export async function transferProjectOwnership(projectId: string, currentOwnerId: string,
+     newOwnerId: string){
 
-export async function updateInviteStatus(inviteId: string, status: string) {
-  return prisma.projectInvite.update({
-    where: { id: inviteId },
-    data: { status },
-  });
-}
+          // we gonna use transaction here cuz both changes are made simultaneously using this
+          // owner is converted to member and desired member is made owner
+          return await prisma.$transaction(async(tx)=>{
+               const targetUpdate = await tx.projectMember.updateMany({
+                    where:{
+                         projectId,
+                         userId: newOwnerId,
+                         role: MemberRole.MEMBER,
+                         status: MembershipStatus.ACTIVE,
+                    },
+                    data:{
+                         role: MemberRole.OWNER,
+                    },
+               });
+               if(targetUpdate.count !== 1){
+                    throw new Error("TARGET_NOT_ACTIVE_MEMBER");
+               }
+               // current requester must still be active owner
+               const ownerUpdate = await tx.projectMember.updateMany({
+                    where: {
+                         projectId,
+                         userId: currentOwnerId,
+                         role: MemberRole.OWNER,
+                         status: MembershipStatus.ACTIVE,
+                         },
+                    data: {
+                         role: MemberRole.MEMBER,
+                         },
+               })
+               if (ownerUpdate.count !== 1) {
+                    throw new Error("NOT_PROJECT_OWNER");
+               }
 
-export async function deleteProjectInvite(inviteId: string) {
-  return prisma.projectInvite.delete({
-    where: { id: inviteId },
-  });
-}
+          });
+     }

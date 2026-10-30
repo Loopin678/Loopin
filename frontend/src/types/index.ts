@@ -13,13 +13,16 @@ export interface Project {
   members?: ProjectMember[];
 }
 
+export type MemberRole = 'OWNER' | 'MEMBER';
+export type MembershipStatus = 'ACTIVE' | 'PENDING';
+
 export interface ProjectMember {
   id: string;
   userId: string;
   projectId: string;
   stack: string;
-  role?: "OWNER" | "MEMBER" | string;
-  status?: "PENDING" | "ACTIVE" | string;
+  role: MemberRole;
+  status: MembershipStatus;
   user?: User;
 }
 

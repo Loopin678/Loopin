@@ -13,9 +13,7 @@ import {
   getProjectMembers,
   addProjectMember,
   removeProjectMember,
-  getProjectInvites,
-  sendProjectInvite,
-  cancelProjectInvite,
+  getOutgoingProjectInvitations,
 } from "../controllers/project-member.controller";
 
 import listRoutes from "./listRoutes";
@@ -23,18 +21,17 @@ import { nestedTaskRoutes } from "./taskRoutes";
 
 const projectRoutes = Router();
 
-// Endpoints accessible by project context (desktop app & readers)
+// Task listing and commits stay open for the desktop app, which has no session token;
+// task creation (inside nestedTaskRoutes) and lists require auth
 projectRoutes.use("/:projectId/tasks", nestedTaskRoutes);
-projectRoutes.use("/:projectId/lists", listRoutes);
+projectRoutes.use("/:projectId/lists", requireAuth, listRoutes);
 projectRoutes.get("/:projectId/commits", getProjectCommits);
 
-// Project members & invites
-projectRoutes.get("/:projectId/members", getProjectMembers);
+// Project members & invites (aliases of /project/member/*; an invite is a PENDING member)
+projectRoutes.get("/:projectId/members", requireAuth, getProjectMembers);
 projectRoutes.post("/:projectId/members", requireAuth, addProjectMember);
 projectRoutes.delete("/:projectId/members/:userId", requireAuth, removeProjectMember);
-projectRoutes.get("/:projectId/invites", requireAuth, getProjectInvites);
-projectRoutes.post("/:projectId/invites", requireAuth, sendProjectInvite);
-projectRoutes.delete("/:projectId/invites/:inviteId", requireAuth, cancelProjectInvite);
+projectRoutes.get("/:projectId/invites", requireAuth, getOutgoingProjectInvitations);
 
 // Protected endpoints requiring authenticated user session
 projectRoutes.get("/", requireAuth, getMyProjects);

@@ -50,6 +50,9 @@ function TaskCard({
   const hash = (task.stack ?? '').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
   const hue = hash % 360;
 
+  const onlineUserIds = useBoardStore(state => state.onlineUserIds);
+  const isAssigneeOnline = task.assigneeId ? onlineUserIds.has(task.assigneeId) : false;
+
   return (
     <div
       ref={setNodeRef}
@@ -109,11 +112,22 @@ function TaskCard({
       {/* Assignee avatar */}
       {task.assigneeId && (
         <div className="mt-3 flex justify-end">
-          <div
-            className="w-6 h-6 rounded-full bg-[#1C2127] border border-[rgba(255,255,255,0.10)] flex items-center justify-center text-[10px] font-bold text-[#8A9099]"
-            title={task.assigneeId}
-          >
-            {task.assigneeId.slice(0, 2).toUpperCase()}
+          <div className="relative">
+            <div
+              className="w-6 h-6 rounded-full bg-[#1C2127] border border-[rgba(255,255,255,0.10)] flex items-center justify-center text-[10px] font-bold text-[#8A9099]"
+              title={task.assigneeId}
+            >
+              {task.assigneeId.slice(0, 2).toUpperCase()}
+            </div>
+            <span
+              className={cn(
+                "absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#161A1F]",
+                isAssigneeOnline
+                  ? "bg-[#5EE6B0] shadow-[0_0_6px_rgba(94,230,176,0.6)]"
+                  : "bg-[#5B616A]"
+              )}
+              title={isAssigneeOnline ? "Assignee online" : "Assignee offline"}
+            />
           </div>
         </div>
       )}
@@ -323,8 +337,23 @@ export function Board() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const { listOrder, tasksById, setBoard, clearBoard, moveTask, addList, updateList, addTask, updateTask, removeTask } =
-    useBoardStore();
+  const {
+    listOrder,
+    tasksById,
+    setBoard,
+    clearBoard,
+    moveTask,
+    addList,
+    updateList,
+    addTask,
+    updateTask,
+    removeTask,
+    onlineUserIds,
+    setPresenceSnapshot,
+    setUserOnline,
+    setUserOffline,
+    clearPresence,
+  } = useBoardStore();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -367,45 +396,70 @@ export function Board() {
     // 2. Connect socket (already authenticated via cookie)
     const socket = connectSocket();
 
+    // The server ignores duplicate joins and just re-sends the presence
+    // snapshot, so it's safe to emit on every mount and every (re)connect.
+    const join = () => socket.emit('join-project', projectId);
+
     const handleConnect = () => {
       setSocketConnected(true);
-      socket.emit('join-project', projectId);
+      join();
+    };
+    const handleDisconnect = () => setSocketConnected(false);
+    const handleError = (data: { message: string }) => {
+      console.warn('Socket error:', data.message);
+    };
+
+    // Board events (handlers must stay idempotent, the store handles that)
+    const handleListCreated = (list: ListWithTasks) => addList(list);
+    const handleListRenamed = (list: ListWithTasks) => updateList(list);
+    const handleTaskCreated = (task: TaskDetail) => addTask(task);
+    const handleTaskUpdated = (task: TaskDetail) => updateTask(task);
+    const handleTaskMoved = (task: TaskDetail) =>
+      moveTask(task.id, task.listId, task.position);
+    const handleTaskDeleted = (deleted: { id: string; listId: string; projectId: string }) =>
+      removeTask(deleted.id, deleted.listId);
+
+    // Presence events
+    const handlePresenceSnapshot = (data: { onlineUserIds: string[] }) => {
+      setPresenceSnapshot(data?.onlineUserIds ?? []);
+    };
+    const handlePresenceOnline = (data: { userId: string }) => {
+      if (data?.userId) setUserOnline(data.userId);
+    };
+    const handlePresenceOffline = (data: { userId: string }) => {
+      if (data?.userId) setUserOffline(data.userId);
     };
 
     socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+    socket.on('error', handleError);
+    socket.on('list:created', handleListCreated);
+    socket.on('list:renamed', handleListRenamed);
+    socket.on('task:created', handleTaskCreated);
+    socket.on('task:updated', handleTaskUpdated);
+    socket.on('task:moved', handleTaskMoved);
+    socket.on('task:deleted', handleTaskDeleted);
+    socket.on('presence:snapshot', handlePresenceSnapshot);
+    socket.on('presence:online', handlePresenceOnline);
+    socket.on('presence:offline', handlePresenceOffline);
 
-    if (socket.connected) {
-      handleConnect();
-    }
-
-    socket.on('disconnect', () => setSocketConnected(false));
-
-    socket.on('error', (data: { message: string }) => {
-      console.warn('Socket error:', data.message);
-    });
-
-    // Socket event handlers (idempotent - handled by store)
-    socket.on('list:created', (list: ListWithTasks) => addList(list));
-    socket.on('list:renamed', (list: ListWithTasks) => updateList(list));
-    socket.on('task:created', (task: TaskDetail) => addTask(task));
-    socket.on('task:updated', (task: TaskDetail) => updateTask(task));
-    socket.on('task:moved', (task: TaskDetail) => {
-      moveTask(task.id, task.listId, task.position);
-    });
-    socket.on('task:deleted', (deleted: { id: string; listId: string; projectId: string }) => {
-      removeTask(deleted.id, deleted.listId);
-    });
+    // Already connected (e.g. navigated here from another page)
+    if (socket.connected) handleConnect();
 
     return () => {
       socket.off('connect', handleConnect);
-      socket.off('disconnect');
-      socket.off('error');
-      socket.off('list:created');
-      socket.off('list:renamed');
-      socket.off('task:created');
-      socket.off('task:updated');
-      socket.off('task:moved');
-      socket.off('task:deleted');
+      socket.off('disconnect', handleDisconnect);
+      socket.off('error', handleError);
+      socket.off('list:created', handleListCreated);
+      socket.off('list:renamed', handleListRenamed);
+      socket.off('task:created', handleTaskCreated);
+      socket.off('task:updated', handleTaskUpdated);
+      socket.off('task:moved', handleTaskMoved);
+      socket.off('task:deleted', handleTaskDeleted);
+      socket.off('presence:snapshot', handlePresenceSnapshot);
+      socket.off('presence:online', handlePresenceOnline);
+      socket.off('presence:offline', handlePresenceOffline);
+      clearPresence();
       clearBoard();
     };
   }, [projectId]);
@@ -553,6 +607,15 @@ export function Board() {
           >
             <Users size={13} />
             <span>Members</span>
+            {onlineUserIds.size > 0 && (
+              <span
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-mono text-[#5EE6B0] bg-[#5EE6B0]/10 border border-[#5EE6B0]/20"
+                title={`${onlineUserIds.size} member${onlineUserIds.size > 1 ? 's' : ''} online`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-[#5EE6B0] animate-pulse" />
+                {onlineUserIds.size}
+              </span>
+            )}
           </Link>
 
           <Link

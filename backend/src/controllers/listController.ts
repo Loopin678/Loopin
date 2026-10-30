@@ -11,10 +11,20 @@ export async function getListsByProject(req: Request, res: Response): Promise<vo
             return;
         }
         
-        const lists = await listService.getListsByProject(projectId);
+        const requesterId = req.user?.id;
+        if (!requesterId) {
+        res.status(401).json({ message: "Authentication required" });
+        return;
+        }
+
+        const lists = await listService.getListsByProject(projectId, requesterId);
 
         res.status(200).json({ lists });
     } catch (error) {
+        if (error instanceof Error && error.message === "FORBIDDEN_NOT_PROJECT_MEMBER") {
+            res.status(403).json({ message: "You are not a member of this project" });
+            return;
+        }
         console.error(error);
         res.status(500).json({ message: "Internal Server Error" });
     }
@@ -35,12 +45,22 @@ export async function createList(req: Request, res: Response): Promise<void> {
         return;
         }
 
-        const list =  await listService.createList({ name, projectId});
+        const requesterId = req.user?.id;
+        if (!requesterId) {
+        res.status(401).json({ message: "Authentication required" });
+        return;
+        }
+
+        const list = await listService.createList({ name, projectId }, requesterId);
 
         getIO().to(`project:${projectId}`).emit("list:created", list);
 
         res.status(201).json({ list });
     } catch (error) {
+        if (error instanceof Error && error.message === "FORBIDDEN_NOT_PROJECT_MEMBER") {
+            res.status(403).json({ message: "You are not a member of this project" });
+            return;
+        }
         if (error instanceof Error && error.message === "A list with this name already exists in this project!") {
             res.status(409).json({ message: error.message });
             return;
@@ -65,12 +85,22 @@ export async function renameList(req: Request, res: Response): Promise<void> {
             return;
         }
 
-        const list = await listService.renameList({ listId, name });
+        const requesterId = req.user?.id;
+        if (!requesterId) {
+        res.status(401).json({ message: "Authentication required" });
+        return;
+        }
+
+        const list = await listService.renameList({ listId, name }, requesterId);
 
         getIO().to(`project:${list.projectId}`).emit("list:renamed", list);
 
         res.status(200).json({ list });
     } catch (error) {
+        if (error instanceof Error && error.message === "FORBIDDEN_NOT_PROJECT_MEMBER") {
+            res.status(403).json({ message: "You are not a member of this project" });
+            return;
+        }
         if (error instanceof Error && error.message === "List not found!") {
         res.status(404).json({ message: error.message });
         return;

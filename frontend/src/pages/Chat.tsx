@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { messagesApi, projectsApi, Message, Project } from '../api/client';
+import { useBoardStore } from '../store/boardStore';
 import { connectSocket } from '../api/socket';
 import { 
   Send, Loader2, Sparkles, Bot, AlertCircle, ArrowLeft, 
@@ -17,6 +18,14 @@ export function Chat() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [project, setProject] = useState<Project | null>(null);
+
+  const {
+    onlineUserIds,
+    setPresenceSnapshot,
+    setUserOnline,
+    setUserOffline,
+    clearPresence,
+  } = useBoardStore();
 
   const [inputText, setInputText] = useState('');
   const [aiTyping, setAiTyping] = useState(false);
@@ -53,9 +62,16 @@ export function Chat() {
     // 3. Setup Socket.IO
     const socket = connectSocket();
 
+    // Guard to ensure we emit join-project only once per project
+    const joinedSet: Set<string> = (socket as any)._joinedProjects ?? new Set<string>();
+    (socket as any)._joinedProjects = joinedSet;
+
     const handleConnect = () => {
       setSocketConnected(true);
-      socket.emit('join-project', projectId);
+      if (!joinedSet.has(projectId)) {
+        socket.emit('join-project', projectId);
+        joinedSet.add(projectId);
+      }
     };
 
     socket.on('connect', handleConnect);
@@ -92,9 +108,23 @@ export function Chat() {
       setTimeout(() => setSendError(''), 4000);
     };
 
+    // Presence handlers
+    const handleSnapshot = (data: { onlineUserIds: string[] }) => {
+      setPresenceSnapshot(data?.onlineUserIds ?? []);
+    };
+    const handleOnline = (data: { userId: string }) => {
+      if (data?.userId) setUserOnline(data.userId);
+    };
+    const handleOffline = (data: { userId: string }) => {
+      if (data?.userId) setUserOffline(data.userId);
+    };
+
     socket.on('new_message', handleNewMessage);
     socket.on('ai_typing', handleAiTyping);
     socket.on('message_error', handleMessageError);
+    socket.on('presence:snapshot', handleSnapshot);
+    socket.on('presence:online', handleOnline);
+    socket.on('presence:offline', handleOffline);
 
     return () => {
       socket.off('connect', handleConnect);
@@ -102,6 +132,10 @@ export function Chat() {
       socket.off('new_message', handleNewMessage);
       socket.off('ai_typing', handleAiTyping);
       socket.off('message_error', handleMessageError);
+      socket.off('presence:snapshot', handleSnapshot);
+      socket.off('presence:online', handleOnline);
+      socket.off('presence:offline', handleOffline);
+      clearPresence();
     };
   }, [projectId]);
 
@@ -218,6 +252,15 @@ export function Chat() {
           >
             <Users size={13} />
             <span>Members</span>
+            {onlineUserIds.size > 0 && (
+              <span
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-mono text-[#5EE6B0] bg-[#5EE6B0]/10 border border-[#5EE6B0]/20"
+                title={`${onlineUserIds.size} member${onlineUserIds.size > 1 ? 's' : ''} online`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-[#5EE6B0] animate-pulse" />
+                {onlineUserIds.size}
+              </span>
+            )}
           </Link>
         </div>
       </div>
@@ -253,18 +296,31 @@ export function Chat() {
                   isMe ? 'ml-auto flex-row-reverse' : 'mr-auto'
                 )}
               >
-                {/* Avatar */}
-                <div
-                  className={cn(
-                    'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5',
-                    isAi
-                      ? 'bg-[#7C7FE8]/20 border border-[#7C7FE8]/40 text-[#A78BFA]'
-                      : isMe
-                      ? 'bg-[#5EE6B0]/20 border border-[#5EE6B0]/30 text-[#5EE6B0]'
-                      : 'bg-[#1C2127] border border-[rgba(255,255,255,0.08)] text-[#8A9099]'
+                {/* Avatar with presence */}
+                <div className="relative shrink-0 mt-0.5">
+                  <div
+                    className={cn(
+                      'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold',
+                      isAi
+                        ? 'bg-[#7C7FE8]/20 border border-[#7C7FE8]/40 text-[#A78BFA]'
+                        : isMe
+                        ? 'bg-[#5EE6B0]/20 border border-[#5EE6B0]/30 text-[#5EE6B0]'
+                        : 'bg-[#1C2127] border border-[rgba(255,255,255,0.08)] text-[#8A9099]'
+                    )}
+                  >
+                    {isAi ? <Bot size={14} /> : (msg.sender?.name || 'U').charAt(0).toUpperCase()}
+                  </div>
+                  {!isAi && (
+                    <span
+                      className={cn(
+                        "absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#0B0D10]",
+                        (onlineUserIds.has(msg.senderId) || (msg.sender?.id ? onlineUserIds.has(msg.sender.id) : false))
+                          ? "bg-[#5EE6B0]"
+                          : "bg-[#5B616A]"
+                      )}
+                      title={(onlineUserIds.has(msg.senderId) || (msg.sender?.id ? onlineUserIds.has(msg.sender.id) : false)) ? "Online" : "Offline"}
+                    />
                   )}
-                >
-                  {isAi ? <Bot size={14} /> : (msg.sender?.name || 'U').charAt(0).toUpperCase()}
                 </div>
 
                 {/* Message Content */}

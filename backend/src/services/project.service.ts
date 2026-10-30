@@ -1,9 +1,10 @@
 import { createProject, findProjectById, findProjectsByUserId
      ,updateProject, deleteProject } from "../repositories/project.repository";
 
-import { createProjectMember } from "../repositories/project-member.repository";   
+import { createProjectMember, findProjectMembers } from "../repositories/project-member.repository";
 import { listRepository } from "../repositories/listRepository";
 import { MemberRole, MembershipStatus } from "@prisma/client";
+import { assertActiveMember, assertProjectOwner } from "./access.service";
 
 export async function createProjectService(data:{ name: string,
   userId: string;
@@ -40,7 +41,8 @@ export async function createProjectService(data:{ name: string,
      return project;
 }
 
-export async function getProjectByIdService(projectId: string){
+export async function getProjectByIdService(projectId: string, requesterId: string){
+     await assertActiveMember(projectId, requesterId);
      const project = await findProjectById(projectId);
 
      if(!project){
@@ -61,7 +63,9 @@ export async function getProjectsByUserIdService(userId: string){
 
 
 
-export async function updateProjectService(projectId: string,data: {name?: string;}){
+export async function updateProjectService(projectId: string, requesterId: string, data: {name?: string;}){
+
+  await assertProjectOwner(projectId, requesterId);
 
   const existingProject = await findProjectById(projectId);
 
@@ -80,12 +84,19 @@ export async function updateProjectService(projectId: string,data: {name?: strin
 
 
 
-export async function deleteProjectService(projectId: string) {
+export async function deleteProjectService(projectId: string, requesterId: string) {
+  await assertProjectOwner(projectId, requesterId);
+
   const existingProject = await findProjectById(projectId);
 
   if (!existingProject) {
     throw new Error("Project not found or Doesnt exist");
   }
 
+    // Capture who to notify before the delete wipes the member rows
+  const members = await findProjectMembers(projectId);
+
   await deleteProject(projectId);
+
+  return { id: existingProject.id, memberIds: members.map((m) => m.userId) };
 }

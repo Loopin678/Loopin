@@ -115,26 +115,78 @@ async function updateTask(data: UpdateTaskInput): Promise<TaskDetail> {
 }
 
 async function moveTask(data: MoveTaskInput): Promise<MovedTask> {
-    const task = await prisma.task.update({
-        where: { id: data.taskId },
-        data : {
-            listId: data.newListId,
-            position: data.newPosition
-        },
-        select: {
-            id: true,
-            title: true,
-            position: true,
-            stack: true,
-            priority: true,
-            dueDate: true,
-            assigneeId: true,
-            listId: true,
-            projectId: true
+    // Everything runs in one transaction, so a failure halfway through can't
+    // leave a list half-renumbered
+    return prisma.$transaction(async (tx) => {
+        const current = await tx.task.findUnique({
+            where: { id: data.taskId },
+            select: { listId: true }
+        });
+
+        if (!current) {
+            throw new Error('Task not found!');
         }
+
+        // Destination list in its current order, without the task being moved.
+        // createdAt breaks ties in lists that already contain duplicate positions.
+        const destTasks = await tx.task.findMany({
+            where: { listId: data.newListId, id: { not: data.taskId } },
+            orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+            select: { id: true, position: true }
+        });
+
+        const order = destTasks.map((t) => t.id);
+        const oldPositions = new Map(destTasks.map((t) => [t.id, t.position]));
+
+        // Clamp to a valid slot: 0 .. number of tasks already in the list
+        const index = Number.isFinite(data.newPosition)
+            ? Math.max(0, Math.min(Math.trunc(data.newPosition), order.length))
+            : order.length;
+
+        order.splice(index, 0, data.taskId);
+
+        // Rewrite positions 0..n-1 for the destination list
+        for (const [i, id] of order.entries()) {
+            if (id === data.taskId) {
+                await tx.task.update({
+                    where: { id },
+                    data: { listId: data.newListId, position: i }
+                });
+            } else if (oldPositions.get(id) !== i) {
+                await tx.task.update({ where: { id }, data: { position: i } });
+            }
+        }
+
+        // Moved to a different list: close the gap it left behind
+        if (current.listId !== data.newListId) {
+            const sourceTasks = await tx.task.findMany({
+                where: { listId: current.listId },
+                orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+                select: { id: true, position: true }
+            });
+
+            for (const [i, t] of sourceTasks.entries()) {
+                if (t.position !== i) {
+                    await tx.task.update({ where: { id: t.id }, data: { position: i } });
+                }
+            }
+        }
+
+        return tx.task.findUniqueOrThrow({
+            where: { id: data.taskId },
+            select: {
+                id: true,
+                title: true,
+                position: true,
+                stack: true,
+                priority: true,
+                dueDate: true,
+                assigneeId: true,
+                listId: true,
+                projectId: true
+            }
+        });
     });
-    
-    return task;
 }
 
 async function deleteTask(taskId: string): Promise<DeletedTask> {

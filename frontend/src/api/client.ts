@@ -347,7 +347,22 @@ apiClient.interceptors.response.use(
   }
 );
 
-export type { User, Project, ProjectMember, List, Task, Commit, ProjectInvite } from '../types';
+// ─── Types (shared with src/types) ──────────────────────────────────────────
+import type { MemberRole } from '../types';
+export type { User, Project, ProjectMember, MemberRole, MembershipStatus, List, Task, Commit, ProjectInvite } from '../types';
+
+export interface PendingInvitation {
+  id: string;
+  userId: string;
+  projectId: string;
+  stack: string;
+  role: MemberRole;
+  status: 'PENDING';
+  project: {
+    id: string;
+    name: string;
+  };
+}
 
 export interface TaskSummary {
   id: string;
@@ -434,14 +449,34 @@ export const projectsApi = {
     await apiClient.delete(`/projects/${projectId}`),
 };
 
+// GET    /api/project/member/:projectId/invites  (OWNER only) → 200 { invitations: OutgoingInvitation[] }
+export interface OutgoingInvitation {
+  id: string;
+  userId: string;
+  projectId: string;
+  stack: string;
+  role: MemberRole;
+  status: 'PENDING';
+  user: {
+    id: string;
+    email: string;
+  };
+}
+
 // ─── Project Members ──────────────────────────────────────────────────────────
-// POST   /api/project/member/:projectId              { userId, stack }  → 201 { member }
-// GET    /api/project/member/:projectId                                  → 200 { members: ProjectMember[] }
+// POST   /api/project/member/:projectId              { email, stack }   → 201 { member }  (creates PENDING invite)
+// GET    /api/project/member/:projectId                                  → 200 { members: ProjectMember[] }  (ACTIVE only)
 // GET    /api/project/member/:projectId/:userId                          → 200 { member }
 // DELETE /api/project/member/:projectId/:userId                          → 204
 // GET    /api/project/member/user/:userId                                → 200 { memberships }
+// GET    /api/project/member/invites                                     → 200 { invitations: PendingInvitation[] }  (incoming — current user)
+// GET    /api/project/member/:projectId/invites                          → 200 { invitations: OutgoingInvitation[] } (outgoing — owner only)
+// POST   /api/project/member/:projectId/accept                          → 200 { message }
+// POST   /api/project/member/:projectId/decline                         → 200 { message }
+// PATCH  /api/project/member/:projectId/transfer-owner { newOwnerId }   → 200 { message }
 export const membersApi = {
-  add: async (projectId: string, data: { userId: string; stack: string }) =>
+  // Invite by email — creates a PENDING membership record
+  invite: async (projectId: string, data: { email: string; stack: string }) =>
     (await apiClient.post<{ member: ProjectMember }>(`/project/member/${projectId}`, data)).data.member,
 
   list: async (projectId: string) =>
@@ -455,6 +490,23 @@ export const membersApi = {
 
   membershipsByUser: async (userId: string) =>
     (await apiClient.get(`/project/member/user/${userId}`)).data.memberships,
+
+  // Incoming: pending invitations for the currently authenticated user (User B perspective)
+  getMyInvitations: async () =>
+    (await apiClient.get<{ invitations: PendingInvitation[] }>(`/project/member/invites`)).data.invitations,
+
+  // Outgoing: pending invitations sent for a specific project (Owner/User A perspective)
+  getOutgoingInvitations: async (projectId: string) =>
+    (await apiClient.get<{ invitations: OutgoingInvitation[] }>(`/project/member/${projectId}/invites`)).data.invitations,
+
+  accept: async (projectId: string) =>
+    (await apiClient.post<{ message: string }>(`/project/member/${projectId}/accept`)).data,
+
+  decline: async (projectId: string) =>
+    (await apiClient.post<{ message: string }>(`/project/member/${projectId}/decline`)).data,
+
+  transferOwnership: async (projectId: string, newOwnerId: string) =>
+    (await apiClient.patch<{ message: string }>(`/project/member/${projectId}/transfer-owner`, { newOwnerId })).data,
 };
 
 // ─── Lists ────────────────────────────────────────────────────────────────────

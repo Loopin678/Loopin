@@ -1,4 +1,4 @@
-import {prisma } from "../library/prisma"
+import {prisma } from "../library/prisma.js"
 
 
 export async function createProject(data: {name: string;}){
@@ -38,6 +38,7 @@ export async function findProjectsByUserId(userId: string){
       members:{
         some:{
           userId,
+          status: "ACTIVE",
         },
       },
     },
