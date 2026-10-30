@@ -58,9 +58,22 @@ if [ -z "${QMAKE:-}" ]; then
     export QMAKE
 fi
 
+# Qt loads OpenSSL with dlopen(), so linuxdeploy never sees libssl. libgit2
+# drags in this machine's libcrypto, and pairing it with the user's (newer)
+# system libssl fails: "Failed to load libssl/libcrypto", i.e. no HTTPS at all
+# (GitHub sign-in, AI providers). Bundle the matching libssl explicitly.
+LIBSSL="$(ldconfig -p | awk '/libssl\.so\.3 .*x86-64/ {print $NF; exit}')"
+if [ -z "$LIBSSL" ]; then
+    echo "error: libssl.so.3 not found on the build machine" >&2
+    exit 1
+fi
+LIBCRYPTO="$(dirname "$LIBSSL")/libcrypto.so.3"
+
 cd "$WORK_DIR"
 "$TOOLS_DIR/linuxdeploy-x86_64.AppImage" \
     --appdir "$WORK_DIR/AppDir" \
+    --library "$LIBSSL" \
+    --library "$LIBCRYPTO" \
     --executable "$WORK_DIR/AppDir/usr/bin/loopin_desktop" \
     --desktop-file "$WORK_DIR/AppDir/usr/share/applications/loopin.desktop" \
     --icon-file "$DESKTOP_DIR/packaging/loopin.png" \
