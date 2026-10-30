@@ -80,7 +80,7 @@ export interface Task {
   commitId?: string | null;
   priority?: "low" | "medium" | "high" | string | null;
   dueDate?: string | null;
-  assignee?: { id: string; name: string; email: string } | null;
+  assignee?: { id: string; name: string; username: string | null } | null;
   assigneeAvatar?: string;
   tags?: string[];
   createdAt: string;

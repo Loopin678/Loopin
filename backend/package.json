@@ -6,7 +6,10 @@
     "dev": "nodemon --exec tsx src/index.ts",
     "build": "prisma generate && tsc",
     "start": "node dist/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:db": "scripts/test-db.sh start"
   },
   "keywords": [],
   "author": "",
@@ -34,11 +37,16 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.2.0",
     "@types/pg": "^8.23.1",
+    "@types/supertest": "^7.2.1",
+    "@vitest/coverage-v8": "^5.0.5",
     "nodemon": "^3.1.14",
     "prisma": "^5.22.0",
+    "socket.io-client": "^4.8.4",
+    "supertest": "^7.3.1",
     "ts-node": "^10.9.2",
     "tsx": "^4.23.13",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^5.0.5"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"

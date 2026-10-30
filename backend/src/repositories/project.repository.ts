@@ -106,6 +106,17 @@ export async function updateProject(projectId: string,data:{name?: string}){
 }
 
 
+// The foreign keys to Project are ON DELETE RESTRICT, so deleting only the project
+// row always failed. Remove its contents first, children before parents, in one
+// transaction so a failure leaves the project intact.
 export async function deleteProject(projectId: string){
-    await prisma.project.delete({where:{ id: projectId}});
+    await prisma.$transaction([
+        prisma.mention.deleteMany({ where: { message: { projectId } } }),
+        prisma.message.deleteMany({ where: { projectId } }),
+        prisma.task.deleteMany({ where: { projectId } }),
+        prisma.commit.deleteMany({ where: { projectId } }),
+        prisma.list.deleteMany({ where: { projectId } }),
+        prisma.projectMember.deleteMany({ where: { projectId } }),
+        prisma.project.delete({ where: { id: projectId } }),
+    ]);
 }

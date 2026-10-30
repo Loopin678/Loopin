@@ -162,21 +162,8 @@ export async function transferProjectOwnership(projectId: string, currentOwnerId
           // we gonna use transaction here cuz both changes are made simultaneously using this
           // owner is converted to member and desired member is made owner
           return await prisma.$transaction(async(tx)=>{
-               const targetUpdate = await tx.projectMember.updateMany({
-                    where:{
-                         projectId,
-                         userId: newOwnerId,
-                         role: MemberRole.MEMBER,
-                         status: MembershipStatus.ACTIVE,
-                    },
-                    data:{
-                         role: MemberRole.OWNER,
-                    },
-               });
-               if(targetUpdate.count !== 1){
-                    throw new Error("TARGET_NOT_ACTIVE_MEMBER");
-               }
-               // current requester must still be active owner
+               // Check the requester first, so a non-owner gets "not the owner"
+               // rather than an error about the target. Any failure rolls back both.
                const ownerUpdate = await tx.projectMember.updateMany({
                     where: {
                          projectId,
@@ -190,6 +177,21 @@ export async function transferProjectOwnership(projectId: string, currentOwnerId
                })
                if (ownerUpdate.count !== 1) {
                     throw new Error("NOT_PROJECT_OWNER");
+               }
+
+               const targetUpdate = await tx.projectMember.updateMany({
+                    where:{
+                         projectId,
+                         userId: newOwnerId,
+                         role: MemberRole.MEMBER,
+                         status: MembershipStatus.ACTIVE,
+                    },
+                    data:{
+                         role: MemberRole.OWNER,
+                    },
+               });
+               if(targetUpdate.count !== 1){
+                    throw new Error("TARGET_NOT_ACTIVE_MEMBER");
                }
 
           });

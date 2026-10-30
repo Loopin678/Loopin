@@ -55,7 +55,7 @@ async function getTaskDetail(taskId: string): Promise<TaskDetail> {
                 select: {
                     id: true,
                     name: true,
-                    email: true
+                    username: true
                 }
             },
             createdAt: true,
@@ -98,7 +98,7 @@ async function updateTask(data: UpdateTaskInput): Promise<TaskDetail> {
           select: {
             id: true,
             name: true,
-            email: true
+            username: true
           }
         },
         createdAt: true,
@@ -223,7 +223,7 @@ async function getTasksByProjectId(projectId: string): Promise<TaskDetail[]> {
                 select: {
                     id: true,
                     name: true,
-                    email: true
+                    username: true
                 }
             },
             createdAt: true,

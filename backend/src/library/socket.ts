@@ -1,6 +1,7 @@
 import { Server as SocketIOServer} from "socket.io";
 import { Server as HTTPServer} from "http";
 import jwt from "jsonwebtoken";
+import { JWT_SECRET } from "./auth";
 import { findProjectMember } from "../repositories/project-member.repository";
 import { registerMessageHandlers } from "../Sockets/message.socket";
 import { applySocketRateLimit } from "./socketRateLimit";
@@ -83,7 +84,7 @@ export function initSocket(httpServer: HTTPServer): SocketIOServer {
         }
 
         try {
-            const payload = jwt.verify(token, process.env.JWT_SECRET!);
+            const payload = jwt.verify(token, JWT_SECRET)  // same secret (and fallback) as the HTTP API;
 
             if (!isAuthPayload(payload)) {
                 return next(new Error("Invalid authentication token"));

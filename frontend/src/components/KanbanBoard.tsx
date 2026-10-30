@@ -331,7 +331,7 @@ export function KanbanBoard({
         title: task.title,
         priority,
         description: task.description || undefined,
-        assignee: task.assignee?.name || task.assignee?.email || undefined,
+        assignee: task.assignee?.name || task.assignee?.username || undefined,
         assigneeAvatar: task.assigneeAvatar,
         dueDate: task.dueDate || undefined,
         stack: task.stack || undefined,

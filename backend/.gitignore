@@ -3,3 +3,7 @@ node_modules
 .env
 
 /generated/prisma
+
+# Throwaway test database and coverage output
+.test-db/
+coverage/
