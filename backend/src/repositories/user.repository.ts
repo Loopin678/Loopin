@@ -8,6 +8,9 @@ export async function createUser(data:{
     email: string;
     password?: string;
     googleId?: string;
+    githubId?: string;
+    githubUsername?: string;
+    githubUrl?: string;
 })
 {
     
@@ -36,6 +39,13 @@ export async function findUserById(userId: string){
 export async function findUserByGoogleId(googleId: string){
     const user = await prisma.user.findUnique({where: { googleId }});
 
+    return user;
+}
+
+export async function findUserByGithubId(githubId: string){
+    const user = await prisma.user.findUnique({
+        where: {githubId},
+    })
     return user;
 }
 
