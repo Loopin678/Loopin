@@ -14,6 +14,16 @@ ApiClient::ApiClient(QObject* parent) : QObject(parent), m_backendUrl(QStringLit
     if (!envKey.isEmpty()) {
         m_geminiApiKey = envKey;
     }
+    // Without a timeout a request to an unreachable backend or AI provider can hang forever
+    m_nam.setTransferTimeout(120000);
+}
+
+QString ApiClient::backendErrorText(QNetworkReply* reply, const QString& what) {
+    const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    const QString serverMsg = QJsonDocument::fromJson(reply->readAll()).object().value("message").toString();
+    QString text = what + ": " + (serverMsg.isEmpty() ? reply->errorString() : serverMsg);
+    if (status == 0) text += " (is the backend running at the URL in Settings?)";
+    return text;
 }
 
 void ApiClient::setAiProvider(const QString& p) {
@@ -53,9 +63,12 @@ void ApiClient::setUserId(const QString& u) {
 }
 
 void ApiClient::fetchTasks() {
-    if (m_projectId.isEmpty()) return;
+    if (m_projectId.trimmed().isEmpty()) {
+        emit tasksReady(QJsonArray());
+        return;
+    }
 
-    QString urlStr = QString("%1/api/projects/%2/tasks").arg(m_backendUrl, m_projectId);
+    QString urlStr = QString("%1/api/projects/%2/tasks").arg(m_backendUrl, m_projectId.trimmed());
     QNetworkRequest req((QUrl(urlStr)));
     QNetworkReply* reply = m_nam.get(req);
 
@@ -68,14 +81,16 @@ void ApiClient::fetchTasks() {
             } else if (doc.isObject() && doc.object().contains("tasks") && doc.object().value("tasks").isArray()) {
                 emit tasksReady(doc.object().value("tasks").toArray());
             }
+        } else {
+            emit backendError(backendErrorText(reply, "Could not load tasks"));
         }
     });
 }
 
 void ApiClient::fetchProjectCommits() {
-    if (m_projectId.isEmpty()) return;
+    if (m_projectId.trimmed().isEmpty()) return;
 
-    QNetworkRequest req(QUrl(m_backendUrl + "/api/projects/" + m_projectId + "/commits"));
+    QNetworkRequest req(QUrl(m_backendUrl + "/api/projects/" + m_projectId.trimmed() + "/commits"));
     QNetworkReply* reply = m_nam.get(req);
 
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
@@ -87,12 +102,19 @@ void ApiClient::fetchProjectCommits() {
             } else if (doc.isObject() && doc.object().contains("commits") && doc.object().value("commits").isArray()) {
                 emit projectCommitsReady(doc.object().value("commits").toArray());
             }
+        } else {
+            emit backendError(backendErrorText(reply, "Could not load linked commits"));
         }
     });
 }
 
 void ApiClient::reportCommit(const QString& commitSha, const QString& message, const QStringList& taskIds) {
-    if (m_projectId.isEmpty() || m_userId.isEmpty()) return;
+    // Used to return silently here, so linking "did nothing" with no explanation
+    if (m_projectId.trimmed().isEmpty() || m_userId.trimmed().isEmpty()) {
+        if (!taskIds.isEmpty())
+            emit backendError("Set your Loopin Project ID and User ID in Settings to link commits to tasks.");
+        return;
+    }
 
     QNetworkRequest req(QUrl(m_backendUrl + "/api/commits"));
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -100,24 +122,38 @@ void ApiClient::reportCommit(const QString& commitSha, const QString& message, c
     QJsonObject body;
     body["sha"] = commitSha;
     body["message"] = message;
-    body["projectId"] = m_projectId;
-    body["authorId"] = m_userId;
-    if (!taskIds.isEmpty()) {
-        QJsonArray idsArray;
-        for (const QString& id : taskIds) {
-            idsArray.append(id);
-        }
-        body["taskIds"] = idsArray;
+    body["projectId"] = m_projectId.trimmed();
+    body["authorId"] = m_userId.trimmed();
+    // Always send the array: it is the complete set of tasks for this commit,
+    // so an empty list unlinks everything
+    QJsonArray idsArray;
+    for (const QString& id : taskIds) {
+        idsArray.append(id);
     }
+    body["taskIds"] = idsArray;
 
     QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson());
     connect(reply, &QNetworkReply::finished, this, [this, reply, commitSha]() {
         reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit backendError(backendErrorText(reply, "Linking commit " + commitSha.left(7) + " failed"));
+            return;
+        }
         emit commitReported(commitSha);
     });
 }
 
-void ApiClient::requestCommitGroups(const QJsonArray& changes, const QString& taskId) {
+void ApiClient::requestCommitGroups(const QJsonArray& allChanges, const QString& taskId) {
+    // Only files the user left selected may end up in a proposed commit
+    QJsonArray changes;
+    for (const QJsonValue& v : allChanges) {
+        if (v.toObject().value("selected").toBool(true)) changes.append(v);
+    }
+    if (changes.isEmpty()) {
+        QTimer::singleShot(0, this, [this]() { emit requestFailed("No files are selected."); });
+        return;
+    }
+
     if (m_aiProvider == "gemini") {
         if (m_geminiApiKey.isEmpty()) {
             emit requestFailed("Gemini API key is not configured in settings.");
@@ -554,7 +590,10 @@ void ApiClient::requestMergeResolution(const QString& filePath, const QString& f
 
         QJsonObject body;
         body["model"] = (m_aiProvider == "openrouter") ? "google/gemini-2.5-flash" : "qwen2.5-coder:1.5b";
-        
+        // Without this Ollama streams NDJSON, the parse below yields "" and the
+        // conflicted file would be overwritten with nothing
+        body["stream"] = false;
+
         QJsonArray messages;
         QJsonObject sysMsg;
         sysMsg["role"] = "system";
@@ -594,6 +633,10 @@ void ApiClient::requestMergeResolution(const QString& filePath, const QString& f
                 text = text.mid(text.indexOf("\n") + 1);
                 if (text.endsWith("```")) text = text.chopped(3);
                 if (text.endsWith("```\n")) text = text.chopped(4);
+            }
+            if (text.trimmed().isEmpty()) {
+                emit requestFailed("AI returned an empty response for merge resolution.");
+                return;
             }
             emit mergeResolutionReady(filePath, text);
         });

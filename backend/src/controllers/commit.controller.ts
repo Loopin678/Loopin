@@ -25,6 +25,14 @@ export async function reportCommit(req: Request, res: Response): Promise<void> {
       res.status(400).json({ message: "Missing required fields: sha, message, projectId, authorId" });
       return;
     }
+    if (typeof sha !== "string" || !/^[0-9a-f]{7,64}$/i.test(sha)) {
+      res.status(400).json({ message: "sha must be a git commit hash" });
+      return;
+    }
+    if (taskIds !== undefined && (!Array.isArray(taskIds) || !taskIds.every((t: unknown) => typeof t === "string"))) {
+      res.status(400).json({ message: "taskIds must be an array of task ids" });
+      return;
+    }
 
     const commit = await commitService.reportCommit({
       sha,
@@ -36,6 +44,14 @@ export async function reportCommit(req: Request, res: Response): Promise<void> {
 
     res.status(201).json(commit);
   } catch (error) {
+    if (error instanceof Error && error.message === "AUTHOR_NOT_PROJECT_MEMBER") {
+      res.status(403).json({ message: "User ID is not an active member of this project. Check Project ID and User ID in Settings." });
+      return;
+    }
+    if (error instanceof Error && error.message === "COMMIT_IN_OTHER_PROJECT") {
+      res.status(409).json({ message: "This commit is already recorded under a different project" });
+      return;
+    }
     console.error("Error reporting commit:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }

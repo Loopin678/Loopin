@@ -51,6 +51,29 @@ Item {
         root.api.requestMergeResolution(filePath, content, root.currentMergePreference)
     }
 
+    // "Keep mine/theirs" is mechanical, so use git directly instead of asking the AI
+    function resolveAllWithSide(files, keepOurs) {
+        for (var i = 0; i < files.length; i++) {
+            if (!root.repo.resolveConflictWithSide(files[i], keepOurs)) {
+                root.repo.abortMerge()
+                return
+            }
+        }
+        var ok = root.repo.commitResolvedMerge()
+        if (ok) showStatus("Merge resolved (" + (keepOurs ? "kept my changes" : "kept their changes") + ") and committed", false)
+    }
+
+    // Task ids linked to a commit. Older desktop builds stored 7-char SHAs.
+    function linkedTaskIds(fullSha) {
+        var map = window.linkedCommits || {}
+        return map[fullSha] || map[fullSha.substring(0, 7)] || []
+    }
+
+    function showStatus(message, isError) {
+        root.opsStatus = message
+        root.opsIsError = isError
+    }
+
     function refreshUnpushed() {
         if (root.repo.isOpen && root.repo.remotes.length > 0)
             root.unpushedShas = root.repo.unpushedCommitShas(remotePicker.currentText)
@@ -104,6 +127,11 @@ Item {
             mergeConflictDialog.conflictedFiles = files
             mergeConflictDialog.open()
         }
+        // Every git failure reports its details here; nothing listened before,
+        // so failed pushes/checkouts showed no reason at all
+        function onErrorOccurred(errorMessage) {
+            showStatus(errorMessage, true)
+        }
     }
 
     Connections {
@@ -134,9 +162,17 @@ Item {
             if (root.mergeResolveBusy) {
                 root.mergeResolveBusy = false
                 root.repo.abortMerge()
+                errorString += "\nThe merge was aborted; your branch is unchanged."
             }
-            root.opsStatus = "AI Request Failed: " + errorString
-            root.opsIsError = true
+            showStatus("AI request failed: " + errorString, true)
+        }
+        function onBackendError(errorString) {
+            showStatus(errorString, true)
+            // Drop optimistic task links that the server did not accept
+            if (root.api.projectId !== "") root.api.fetchProjectCommits()
+        }
+        function onCommitReported(sha) {
+            showStatus("Task links saved for " + sha.substring(0, 7), false)
         }
     }
 
@@ -274,21 +310,15 @@ Item {
                             Button {
                                 text: "Keep My Changes"
                                 onClicked: {
-                                    root.currentMergePreference = "Keep the changes from my current branch and discard the incoming changes from the other branch."
-                                    root.pendingConflicts = mergeConflictDialog.conflictedFiles.slice()
-                                    root.mergeResolveBusy = true
                                     mergeConflictDialog.close()
-                                    root.resolveNextConflict()
+                                    root.resolveAllWithSide(mergeConflictDialog.conflictedFiles, true)
                                 }
                             }
                             Button {
                                 text: "Keep Their Changes"
                                 onClicked: {
-                                    root.currentMergePreference = "Keep the incoming changes from the other branch and discard my changes."
-                                    root.pendingConflicts = mergeConflictDialog.conflictedFiles.slice()
-                                    root.mergeResolveBusy = true
                                     mergeConflictDialog.close()
-                                    root.resolveNextConflict()
+                                    root.resolveAllWithSide(mergeConflictDialog.conflictedFiles, false)
                                 }
                             }
                             Button {
@@ -380,22 +410,21 @@ Item {
 
                 Button {
                     text: "Delete..."
-                    enabled: root.repo.isOpen && root.repo.branches.length > 1
+                    enabled: root.repo.isOpen && root.repo.localBranches.length > 1
                     onClicked: deleteMenu.open()
                     
                     Menu {
                         id: deleteMenu
                         y: parent.height
                         Instantiator {
-                            model: root.repo.isOpen ? root.repo.branches : []
+                            // Remote branches (origin/x) can't be deleted with `git branch -d`
+                            model: root.repo.isOpen ? root.repo.localBranches : []
                             MenuItem {
                                 text: modelData
                                 visible: modelData !== root.repo.currentBranchName
                                 onClicked: {
-                                    var ok = root.repo.deleteBranch(modelData)
-                                    root.opsStatus = ok ? "Deleted branch " + modelData : "Failed to delete branch"
-                                    root.opsIsError = !ok
-                                    if (ok) refreshAll()
+                                    deleteBranchConfirm.branchName = modelData
+                                    deleteBranchConfirm.open()
                                 }
                             }
                             onObjectAdded: function(index, object) { deleteMenu.insertItem(index, object) }
@@ -428,12 +457,23 @@ Item {
                     onCurrentTextChanged: refreshUnpushed()
                 }
 
-                // Status
+                // Status (first line; hover or click for the full message)
                 Text {
-                    text: root.opsStatus
+                    text: root.opsStatus.split("\n")[0]
                     color: root.opsIsError ? Theme.danger : Theme.success
                     font.pixelSize: 11; font.bold: true
-                    visible: text.length > 0
+                    visible: root.opsStatus.length > 0
+                    elide: Text.ElideRight
+                    Layout.maximumWidth: 280
+                    MouseArea {
+                        id: statusMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: statusDetailsDialog.open()
+                    }
+                    ToolTip.visible: statusMouse.containsMouse
+                    ToolTip.text: root.opsStatus
                 }
 
                 Button {
@@ -751,13 +791,14 @@ Item {
                         spacing: 8
 
                         delegate: Rectangle {
+                            id: historyRow
                             width: ListView.view.width - 4; x: 2
                             height: 60
                             radius: 6
                             border.color: Theme.border
                             border.width: 1
 
-                            property bool isUnpushed: root.unpushedShas.indexOf(modelData.sha) >= 0
+                            property bool isUnpushed: root.unpushedShas.indexOf(modelData.fullSha) >= 0
 
                             color: isUnpushed
                                 ? (Theme.dark ? "#2d1618" : "#ffebe9")
@@ -780,7 +821,8 @@ Item {
                                     if (mouse.button === Qt.LeftButton) {
                                         commitDetailsDialog.showCommit(modelData.sha, modelData.message)
                                     } else if (mouse.button === Qt.RightButton) {
-                                        commitContextMenu.sha = modelData.sha
+                                        commitContextMenu.sha = modelData.fullSha
+                                        commitContextMenu.message = modelData.message
                                         commitContextMenu.isUnpushed = parent.isUnpushed
                                         commitContextMenu.popup()
                                     }
@@ -800,8 +842,8 @@ Item {
 
                                     Rectangle {
                                         width: statusLabel.implicitWidth + 12; height: 18; radius: 3
-                                        color: parent.parent.isUnpushed ? Theme.danger : Theme.success
-                                        Text { id: statusLabel; anchors.centerIn: parent; text: parent.parent.parent.isUnpushed ? "local" : "pushed"; color: "white"; font.pixelSize: 9; font.bold: true }
+                                        color: historyRow.isUnpushed ? Theme.danger : Theme.success
+                                        Text { id: statusLabel; anchors.centerIn: parent; text: historyRow.isUnpushed ? "local" : "pushed"; color: "white"; font.pixelSize: 9; font.bold: true }
                                     }
 
                                     ColumnLayout {
@@ -809,7 +851,7 @@ Item {
                                         Text { text: modelData.message; color: Theme.textPrimary; elide: Text.ElideRight; font.pixelSize: 13; Layout.fillWidth: true }
                                         Text { 
                                             text: {
-                                                var tIds = window.linkedCommits[modelData.sha]
+                                                var tIds = root.linkedTaskIds(modelData.fullSha)
                                                 if (!tIds || tIds.length === 0) return ""
                                                 var titles = []
                                                 for (var k = 0; k < tIds.length; k++) {
@@ -866,7 +908,7 @@ Item {
                                     refreshAll()
                                 } else {
                                     stashStatus.text = "Failed to pop stash (likely due to merge conflicts)."
-                                    stashStatus.color = Theme.error
+                                    stashStatus.color = Theme.danger
                                 }
                             }
                             ToolTip.visible: hovered
@@ -896,7 +938,7 @@ Item {
                                     refreshAll()
                                 } else {
                                     stashStatus.text = "Failed to stash changes."
-                                    stashStatus.color = Theme.error
+                                    stashStatus.color = Theme.danger
                                 }
                             }
                         }
@@ -1106,7 +1148,7 @@ Item {
                                         onEditingFinished: root.api.geminiApiKey = text
                                     }
                                     Text {
-                                        text: "Stored safely in your local Windows Registry."
+                                        text: "Stored unencrypted in this app's local settings."
                                         color: Theme.textSecondary; font.pixelSize: 11
                                     }
                                 }
@@ -1124,7 +1166,7 @@ Item {
                                         onEditingFinished: root.api.openRouterApiKey = text
                                     }
                                     Text {
-                                        text: "Stored safely in your local Windows Registry."
+                                        text: "Stored unencrypted in this app's local settings."
                                         color: Theme.textSecondary; font.pixelSize: 11
                                     }
                                 }
@@ -1190,8 +1232,10 @@ Item {
                                         text: root.api.projectId
                                         placeholderText: "Enter your project UUID"
                                         onEditingFinished: {
-                                            root.api.projectId = text
-                                            root.api.fetchTasks() // Refresh tasks when project ID changes
+                                            root.api.projectId = text.trim()
+                                            // Refresh tasks and their commit links for the new project
+                                            root.api.fetchTasks()
+                                            root.api.fetchProjectCommits()
                                         }
                                     }
                                 }
@@ -1204,7 +1248,7 @@ Item {
                                         Layout.fillWidth: true
                                         text: root.api.userId
                                         placeholderText: "Enter your user UUID"
-                                        onEditingFinished: root.api.userId = text
+                                        onEditingFinished: root.api.userId = text.trim()
                                     }
                                 }
                             }
@@ -1294,7 +1338,8 @@ Item {
     // ── Commit Context Menu ───────────────────────────────────────────
     Menu {
         id: commitContextMenu
-        property string sha: ""
+        property string sha: ""      // full SHA
+        property string message: ""
         property bool isUnpushed: false
 
         Instantiator {
@@ -1303,7 +1348,7 @@ Item {
                 text: "Push up to Here"
                 onClicked: {
                     var ok = root.repo.pushCommit(commitContextMenu.sha, remotePicker.currentText)
-                    if (ok) { root.opsStatus = "Pushed " + commitContextMenu.sha; root.opsIsError = false }
+                    if (ok) showStatus("Pushed up to " + commitContextMenu.sha.substring(0, 7), false)
                     refreshAll()
                 }
             }
@@ -1315,14 +1360,14 @@ Item {
             text: "Revert Commit..."
             onClicked: {
                 var ok = root.repo.revertCommit(commitContextMenu.sha)
-                root.opsStatus = ok ? "Reverted " + commitContextMenu.sha : "Revert failed"
-                root.opsIsError = !ok
+                if (ok) showStatus("Reverted " + commitContextMenu.sha.substring(0, 7) + " (changes left uncommitted)", false)
             }
         }
         MenuItem {
             text: "Link to Task..."
             onClicked: {
                 editTaskDialog.targetSha = commitContextMenu.sha
+                editTaskDialog.targetMessage = commitContextMenu.message
                 editTaskDialog.open()
             }
         }
@@ -1330,13 +1375,12 @@ Item {
             text: "Reset to Here (Soft)"
             onClicked: {
                 var ok = root.repo.resetToCommit(commitContextMenu.sha, false)
-                root.opsStatus = ok ? "Soft reset to " + commitContextMenu.sha : "Reset failed"
-                root.opsIsError = !ok
+                if (ok) showStatus("Soft reset to " + commitContextMenu.sha.substring(0, 7), false)
             }
         }
         MenuItem {
             text: "Reset to Here (Hard)"
-            onClicked: hardResetConfirm.popup()
+            onClicked: hardResetConfirm.open()
         }
     }
 
@@ -1347,15 +1391,14 @@ Item {
         modal: true
         anchors.centerIn: parent
         Text {
-            text: "Are you sure you want to hard reset to " + commitContextMenu.sha + "?\nAll uncommitted changes in your working directory WILL BE DESTROYED."
+            text: "Are you sure you want to hard reset to " + commitContextMenu.sha.substring(0, 7) + "?\nAll uncommitted changes in your working directory WILL BE DESTROYED."
             color: Theme.warning
             font.bold: true
             font.pixelSize: 13
         }
         onAccepted: {
             var ok = root.repo.resetToCommit(commitContextMenu.sha, true)
-            root.opsStatus = ok ? "Hard reset to " + commitContextMenu.sha : "Hard reset failed"
-            root.opsIsError = !ok
+            if (ok) showStatus("Hard reset to " + commitContextMenu.sha.substring(0, 7), false)
         }
     }
 
@@ -1446,15 +1489,15 @@ Item {
         }
     }
 
-    // ── Edit Task Dialog ───────────────────────────────────────────────
+    // ── Link Commit to Task dialog ─────────────────────────────────────
     Dialog {
         id: editTaskDialog
         title: "Link Commit to Task"
         standardButtons: Dialog.Save | Dialog.Cancel
         modal: true
         anchors.centerIn: parent
-        width: 400
-        height: 380
+        width: 420
+        height: 420
 
         background: Rectangle {
             color: Theme.bg
@@ -1462,51 +1505,66 @@ Item {
             radius: 8
         }
 
-        property string targetSha: ""
-        property var filteredTasks: window.availableTasks
+        property string targetSha: ""       // full SHA
+        property string targetMessage: ""
+        property var filteredTasks: []
+        // taskId -> true. Kept separately from the delegates: the ListView only
+        // creates rows that are on screen, and search hides the rest, so reading
+        // checkboxes back from the view silently dropped tasks.
+        property var selected: ({})
+        readonly property int selectedCount: Object.keys(selected).length
 
         function updateModel() {
             var term = historyTaskSearch.text.toLowerCase()
-            if (term === "") {
-                filteredTasks = window.availableTasks
-            } else {
-                var res = []
-                if (window.availableTasks) {
-                    for (var i = 0; i < window.availableTasks.length; i++) {
-                        if (window.availableTasks[i].title.toLowerCase().indexOf(term) >= 0) {
-                            res.push(window.availableTasks[i])
-                        }
-                    }
-                }
-                filteredTasks = res
+            var all = window.availableTasks || []
+            var res = []
+            for (var i = 0; i < all.length; i++) {
+                if (term === "" || (all[i].title || "").toLowerCase().indexOf(term) >= 0) res.push(all[i])
             }
-            historyTaskPicker.model = null
-            historyTaskPicker.model = filteredTasks
+            filteredTasks = res
+        }
+
+        function toggle(taskId, on) {
+            var copy = {}
+            for (var k in selected) copy[k] = true
+            if (on) copy[taskId] = true
+            else delete copy[taskId]
+            selected = copy
         }
 
         onAboutToShow: {
+            var initial = {}
+            var ids = root.linkedTaskIds(targetSha)
+            for (var i = 0; i < ids.length; i++) initial[ids[i]] = true
+            selected = initial
             historyTaskSearch.text = ""
             updateModel()
+        }
+
+        Connections {
+            target: window
+            function onAvailableTasksChanged() { editTaskDialog.updateModel() }
         }
 
         ColumnLayout {
             spacing: 8
             anchors.fill: parent
             Text {
-                text: "Search and select tasks:"
-                color: Theme.textPrimary
-                font.bold: true
+                text: "Commit " + editTaskDialog.targetSha.substring(0, 7) + ": " + editTaskDialog.targetMessage
+                color: Theme.textSecondary
+                elide: Text.ElideRight
+                Layout.fillWidth: true
             }
             TextField {
                 id: historyTaskSearch
                 Layout.fillWidth: true
-                placeholderText: "Type to search..."
+                placeholderText: "Type to search tasks..."
                 color: Theme.textPrimary
-                background: Rectangle { 
-                    color: Theme.dark ? Theme.surface : "#eef1f5" 
+                background: Rectangle {
+                    color: Theme.dark ? Theme.surface : "#eef1f5"
                     border.color: Theme.dark ? Theme.border : "#c0c7ce"
                     border.width: 1
-                    radius: 4 
+                    radius: 4
                     implicitHeight: 30
                 }
                 onTextChanged: editTaskDialog.updateModel()
@@ -1522,43 +1580,125 @@ Item {
                     anchors.fill: parent; anchors.margins: 4
                     model: editTaskDialog.filteredTasks
                     boundsBehavior: Flickable.StopAtBounds
+                    clip: true
                     delegate: CheckBox {
+                        id: taskCheck
                         width: ListView.view.width
                         text: modelData.title
-                        property string taskId: modelData.id
-                        checked: {
-                            var tIds = window.linkedCommits[editTaskDialog.targetSha] || []
-                            return tIds.indexOf(modelData.id) >= 0
-                        }
+                        checked: editTaskDialog.selected[modelData.id] === true
+                        onToggled: editTaskDialog.toggle(modelData.id, checked)
                         contentItem: Text {
-                            text: parent.text
+                            text: taskCheck.text
                             font.pixelSize: 13
                             color: Theme.textPrimary
                             verticalAlignment: Text.AlignVCenter
-                            leftPadding: parent.indicator.width + parent.spacing
+                            elide: Text.ElideRight
+                            leftPadding: taskCheck.indicator.width + taskCheck.spacing
                         }
                     }
+                }
+
+                Text {
+                    anchors.centerIn: parent
+                    width: parent.width - 24
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    visible: historyTaskPicker.count === 0
+                    color: Theme.textMuted
+                    text: root.api.projectId === "" || root.api.userId === ""
+                        ? "Set your Project ID and User ID in the Settings tab to link tasks."
+                        : ((window.availableTasks || []).length === 0
+                            ? "No tasks loaded for this project. Check the Backend URL and Project ID in Settings, then press Reload."
+                            : "No tasks match your search.")
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Text {
+                    text: editTaskDialog.selectedCount + " selected"
+                    color: Theme.textSecondary
+                    Layout.fillWidth: true
+                }
+                Button {
+                    text: "Reload tasks"
+                    flat: true
+                    onClicked: root.api.fetchTasks()
                 }
             }
         }
 
         onAccepted: {
-            var selectedIds = []
-            for (var i = 0; i < historyTaskPicker.contentItem.children.length; i++) {
-                var child = historyTaskPicker.contentItem.children[i]
-                if (child && child.checked) {
-                    selectedIds.push(child.taskId)
-                }
-            }
+            var selectedIds = Object.keys(selected)
 
-            // Optimistic update so the UI reacts instantly
-            var currentMap = window.linkedCommits || {}
-            currentMap[targetSha] = selectedIds
+            // Optimistic update so the UI reacts instantly; a backend error refetches
             var newMap = {}
-            for (var key in currentMap) { newMap[key] = currentMap[key] }
+            var currentMap = window.linkedCommits || {}
+            for (var key in currentMap) newMap[key] = currentMap[key]
+            delete newMap[targetSha.substring(0, 7)]
+            newMap[targetSha] = selectedIds
             window.linkedCommits = newMap
 
-            root.api.reportCommit(targetSha, "(History Task Update)", selectedIds)
+            root.api.reportCommit(targetSha, targetMessage, selectedIds)
+        }
+    }
+
+    // ── Delete branch confirmation ─────────────────────────────────────
+    Dialog {
+        id: deleteBranchConfirm
+        property string branchName: ""
+        title: "Delete Branch?"
+        standardButtons: Dialog.Yes | Dialog.No
+        modal: true
+        anchors.centerIn: parent
+        width: 420
+
+        onAboutToShow: forceDeleteBox.checked = false
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 10
+            Text {
+                text: "Delete local branch '" + deleteBranchConfirm.branchName + "'?"
+                color: Theme.textPrimary
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+            CheckBox {
+                id: forceDeleteBox
+                text: "Force delete, even if it has commits that aren't merged anywhere (they will be lost)"
+                Layout.fillWidth: true
+            }
+        }
+
+        onAccepted: {
+            var ok = root.repo.deleteBranch(branchName, forceDeleteBox.checked)
+            if (ok) {
+                showStatus("Deleted branch " + branchName, false)
+                refreshAll()
+            }
+        }
+    }
+
+    // ── Full status / error message ────────────────────────────────────
+    Dialog {
+        id: statusDetailsDialog
+        title: root.opsIsError ? "Error details" : "Status"
+        standardButtons: Dialog.Close
+        modal: true
+        anchors.centerIn: parent
+        width: Math.min(640, root.width - 40)
+        height: Math.min(400, root.height - 40)
+
+        ScrollView {
+            anchors.fill: parent
+            TextArea {
+                text: root.opsStatus
+                readOnly: true
+                wrapMode: TextEdit.Wrap
+                selectByMouse: true
+                font.family: "monospace"
+                color: Theme.textPrimary
+            }
         }
     }
 

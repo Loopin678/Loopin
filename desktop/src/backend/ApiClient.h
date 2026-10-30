@@ -6,6 +6,8 @@
 #include <QNetworkAccessManager>
 #include <QQmlEngine>
 
+class QNetworkReply;
+
 // Talks to YOUR backend (not GitHub, not an AI provider directly). The
 // backend is responsible for holding whatever AI API key you use and for
 // recording which commits belong to which task_id.
@@ -83,10 +85,16 @@ signals:
     void requestFailed(const QString& errorString);
     void tasksReady(const QJsonArray& tasks);
     void projectCommitsReady(const QJsonArray& commits);
+    // Emitted only after the backend has stored the commit and its task links
     void commitReported(const QString& sha);
+    // A Loopin backend call (tasks, commits, task links) failed. Separate from
+    // requestFailed, which is for AI requests (and aborts AI merge resolution).
+    void backendError(const QString& errorString);
 
 private:
     QJsonArray mockGroups(const QJsonArray& changes) const;
+    // Human-readable error for a failed backend reply, including the server's message
+    static QString backendErrorText(QNetworkReply* reply, const QString& what);
 
     QNetworkAccessManager m_nam;
     QString m_backendUrl;

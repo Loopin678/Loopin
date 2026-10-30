@@ -22,6 +22,7 @@ class GitRepo : public QObject {
     Q_PROPERTY(QString repoPath READ repoPath NOTIFY repoChanged)
     Q_PROPERTY(QString currentBranchName READ currentBranchName NOTIFY repoChanged)
     Q_PROPERTY(QStringList branches READ branches NOTIFY repoChanged)
+    Q_PROPERTY(QStringList localBranches READ localBranches NOTIFY repoChanged)
     Q_PROPERTY(QStringList remotes READ remotes NOTIFY remotesChanged)
     Q_PROPERTY(DiffModel* diffModel READ diffModel CONSTANT)
 
@@ -33,6 +34,7 @@ public:
     QString repoPath() const { return m_repoPath; }
     QString currentBranchName() const;
     QStringList branches() const;
+    QStringList localBranches() const;
     DiffModel* diffModel() const { return m_diffModel; }
     QStringList remotes() const;
 
@@ -65,8 +67,8 @@ public:
     // Creates a new branch from HEAD and optionally checks it out.
     Q_INVOKABLE bool createBranch(const QString& branchName, bool checkout = true);
 
-    // Deletes the specified branch.
-    Q_INVOKABLE bool deleteBranch(const QString& branchName);
+    // Deletes a local branch. Without `force`, git refuses if it has unmerged commits.
+    Q_INVOKABLE bool deleteBranch(const QString& branchName, bool force = false);
 
     // Aborts an in-progress merge.
     Q_INVOKABLE bool abortMerge();
@@ -74,10 +76,13 @@ public:
     // Resolves a conflicted file with new content.
     Q_INVOKABLE bool resolveConflictFile(const QString& filePath, const QString& content);
 
+    // Resolves a conflicted file by taking one side wholesale (git checkout --ours/--theirs).
+    Q_INVOKABLE bool resolveConflictWithSide(const QString& filePath, bool keepOurs);
+
     // Commits a merge after all conflicts are resolved.
     Q_INVOKABLE bool commitResolvedMerge();
 
-    // Returns unpushed commit SHAs that are ahead of remote (not yet pushed).
+    // Returns full SHAs of commits on HEAD that no branch of the remote contains.
     Q_INVOKABLE QStringList unpushedCommitShas(const QString& remoteName = "origin") const;
 
     // Writes content to a file relative to the repo root. Returns true on success.
@@ -87,7 +92,7 @@ public:
     Q_INVOKABLE QString readFile(const QString& filePath);
 
     // Returns the last `limit` commits as a list of maps with keys:
-    // sha (short), message, author, date
+    // sha (short), fullSha, message, author, date
     Q_INVOKABLE QVariantList commitHistory(int limit = 50) const;
 
     // Returns patch text for a specific commit

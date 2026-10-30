@@ -14,21 +14,43 @@ namespace {
 // username -- "x-access-token" is the conventional choice.
 struct PushPayload {
     std::string token;
+    int credentialAttempts = 0;
+    QString rejection;  // set if the remote refused a ref (e.g. non-fast-forward)
 };
 
 int credentialsAcquire(git_credential** out,
                         const char* /*url*/,
                         const char* /*username_from_url*/,
-                        unsigned int /*allowed_types*/,
+                        unsigned int allowed_types,
                         void* payload) {
     auto* p = static_cast<PushPayload*>(payload);
+    // libgit2 calls this again after every auth failure; offering the same token
+    // forever only delays the system-git fallback. SSH remotes can't use a token.
+    if (p->token.empty() || p->credentialAttempts++ > 0
+        || !(allowed_types & GIT_CREDENTIAL_USERPASS_PLAINTEXT)) {
+        return GIT_PASSTHROUGH;
+    }
     return git_credential_userpass_plaintext_new(out, "x-access-token", p->token.c_str());
+}
+
+// git_remote_push() returns 0 even when the server rejects a ref; the
+// per-ref result only arrives here (status is null on success).
+int pushUpdateReference(const char* refname, const char* status, void* payload) {
+    if (status) {
+        auto* p = static_cast<PushPayload*>(payload);
+        p->rejection = QString::fromUtf8(refname) + ": " + QString::fromUtf8(status);
+    }
+    return 0;
 }
 
 }  // namespace
 
 // ── Helper: run a git sub-command in the repo working dir ─────────────────
-static bool runGit(const QString& workDir, const QStringList& args, QString* output = nullptr);
+// Network operations (push/pull/fetch) get a longer timeout than local ones.
+static constexpr int kLocalGitTimeoutMs = 30000;
+static constexpr int kNetworkGitTimeoutMs = 120000;
+static bool runGit(const QString& workDir, const QStringList& args, QString* output = nullptr,
+                   int timeoutMs = kLocalGitTimeoutMs);
 
 GitRepo::GitRepo(QObject* parent)
     : QObject(parent), m_diffModel(new DiffModel(this)) {}
@@ -105,7 +127,10 @@ void GitRepo::refreshDiff() {
         git_reference_free(headRef);
     }
     
-    if (!currentHeadSha.isEmpty() && m_lastHeadSha != currentHeadSha) {
+    // Include the branch name so switching to a branch at the same commit
+    // still refreshes the branch label and history
+    currentHeadSha += "@" + currentBranchName();
+    if (m_lastHeadSha != currentHeadSha) {
         m_lastHeadSha = currentHeadSha;
         // The repo has moved to a new commit!
         emit repoChanged();
@@ -115,6 +140,9 @@ void GitRepo::refreshDiff() {
     git_diff_options opts = GIT_DIFF_OPTIONS_INIT;
     opts.flags |= GIT_DIFF_INCLUDE_UNTRACKED | GIT_DIFF_RECURSE_UNTRACKED_DIRS
                 | GIT_DIFF_SHOW_UNTRACKED_CONTENT;
+    // This runs every 2 s on the UI thread: treat big files as binary rather than
+    // reading and diffing them (libgit2's default limit is 512 MB)
+    opts.max_size = 2 * 1024 * 1024;
     git_diff* diff = nullptr;
 
     const int rc = git_diff_tree_to_workdir_with_index(&diff, m_repo, tree, &opts);
@@ -135,6 +163,10 @@ void GitRepo::refreshDiff() {
 
 QString GitRepo::stageAndCommit(const QStringList& files, const QString& message) {
     if (!m_repo || files.isEmpty()) return QString();
+    if (message.trimmed().isEmpty()) {
+        emit errorOccurred("Commit message is empty.");
+        return QString();
+    }
 
     git_index* index = nullptr;
     if (git_repository_index(&index, m_repo) != 0) {
@@ -142,26 +174,76 @@ QString GitRepo::stageAndCommit(const QStringList& files, const QString& message
         return QString();
     }
 
+    // Stage the selected files in the real index, like `git add` would
     for (const QString& f : files) {
-        if (QFile::exists(m_repoPath + "/" + f)) {
-            git_index_add_bypath(index, f.toUtf8().constData());
-        } else {
-            git_index_remove_bypath(index, f.toUtf8().constData());
+        const QByteArray path = f.toUtf8();
+        const int rc = QFile::exists(m_repoPath + "/" + f)
+            ? git_index_add_bypath(index, path.constData())
+            : git_index_remove_bypath(index, path.constData());
+        if (rc != 0) {
+            emit errorOccurred("Failed to stage " + f + ": " + lastErrorMessage());
+            git_index_free(index);
+            return QString();
         }
     }
-    git_index_write(index);
-
-    git_oid treeId;
-    if (git_index_write_tree(&treeId, index) != 0) {
-        emit errorOccurred("Failed to write tree: " + lastErrorMessage());
+    if (git_index_write(index) != 0) {
+        emit errorOccurred("Failed to write index: " + lastErrorMessage());
         git_index_free(index);
         return QString();
     }
+
+    // Build the commit tree from HEAD plus ONLY the selected paths, so anything
+    // else that happens to be staged (e.g. from the command line) stays out of
+    // this commit -- the same as `git commit --only -- <files>`.
+    git_reference* headRef = nullptr;
+    git_commit* parent = nullptr;
+    git_tree* parentTree = nullptr;
+    if (git_repository_head(&headRef, m_repo) == 0) {
+        if (git_commit_lookup(&parent, m_repo, git_reference_target(headRef)) != 0
+            || git_commit_tree(&parentTree, parent) != 0) {
+            emit errorOccurred("Failed to read HEAD commit: " + lastErrorMessage());
+            if (parent) git_commit_free(parent);
+            git_reference_free(headRef);
+            git_index_free(index);
+            return QString();
+        }
+    }
+
+    git_index* commitIndex = nullptr;
+    bool treeOk = git_index_new(&commitIndex) == 0
+               && (!parentTree || git_index_read_tree(commitIndex, parentTree) == 0);
+    for (int i = 0; treeOk && i < files.size(); ++i) {
+        const QByteArray path = files[i].toUtf8();
+        const git_index_entry* entry = git_index_get_bypath(index, path.constData(), 0);
+        treeOk = entry ? git_index_add(commitIndex, entry) == 0
+                       : (git_index_remove(commitIndex, path.constData(), 0), true);
+    }
+    git_oid treeId;
+    treeOk = treeOk && git_index_write_tree_to(&treeId, commitIndex, m_repo) == 0;
+    if (commitIndex) git_index_free(commitIndex);
     git_index_free(index);
+
+    auto cleanup = [&]() {
+        if (parentTree) git_tree_free(parentTree);
+        if (parent) git_commit_free(parent);
+        if (headRef) git_reference_free(headRef);
+    };
+
+    if (!treeOk) {
+        emit errorOccurred("Failed to write tree: " + lastErrorMessage());
+        cleanup();
+        return QString();
+    }
+    if (parentTree && git_oid_equal(&treeId, git_tree_id(parentTree))) {
+        emit errorOccurred("Nothing to commit: the selected files have no changes.");
+        cleanup();
+        return QString();
+    }
 
     git_tree* tree = nullptr;
     if (git_tree_lookup(&tree, m_repo, &treeId) != 0) {
         emit errorOccurred("Failed to lookup tree: " + lastErrorMessage());
+        cleanup();
         return QString();
     }
 
@@ -173,23 +255,15 @@ QString GitRepo::stageAndCommit(const QStringList& files, const QString& message
         git_signature_now(&sig, "Collab Client", "collab-client@example.com");
     }
 
-    git_reference* headRef = nullptr;
-    git_commit* parent = nullptr;
-    const bool hasParent = (git_repository_head(&headRef, m_repo) == 0);
-    if (hasParent) {
-        git_commit_lookup(&parent, m_repo, git_reference_target(headRef));
-    }
-
     git_oid commitId;
     const git_commit* parents[1] = {parent};
     const int rc = git_commit_create(&commitId, m_repo, "HEAD", sig, sig, nullptr,
                                       message.toUtf8().constData(), tree,
-                                      hasParent ? 1 : 0, hasParent ? parents : nullptr);
+                                      parent ? 1 : 0, parent ? parents : nullptr);
 
     git_tree_free(tree);
     git_signature_free(sig);
-    if (parent) git_commit_free(parent);
-    if (headRef) git_reference_free(headRef);
+    cleanup();
 
     if (rc != 0) {
         emit errorOccurred(lastErrorMessage());
@@ -225,19 +299,21 @@ bool GitRepo::pushCurrentBranch(const QString& token, const QString& remoteName)
     char* refspecs[1] = {refspecBytes.data()};
     git_strarray refspecArray{refspecs, 1};
 
-    PushPayload payload{token.toStdString()};
+    PushPayload payload;
+    payload.token = token.toStdString();
     git_push_options opts = GIT_PUSH_OPTIONS_INIT;
     opts.callbacks.credentials = credentialsAcquire;
+    opts.callbacks.push_update_reference = pushUpdateReference;
     opts.callbacks.payload = &payload;
 
     const int rc = git_remote_push(remote, &refspecArray, &opts);
     git_remote_free(remote);
 
-    if (rc != 0) {
+    if (rc != 0 || !payload.rejection.isEmpty()) {
         // Fallback to system git (handles SSH remotes, credential helpers, etc.)
         QString branch = currentBranchName();
         QString out;
-        if (runGit(m_repoPath, {"push", remoteName, branch}, &out)) {
+        if (runGit(m_repoPath, {"push", remoteName, branch}, &out, kNetworkGitTimeoutMs)) {
             emit repoChanged();
             return true;
         }
@@ -266,8 +342,14 @@ bool GitRepo::pushCurrentBranch(const QString& token, const QString& remoteName)
 bool GitRepo::pushCommit(const QString& sha, const QString& remoteName) {
     if (!m_repo) return false;
     QString out;
-    // git push remote <sha>:<branch>
-    if (runGit(m_repoPath, {"push", remoteName, sha + ":" + currentBranchName()}, &out)) {
+    const QString branch = currentBranchName();
+    if (branch.isEmpty()) {
+        emit errorOccurred("Push commit failed: HEAD is not on a branch.");
+        return false;
+    }
+    // git push remote <sha>:refs/heads/<branch> -- the full ref name also works
+    // when the branch does not exist on the remote yet
+    if (runGit(m_repoPath, {"push", remoteName, sha + ":refs/heads/" + branch}, &out, kNetworkGitTimeoutMs)) {
         emit repoChanged();
         return true;
     }
@@ -372,13 +454,34 @@ bool GitRepo::checkoutBranch(const QString& branchName) {
 }
 
 // ── Helper: run a git sub-command in the repo working dir ─────────────────
-static bool runGit(const QString& workDir, const QStringList& args, QString* output) {
+static bool runGit(const QString& workDir, const QStringList& args, QString* output, int timeoutMs) {
     QProcess proc;
     proc.setWorkingDirectory(workDir);
     proc.setProgram("git");
-    proc.setArguments(args);
+    // Untranslated messages (mergeBranch parses "CONFLICT"), unquoted non-ASCII paths
+    proc.setArguments(QStringList{"-c", "core.quotePath=false"} + args);
+
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert("LANGUAGE", "en");
+    env.insert("LC_MESSAGES", "C");
+    // There is no terminal to answer a credential prompt; fail instead of hanging
+    env.insert("GIT_TERMINAL_PROMPT", "0");
+    proc.setProcessEnvironment(env);
+
     proc.start();
-    proc.waitForFinished(30000);
+    if (!proc.waitForStarted(5000)) {
+        if (output) *output = QStringLiteral("Could not run git. Is it installed and on your PATH?");
+        return false;
+    }
+    if (!proc.waitForFinished(timeoutMs)) {
+        proc.kill();
+        proc.waitForFinished(2000);
+        if (output)
+            *output = QString::fromUtf8(proc.readAllStandardOutput())
+                    + QString::fromUtf8(proc.readAllStandardError())
+                    + QStringLiteral("\ngit %1 timed out after %2 s.").arg(args.value(0)).arg(timeoutMs / 1000);
+        return false;
+    }
     if (output)
         *output = QString::fromUtf8(proc.readAllStandardOutput())
                 + QString::fromUtf8(proc.readAllStandardError());
@@ -391,7 +494,7 @@ bool GitRepo::fetchRemote(const QString& remoteName) {
         return false;
     }
     QString out;
-    bool ok = runGit(m_repoPath, {"fetch", remoteName}, &out);
+    bool ok = runGit(m_repoPath, {"fetch", remoteName}, &out, kNetworkGitTimeoutMs);
     if (!ok) emit errorOccurred("git fetch failed:\n" + out);
     emit fetchFinished(ok, out);
     return ok;
@@ -402,8 +505,14 @@ bool GitRepo::pullRemote(const QString& remoteName) {
         emit pullFinished(false, "Repository not open");
         return false;
     }
+    const QString branch = currentBranchName();
+    if (branch.isEmpty()) {
+        emit errorOccurred("git pull failed: HEAD is not on a branch.");
+        emit pullFinished(false, "HEAD is not on a branch");
+        return false;
+    }
     QString out;
-    bool ok = runGit(m_repoPath, {"pull", remoteName, currentBranchName()}, &out);
+    bool ok = runGit(m_repoPath, {"pull", "--no-edit", remoteName, branch}, &out, kNetworkGitTimeoutMs);
     if (!ok) emit errorOccurred("git pull failed:\n" + out);
     if (ok) { refreshDiff(); emit repoChanged(); }
     emit pullFinished(ok, out);
@@ -416,10 +525,12 @@ QStringList GitRepo::unpushedCommitShas(const QString& remoteName) const {
     if (branch.isEmpty()) return {};
 
     QString out;
-    // git log remote/branch..HEAD --format=%h  gives short SHAs of unpushed commits
+    // Commits on HEAD that no branch of this remote contains. Unlike
+    // remote/branch..HEAD this also works for a branch that was never pushed
+    // (every commit is local then). Full SHAs, so they match commitHistory().
     bool ok = runGit(m_repoPath,
-        {"log", remoteName + "/" + branch + "..HEAD", "--format=%h"}, &out);
-    if (!ok) return {};  // remote tracking branch may not exist
+        {"log", "HEAD", "--not", "--remotes=" + remoteName, "--format=%H"}, &out);
+    if (!ok) return {};
 
     QStringList shas;
     for (const QString& line : out.split('\n', Qt::SkipEmptyParts))
@@ -430,9 +541,10 @@ QStringList GitRepo::unpushedCommitShas(const QString& remoteName) const {
 bool GitRepo::writeFile(const QString& relativePath, const QString& content) {
     if (m_repoPath.isEmpty()) return false;
     QFile f(QDir(m_repoPath).filePath(relativePath));
-    if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        f.write(content.toUtf8());
-        return true;
+    // No QIODevice::Text: it would turn every \n into \r\n on Windows
+    if (f.open(QIODevice::WriteOnly)) {
+        const QByteArray bytes = content.toUtf8();
+        return f.write(bytes) == bytes.size();
     }
     return false;
 }
@@ -440,7 +552,7 @@ bool GitRepo::writeFile(const QString& relativePath, const QString& content) {
 QString GitRepo::readFile(const QString& relativePath) {
     if (m_repoPath.isEmpty()) return {};
     QFile f(QDir(m_repoPath).filePath(relativePath));
-    if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+    if (f.open(QIODevice::ReadOnly)) {
         return QString::fromUtf8(f.readAll());
     }
     return {};
@@ -477,8 +589,12 @@ QVariantList GitRepo::commitHistory(int limit) const {
         // Only the first line of the commit message
         QString message = QString::fromUtf8(rawMsg ? rawMsg : "").split('\n').first();
 
+        char fullSha[GIT_OID_HEXSZ + 1] = {};
+        git_oid_tostr(fullSha, sizeof(fullSha), &oid);
+
         QVariantMap entry;
         entry["sha"] = QString::fromUtf8(shortSha);
+        entry["fullSha"] = QString::fromUtf8(fullSha);
         entry["message"] = message;
         entry["author"] = author ? QString::fromUtf8(author->name) : QStringLiteral("Unknown");
         entry["date"] = author ? QDateTime::fromSecsSinceEpoch(author->when.time).toString("yyyy-MM-dd hh:mm") : QString();
@@ -497,7 +613,7 @@ bool GitRepo::stashFile(const QString& filePath) {
     QString out;
     // git stash push -m "Stashed <file>" -- <file>
     QString message = "Stashed " + filePath;
-    bool ok = runGit(m_repoPath, {"stash", "push", "-m", message, "--", filePath}, &out);
+    bool ok = runGit(m_repoPath, {"stash", "push", "--include-untracked", "-m", message, "--", filePath}, &out);
     if (!ok) {
         emit errorOccurred("git stash push failed:\n" + out);
         return false;
@@ -510,9 +626,16 @@ bool GitRepo::stashFile(const QString& filePath) {
 bool GitRepo::discardFileChanges(const QString& filePath) {
     if (!m_repo) return false;
     QString out;
-    bool ok = runGit(m_repoPath, {"checkout", "--", filePath}, &out);
+    // The Changes list compares the working tree to HEAD, so discard back to HEAD.
+    // `git checkout -- f` only restored from the index (staged edits survived)
+    // and failed outright for untracked files.
+    const bool untracked = runGit(m_repoPath, {"ls-files", "--others", "--exclude-standard", "--", filePath}, &out)
+                        && !out.trimmed().isEmpty();
+    const bool ok = untracked
+        ? runGit(m_repoPath, {"clean", "-f", "--", filePath}, &out)
+        : runGit(m_repoPath, {"restore", "--source=HEAD", "--staged", "--worktree", "--", filePath}, &out);
     if (!ok) {
-        emit errorOccurred("git checkout failed:\n" + out);
+        emit errorOccurred("Discard failed:\n" + out);
         return false;
     }
     refreshDiff();
@@ -654,13 +777,11 @@ bool GitRepo::abortMerge() {
     return ok;
 }
 
-bool GitRepo::deleteBranch(const QString& branchName) {
+bool GitRepo::deleteBranch(const QString& branchName, bool force) {
     if (!m_repo || branchName.isEmpty()) return false;
     QString out;
-    // -D force deletes even if unmerged. Safe enough for this tool? Or -d? 
-    // Usually novices might want -D if they just created it, but let's use -d first, or just -D since there is no force UI. 
-    // I will use -D so they can definitely delete it if they want.
-    bool ok = runGit(m_repoPath, {"branch", "-D", branchName}, &out);
+    // -d refuses to delete a branch with unmerged commits; -D only on explicit request
+    bool ok = runGit(m_repoPath, {"branch", force ? "-D" : "-d", branchName}, &out);
     if (!ok) {
         emit errorOccurred("Failed to delete branch:\n" + out);
         return false;
@@ -671,6 +792,17 @@ bool GitRepo::deleteBranch(const QString& branchName) {
 
 bool GitRepo::resolveConflictFile(const QString& filePath, const QString& content) {
     if (!m_repo) return false;
+
+    // An empty or still-conflicted AI answer would otherwise be written over the
+    // file and staged as the resolution
+    if (content.trimmed().isEmpty()) {
+        emit errorOccurred("Refusing to resolve " + filePath + ": the AI returned an empty file.");
+        return false;
+    }
+    if (content.contains(QStringLiteral("<<<<<<< ")) || content.contains(QStringLiteral(">>>>>>> "))) {
+        emit errorOccurred("Refusing to resolve " + filePath + ": the AI result still contains conflict markers.");
+        return false;
+    }
     
     // Write the new content
     if (!writeFile(filePath, content)) {
@@ -680,13 +812,49 @@ bool GitRepo::resolveConflictFile(const QString& filePath, const QString& conten
     
     // Stage the resolved file
     QString out;
-    if (!runGit(m_repoPath, {"add", filePath}, &out)) {
+    if (!runGit(m_repoPath, {"add", "--", filePath}, &out)) {
         emit errorOccurred("Failed to stage resolved file " + filePath + ":\n" + out);
         return false;
     }
     
     refreshDiff();
     return true;
+}
+
+bool GitRepo::resolveConflictWithSide(const QString& filePath, bool keepOurs) {
+    if (!m_repo || filePath.isEmpty()) return false;
+    QString out;
+    const QString side = keepOurs ? "--ours" : "--theirs";
+    bool ok = runGit(m_repoPath, {"checkout", side, "--", filePath}, &out);
+    if (ok) {
+        ok = runGit(m_repoPath, {"add", "--", filePath}, &out);
+    } else {
+        // That side deleted the file (modify/delete conflict): keeping it means deleting it
+        ok = runGit(m_repoPath, {"rm", "--quiet", "--", filePath}, &out);
+    }
+    if (!ok) {
+        emit errorOccurred("Failed to resolve " + filePath + ":\n" + out);
+        return false;
+    }
+    refreshDiff();
+    return true;
+}
+
+QStringList GitRepo::localBranches() const {
+    if (!m_repo) return {};
+    git_branch_iterator* it = nullptr;
+    if (git_branch_iterator_new(&it, m_repo, GIT_BRANCH_LOCAL) != 0) return {};
+    QStringList list;
+    git_reference* ref = nullptr;
+    git_branch_t type;
+    while (git_branch_next(&ref, &type, it) == 0) {
+        const char* name = nullptr;
+        if (git_branch_name(&name, ref) == 0 && name) list.append(QString::fromUtf8(name));
+        git_reference_free(ref);
+    }
+    git_branch_iterator_free(it);
+    list.sort();
+    return list;
 }
 
 bool GitRepo::commitResolvedMerge() {
