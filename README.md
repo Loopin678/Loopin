@@ -4,6 +4,14 @@
 
 Loopin unifies task management, git workflow orchestration, live notes, and agentic collaboration across web, desktop, CLI, and Model Context Protocol (MCP) environments.
 
+## ⬇️ Download the desktop app
+
+| Windows 10/11 | macOS (Apple Silicon) | Linux (64-bit) |
+|:---:|:---:|:---:|
+| [**LoopinSetup.exe**](https://github.com/Loopin678/Loopin/releases/latest/download/LoopinSetup.exe) | [**Loopin-macos-arm64.dmg**](https://github.com/Loopin678/Loopin/releases/latest/download/Loopin-macos-arm64.dmg) | [**Loopin-x86_64.AppImage**](https://github.com/Loopin678/Loopin/releases/latest/download/Loopin-x86_64.AppImage) |
+
+These links always fetch the newest version. Install steps and older versions are on the [Releases page](https://github.com/Loopin678/Loopin/releases/latest).
+
 ---
 
 ## 🌟 Project Architecture

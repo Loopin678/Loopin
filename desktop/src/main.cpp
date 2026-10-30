@@ -39,14 +39,11 @@ int main(int argc, char* argv[]) {
     QQuickStyle::setStyle("Fusion");
 
     QQmlApplicationEngine engine;
-    // NOTE: the exact qrc path Qt generates for a qt_add_qml_module can
-    // differ between Qt versions (older ones use "/<URI>/...", 6.5+
-    // often uses "/qt/qml/<URI>/..."). If this fails to load, run the
-    // build once and check build/App/qmldir plus the generated .qrc
-    // files under build/ to see the real path, or switch to
-    engine.load(QUrl(QStringLiteral("qrc:/App/qml/main.qml")));
+    // qt_add_qml_module puts the module under /qt/qml/ with policy QTP0001 NEW
+    // (Qt 6.5+), or at the resource root with the older default
+    engine.load(QUrl(QStringLiteral("qrc:/qt/qml/App/main.qml")));
     if (engine.rootObjects().isEmpty()) {
-        engine.load(QUrl(QStringLiteral("qrc:/qt/qml/App/qml/main.qml")));
+        engine.load(QUrl(QStringLiteral("qrc:/App/main.qml")));
     }
 
     if (engine.rootObjects().isEmpty()) {

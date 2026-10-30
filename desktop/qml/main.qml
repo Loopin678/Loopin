@@ -1,6 +1,6 @@
 import QtQuick
 import QtQuick.Controls
-import Qt.labs.settings
+import QtCore
 import App
 
 ApplicationWindow {

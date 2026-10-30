@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds Loopin-<version>-x86_64.AppImage: a single file that runs on most
+# Builds Loopin-x86_64.AppImage: a single file that runs on most
 # Linux distributions without installing anything.
 #
 #   desktop/packaging/build-appimage.sh [output-dir]
@@ -44,13 +44,14 @@ DESTDIR="$WORK_DIR/AppDir" cmake --install "$WORK_DIR/build"
 export QML_SOURCES_PATHS="$DESKTOP_DIR/qml"
 # Qt.labs.settings and the Fusion style are chosen at runtime, so name them
 export EXTRA_QT_MODULES="qml;quickcontrols2"
-# Native Wayland if this Qt has it (Qt <6.7 names it libqwayland-generic.so);
-# otherwise the xcb plugin still runs through XWayland
-QT_PLUGINS="$("${QMAKE:-$(command -v qmake6 || command -v qmake)}" -query QT_INSTALL_PLUGINS)"
-for wl in libqwayland.so libqwayland-generic.so; do
-    if [ -f "$QT_PLUGINS/platforms/$wl" ]; then export EXTRA_PLATFORM_PLUGINS="$wl"; break; fi
-done
-export LDAI_OUTPUT="$OUT_DIR/Loopin-$VERSION-x86_64.AppImage"
+# Run through X11 (XWayland on Wayland desktops). Native Wayland would also need
+# Qt's wayland-graphics-integration plugins, without which the app crashes.
+mkdir -p "$WORK_DIR/AppDir/apprun-hooks"
+cat > "$WORK_DIR/AppDir/apprun-hooks/loopin-platform.sh" <<'HOOK'
+export QT_QPA_PLATFORM=xcb
+HOOK
+# No version in the name, so .../releases/latest/download/<name> links never change
+export LDAI_OUTPUT="$OUT_DIR/Loopin-x86_64.AppImage"
 # QMake of the Qt we built against
 if [ -z "${QMAKE:-}" ]; then
     QMAKE="$(command -v qmake6 || command -v qmake)"

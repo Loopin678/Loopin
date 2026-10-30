@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Builds the Windows installer (LoopinSetup-<version>.exe) and a portable zip.
+# Builds the Windows installer (LoopinSetup.exe) and a portable zip.
+# File names carry no version, so .../releases/latest/download/<name> links never change.
 # Run from an MSYS2 MINGW64 shell with these packages installed:
 #   pacman -S --needed mingw-w64-x86_64-{gcc,cmake,ninja,pkgconf,qt6-base,qt6-declarative,qt6-tools,libgit2,qtkeychain-qt6,nsis} zip
 #
@@ -50,11 +51,11 @@ cp "$DESKTOP_DIR/packaging/loopin.ico" "$STAGE/"
 
 # Installer
 makensis -V2 -DVERSION="$VERSION" -DSOURCE_DIR="$(cygpath -w "$STAGE")" \
-    -DOUT_FILE="$(cygpath -w "$OUT_DIR/LoopinSetup-$VERSION.exe")" \
+    -DOUT_FILE="$(cygpath -w "$OUT_DIR/LoopinSetup.exe")" \
     "$(cygpath -w "$DESKTOP_DIR/packaging/installer.nsi")"
 
 # Portable zip for people who can't run installers
-(cd "$WORK_DIR" && rm -f "$OUT_DIR/Loopin-$VERSION-windows-portable.zip" \
-    && zip -qr "$OUT_DIR/Loopin-$VERSION-windows-portable.zip" Loopin)
+(cd "$WORK_DIR" && rm -f "$OUT_DIR/Loopin-windows-portable.zip" \
+    && zip -qr "$OUT_DIR/Loopin-windows-portable.zip" Loopin)
 
-echo "==> Built $OUT_DIR/LoopinSetup-$VERSION.exe"
+echo "==> Built $OUT_DIR/LoopinSetup.exe"

@@ -107,8 +107,18 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+      - name: Fill in download links
+        id: notes
+        run: |
+          app_version="${GITHUB_REF_NAME#desktop-v}"
+          echo "version=$app_version" >> "$GITHUB_OUTPUT"
+          sed -e "s|{{REPO}}|$GITHUB_REPOSITORY|g" -e "s|{{TAG}}|$GITHUB_REF_NAME|g" \
+              -e "s|{{VERSION}}|$app_version|g" \
+              desktop/packaging/RELEASE_NOTES.md > release-notes.md
       - uses: softprops/action-gh-release@v2
         with:
-          name: Loopin Desktop ${{ github.ref_name }}
+          name: Loopin Desktop ${{ steps.notes.outputs.version }}
           files: dist/*
-          body_path: desktop/packaging/RELEASE_NOTES.md
+          body_path: release-notes.md
+          # Newest desktop release is what /releases/latest (and the README links) point to
+          make_latest: true

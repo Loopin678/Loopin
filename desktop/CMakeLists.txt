@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(loopin_desktop VERSION 0.1.0 LANGUAGES CXX)
+project(loopin_desktop VERSION 0.1.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -59,6 +59,13 @@ qt_add_resources(loopin_desktop "app_icon"
 )
 
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+# Serve the QML files from the module root (qrc:/.../App/main.qml), not a qml/
+# subfolder: a subfolder gets its own implicit directory import in which Theme is
+# a plain type, and Qt 6.8 then fails with "Theme was a singleton at compile
+# time, but is not a singleton anymore" (every Theme colour becomes undefined).
+foreach(qml_file main LoginView ChangeInboxView CommitReviewView Theme)
+    set_source_files_properties(qml/${qml_file}.qml PROPERTIES QT_RESOURCE_ALIAS ${qml_file}.qml)
+endforeach()
 
 qt_add_qml_module(loopin_desktop
     URI App

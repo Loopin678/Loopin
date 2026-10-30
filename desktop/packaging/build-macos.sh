@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Builds Loopin-<version>-macos-<arch>.dmg.
+# Builds Loopin-macos-<arch>.dmg (no version in the name, so
+# .../releases/latest/download/<name> links never change).
 # Needs: brew install qt libgit2 cmake ninja
 #
 #   desktop/packaging/build-macos.sh [output-dir]
@@ -26,7 +27,7 @@ APP="$WORK_DIR/build/loopin_desktop.app"
 rm -rf "$WORK_DIR/dmg" && mkdir -p "$WORK_DIR/dmg"
 cp -R "$APP" "$WORK_DIR/dmg/Loopin.app"
 ln -s /Applications "$WORK_DIR/dmg/Applications"
-DMG="$OUT_DIR/Loopin-$VERSION-macos-$ARCH.dmg"
+DMG="$OUT_DIR/Loopin-macos-$ARCH.dmg"
 rm -f "$DMG"
 hdiutil create -volname "Loopin $VERSION" -srcfolder "$WORK_DIR/dmg" -ov -format UDZO "$DMG"
 
