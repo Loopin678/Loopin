@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
@@ -25,7 +27,24 @@ export function createApp(): express.Express {
 
   app.use("/api", apiLimiter);
 
+  // For uptime checks (and the hosting script waiting for the server)
+  app.get("/api/health", (_req, res) => {
+    res.status(200).json({ ok: true });
+  });
+
   app.use("/api", apiRoutes);
+
+  // Hosting: serve the built website from the same origin as the API, so
+  // cookies, CORS and sockets need no cross-site setup. SERVE_FRONTEND is the
+  // path to frontend/dist (set by scripts/host/start.sh).
+  const webRoot = process.env.SERVE_FRONTEND;
+  if (webRoot && fs.existsSync(path.join(webRoot, "index.html"))) {
+    app.use(express.static(webRoot, { index: false, maxAge: "1h" }));
+    // Client-side routes (/projects/..., /connect, ...) all load the app shell
+    app.get(/^(?!\/api\/|\/socket\.io\/).*/, (_req, res) => {
+      res.sendFile(path.join(path.resolve(webRoot), "index.html"));
+    });
+  }
 
   return app;
 }
