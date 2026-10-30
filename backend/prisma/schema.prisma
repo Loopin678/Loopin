@@ -10,6 +10,9 @@ datasource db {
 model User {
   id            String          @id @default(uuid())
   name          String
+  username      String?         @unique // lowercase handle used for @mentions; the app always fills it in
+  bio           String?
+  skills        String[]        @default([])
   email         String          @unique
   password      String?
   googleId      String?         @unique
@@ -50,6 +53,7 @@ model List {
   id        String   @id @default(uuid())
   name      String
   position  Int
+  kind      ListKind @default(CUSTOM)
   projectId String
   createdAt DateTime @default(now())
 
@@ -116,4 +120,11 @@ enum MemberRole{
 enum MembershipStatus{
   ACTIVE
   PENDING
+}
+// What a list MEANS, independent of its name. Renaming a list never changes this.
+enum ListKind {
+  TODO
+  IN_PROGRESS
+  DONE
+  CUSTOM
 }

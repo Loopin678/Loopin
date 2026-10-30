@@ -1,11 +1,40 @@
 import {prisma } from "../library/prisma.js"
+import { ListKind, MemberRole, MembershipStatus } from "@prisma/client";
 
-
+// No one calls this now (as createProjectWithOwner is used in the service) can remove but for now keeping it 
 export async function createProject(data: {name: string;}){
 
-    const project = await prisma.project.create({data});
+  const project = await prisma.project.create({data});
 
-     return project;
+  return project;
+
+}
+
+// Creates the project, its owner and the three starter lists in ONE transaction
+export async function createProjectWithOwner(data: { name: string; ownerId: string; stack: string; }) {
+  
+  const project = await prisma.project.create({
+    data: {
+      name: data.name,
+      members: {
+        create: {
+          userId: data.ownerId,
+          stack: data.stack,
+          role: MemberRole.OWNER,
+          status: MembershipStatus.ACTIVE,
+        },
+      },
+      lists: {
+        create: [
+          { name: "To Do", position: 0, kind: ListKind.TODO },
+          { name: "In Progress", position: 1, kind: ListKind.IN_PROGRESS },
+          { name: "Done", position: 2, kind: ListKind.DONE },
+        ],
+      },
+    },
+  });
+
+  return project;
 }
 
 

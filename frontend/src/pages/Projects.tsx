@@ -1,36 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { projectsApi, Project, PendingInvitation } from '../api/client';
+import { projectsApi, Project } from '../api/client';
 import {
   FolderKanban, Plus, Loader2, Trash2, Clock, Edit2, X,
-  Bell, CheckCircle2, XCircle, Inbox, AlertCircle,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
-// Props injected by AppShell via React.cloneElement so this page shares
-// invitation state with the NotificationBell in the topbar.
+// Injected by AppShell via React.cloneElement. The key changes whenever something
+// can change this user's project list: an invitation was accepted, they were
+// removed from a project, or a project was deleted.
 interface ProjectsProps {
   _invitationsRefreshKey?: number;
-  _invitations?: PendingInvitation[];
-  _invLoading?: boolean;
-  _invError?: string;
-  _actioningId?: string | null;
-  _onAcceptInvite?: (inv: PendingInvitation) => void;
-  _onDeclineInvite?: (inv: PendingInvitation) => void;
-  _onRefreshInvites?: () => void;
 }
 
-export function Projects({
-  _invitationsRefreshKey = 0,
-  _invitations = [],
-  _invLoading = false,
-  _invError = '',
-  _actioningId = null,
-  _onAcceptInvite,
-  _onDeclineInvite,
-  _onRefreshInvites,
-}: ProjectsProps) {
+export function Projects({ _invitationsRefreshKey = 0 }: ProjectsProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -169,107 +153,6 @@ export function Projects({
             New Project
           </button>
         </div>
-
-        {/* ── Invitations Section ─────────────────────────────────────────── */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Bell size={14} className="text-[#5EE6B0]" />
-              <h2 className="text-sm font-bold text-[#ECEAE4] uppercase tracking-wider">
-                Pending Invitations
-              </h2>
-              {_invitations.length > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full bg-[#5EE6B0]/15 text-[#5EE6B0] text-[10px] font-mono font-bold">
-                  {_invitations.length}
-                </span>
-              )}
-            </div>
-            {_onRefreshInvites && (
-              <button
-                onClick={_onRefreshInvites}
-                className="text-xs text-[#5B616A] hover:text-[#8A9099] transition-colors"
-                title="Refresh invitations"
-              >
-                Refresh
-              </button>
-            )}
-          </div>
-
-          {_invLoading && (
-            <div className="flex items-center gap-2 py-3 text-[#5B616A]">
-              <Loader2 size={14} className="animate-spin" />
-              <span className="text-xs">Loading invitations…</span>
-            </div>
-          )}
-
-          {!_invLoading && _invError && (
-            <div className="flex items-center gap-2 p-3 text-sm text-red-400 bg-red-950/30 border border-red-900/50 rounded-xl">
-              <AlertCircle size={14} className="shrink-0" />
-              <span className="flex-1 text-xs">{_invError}</span>
-              {_onRefreshInvites && (
-                <button onClick={_onRefreshInvites} className="text-xs text-[#5EE6B0] hover:underline shrink-0">
-                  Retry
-                </button>
-              )}
-            </div>
-          )}
-
-          {!_invLoading && !_invError && _invitations.length === 0 && (
-            <div className="bg-[#111418] border border-[rgba(255,255,255,0.06)] rounded-xl px-4 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-2.5 text-[#5B616A]">
-                <Inbox size={15} />
-                <span className="text-xs">No pending project invitations</span>
-              </div>
-              <span className="text-[11px] text-[#5B616A]/70">You're all caught up</span>
-            </div>
-          )}
-
-            {!_invLoading && !_invError && _invitations.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {_invitations.map((inv) => {
-                  const isActioning = _actioningId === inv.id;
-                  return (
-                    <div
-                      key={inv.id}
-                      className="bg-[#111418] border border-[#5EE6B0]/20 rounded-xl p-4 flex flex-col gap-3"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-[#5EE6B0]/10 border border-[#5EE6B0]/20 flex items-center justify-center shrink-0">
-                          <span className="text-sm font-black text-[#5EE6B0]">
-                            {inv.project.name.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-bold text-[#ECEAE4] truncate">{inv.project.name}</p>
-                          <p className="text-xs text-[#8A9099] mt-0.5">You've been invited to join this project</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => _onDeclineInvite?.(inv)}
-                          disabled={isActioning}
-                          aria-label={`Decline invitation to ${inv.project.name}`}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-[rgba(255,255,255,0.08)] text-xs font-semibold text-[#5B616A] hover:text-red-400 hover:border-red-900/40 disabled:opacity-40 transition-all"
-                        >
-                          {isActioning ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={12} />}
-                          Decline
-                        </button>
-                        <button
-                          onClick={() => _onAcceptInvite?.(inv)}
-                          disabled={isActioning}
-                          aria-label={`Accept invitation to ${inv.project.name}`}
-                          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#5EE6B0]/15 border border-[#5EE6B0]/30 text-xs font-bold text-[#5EE6B0] hover:bg-[#5EE6B0]/25 disabled:opacity-40 transition-all"
-                        >
-                          {isActioning ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
-                          Accept
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
 
         {/* Empty State */}
         {projects.length === 0 && (

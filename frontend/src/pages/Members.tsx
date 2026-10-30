@@ -25,6 +25,8 @@ import {
   LogOut,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { Avatar } from '../components/common/Avatar';
+import { ProfileCard } from '../components/common/ProfileCard';
 
 // ─── Sub-types ────────────────────────────────────────────────────────────────
 
@@ -266,11 +268,9 @@ function TransferOwnershipModal({ projectId, members, currentUserId, onClose, on
                   onChange={() => setSelectedUserId(m.userId)}
                   className="accent-[#F59E0B]"
                 />
-                <div className="w-8 h-8 rounded-full bg-[#1C2127] border border-[rgba(255,255,255,0.08)] flex items-center justify-center text-xs font-bold text-[#8A9099]">
-                  {m.userId.charAt(0).toUpperCase()}
-                </div>
+                <Avatar userId={m.userId} name={m.user?.name ?? '?'} size="sm" />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-[#ECEAE4] truncate">{m.userId}</p>
+                  <p className="text-sm font-medium text-[#ECEAE4] truncate">{m.user?.name ?? 'Unknown user'}</p>
                   <p className="text-xs text-[#5B616A]">{m.stack}</p>
                 </div>
               </label>
@@ -317,6 +317,7 @@ export function Members() {
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState('');
   const [inviteActionId, setInviteActionId] = useState<string | null>(null);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
 
   // Presence state
   const {
@@ -423,9 +424,25 @@ export function Members() {
       'ownership:transferred',
     ];
 
+    // A member changed their name or username: patch that row, no refetch needed
+    const handleProfileUpdated = (data: { userId?: string; name?: string; username?: string | null }) => {
+      if (!data?.userId || !data.name) return;
+      const userId = data.userId;
+      const name = data.name;
+      const username = data.username ?? null;
+
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.userId === userId && m.user ? { ...m, user: { ...m.user, name, username } } : m
+        )
+      );
+    };
+
     events.forEach((e) => socket.on(e, refresh));
+    socket.on('profile:updated', handleProfileUpdated);
     return () => {
       events.forEach((e) => socket.off(e, refresh));
+      socket.off('profile:updated', handleProfileUpdated);
     };
   }, [projectId, loadMembers, loadOutgoingInvitations]);
 
@@ -667,7 +684,6 @@ export function Members() {
                 {sortedMembers.map((member) => {
                   const isOnline = onlineUserIds.has(member.userId);
                   const isSelf = member.userId === user?.id;
-                  const isThisOwner = member.role === 'OWNER';
                   const isRemoving = removingId === member.userId;
 
                   // Determine if the remove/leave button should be shown
@@ -689,15 +705,11 @@ export function Members() {
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         {/* Avatar with presence dot */}
-                        <div className="relative shrink-0">
-                          <div className={cn(
-                            'w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold',
-                            isThisOwner
-                              ? 'bg-[#F59E0B]/15 border border-[#F59E0B]/30 text-[#F59E0B]'
-                              : 'bg-[#1C2127] border border-[rgba(255,255,255,0.08)] text-[#8A9099]'
-                          )}>
-                            {member.userId.charAt(0).toUpperCase()}
-                          </div>
+                        <div
+                          className="relative shrink-0 cursor-pointer"
+                          onClick={() => setProfileUserId(member.userId)}
+                        >
+                          <Avatar userId={member.userId} name={member.user?.name ?? '?'} size="md" />
                           <span
                             className={cn(
                               'absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#111418]',
@@ -709,10 +721,14 @@ export function Members() {
 
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-semibold text-[#ECEAE4] truncate">
-                              {member.userId}
+                            <button
+                              type="button"
+                              onClick={() => setProfileUserId(member.userId)}
+                              className="text-sm font-semibold text-[#ECEAE4] truncate text-left hover:text-[#5EE6B0] transition-colors"
+                            >
+                              {member.user?.name ?? 'Unknown user'}
                               {isSelf && <span className="text-[#5B616A] ml-1 font-normal">(you)</span>}
-                            </span>
+                            </button>
                             <RoleBadge role={member.role} />
                             <span
                               className={cn(
@@ -730,6 +746,9 @@ export function Members() {
                             <span className="text-xs text-[#5EE6B0] bg-[rgba(94,230,176,0.10)] px-2 py-0.5 rounded-full font-medium">
                               {member.stack}
                             </span>
+                            {member.user?.username && (
+                              <span className="text-xs text-[#5B616A] font-mono">@{member.user.username}</span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -880,6 +899,10 @@ export function Members() {
             loadMembers();
           }}
         />
+      )}
+
+      {profileUserId && (
+        <ProfileCard userId={profileUserId} onClose={() => setProfileUserId(null)} />
       )}
     </div>
   );

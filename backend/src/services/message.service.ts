@@ -3,7 +3,8 @@ import * as messageRepo from "../repositories/message.repository";
 function extractMentions(text: string): string[] {
   return [...text.matchAll(/@(\w+)/g)]
     .map((m) => m[1])
-    .filter((name): name is string => name !== undefined);
+    .filter((name): name is string => name !== undefined)
+    .map((name) => name.toLowerCase()); // usernames are stored lowercase, so "@Arnav" finds "arnav"
 }
 
 export async function sendMessage(projectId: string, senderId: string, content: string) {
@@ -14,7 +15,7 @@ export async function sendMessage(projectId: string, senderId: string, content: 
 
   const realNames = mentionedNames.filter((n) => n.toLowerCase() !== "ai");
   if (realNames.length > 0) {
-    const users = await messageRepo.findUsersByNames(realNames, projectId);
+    const users = await messageRepo.findUsersByUsernames(realNames, projectId);
     await messageRepo.createMentions(message.id, users.map((u) => u.id));
   }
 

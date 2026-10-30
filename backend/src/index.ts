@@ -5,10 +5,18 @@ import cors from "cors"
 import apiRoutes from "./routes/index";
 import { createServer } from "http";
 import { initSocket } from "./library/socket";
+import { apiLimiter } from "./library/rateLimit";
 
 //dotenv.config();
 
 const app = express();
+
+// Behind Render/Railway/Fly there is one proxy in front of us. Without this every
+// user looks like the same IP and shares one limit. Set NODE_ENV=production on the host.
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 app.use(express.json());
 
 app.use(cookieParser());
@@ -17,6 +25,8 @@ app.use(cors({
   origin: process.env.FRONTEND_URL,
   credentials: true,
 }));
+
+app.use("/api", apiLimiter);
 
 app.use("/api", apiRoutes);
 

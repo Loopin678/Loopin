@@ -1,10 +1,12 @@
 import { Router } from "express";
-import { createTask, getTaskDetail, updateTask, deleteTask, moveTask } from "../controllers/taskController";
-
+import { createTask, getTaskDetail, updateTask, deleteTask, moveTask, getMyTasks } from "../controllers/taskController";
 const nestedTaskRoutes = Router({ mergeParams: true });
 nestedTaskRoutes.post("/", createTask);
 
 const flatTaskRoutes = Router();
+// Must come BEFORE "/:taskId": Express matches routes in the order they're
+// registered, so otherwise "mine" would be read as a task id and return 404
+flatTaskRoutes.get("/mine", getMyTasks);
 flatTaskRoutes.get("/:taskId", getTaskDetail);
 flatTaskRoutes.patch("/:taskId", updateTask);
 flatTaskRoutes.patch("/:taskId/move", moveTask);

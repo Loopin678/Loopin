@@ -4,7 +4,7 @@ const AI_USER_EMAIL = "ai@loopin.system";
 
 // The only user fields allowed to leave the server inside a message.
 // Never use `include: { sender: true }`: that sends the password hash too.
-const publicSender = { select: { id: true, name: true } } as const;
+const publicSender = { select: { id: true, name: true, username: true } } as const;
 
 export function createMessage(projectId: string, senderId: string, content: string) {
   return prisma.message.create({
@@ -25,15 +25,15 @@ export async function getMessagesByProject(projectId: string) {
   return messages.reverse();
 }
 
-export async function findUsersByNames(names: string[], projectId: string) {
+export async function findUsersByUsernames(usernames: string[], projectId: string) {
   // Only ACTIVE members of this project can be mentioned
   const members = await prisma.projectMember.findMany({
     where: {
       projectId,
       status: "ACTIVE",
-      user: { name: { in: names } },
+      user: { username: { in: usernames } },
     },
-    select: { user: { select: { id: true, name: true } } },
+    select: { user: { select: { id: true, username: true } } },
   });
 
   return members.map((m) => m.user);

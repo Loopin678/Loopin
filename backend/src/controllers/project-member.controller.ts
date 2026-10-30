@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { getIO, removeUserFromProjectRoom } from "../library/socket";
+import { assertActiveMember } from "../services/access.service";
 
 import {
   addProjectMemberService,
@@ -158,6 +159,13 @@ export async function getProjectMember(
       return;
     }
 
+    const requesterId = req.user?.id;
+    if (!requesterId) {
+      res.status(401).json({ message: "Authentication required" });
+      return;
+    }
+    await assertActiveMember(projectId, requesterId);
+
     const member = await getProjectMemberService(
       projectId,
       userId
@@ -167,6 +175,10 @@ export async function getProjectMember(
       member,
     });
   } catch (error) {
+    if (error instanceof Error && error.message === "FORBIDDEN_NOT_PROJECT_MEMBER") {
+      res.status(403).json({ message: "You are not a member of this project" });
+      return;
+    }
     if (
       error instanceof Error &&
       error.message === "Project member not found"
@@ -196,6 +208,13 @@ try {
           return;
      }
 
+     const requesterId = req.user?.id;
+     if (!requesterId) {
+          res.status(401).json({ message: "Authentication required" });
+          return;
+     }
+     await assertActiveMember(projectId, requesterId);
+
      const members = await getProjectMembersService(projectId);
 
      res.status(200).json({
@@ -203,6 +222,10 @@ try {
      });
 } 
 catch (error) {
+    if (error instanceof Error && error.message === "FORBIDDEN_NOT_PROJECT_MEMBER") {
+      res.status(403).json({ message: "You are not a member of this project" });
+      return;
+    }
     console.error(error);
 
     res.status(500).json({

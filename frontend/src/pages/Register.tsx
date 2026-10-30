@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, useLocation } from 'react-router-dom';
+import { getPostLoginPath } from '../utils/postLoginPath';
 import { useAuth } from '../context/AuthContext';
 import { authApi } from '../api/client';
 import { AuthLayout } from '../components/auth/AuthLayout';
@@ -13,8 +14,11 @@ export function Register() {
   const [loading, setLoading] = useState(false);
   const { user, checkAuth } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // The page they were trying to open before being sent to sign in, else Home
+  const destination = getPostLoginPath(location.state);
 
-  if (user) return <Navigate to="/projects" replace />;
+  if (user) return <Navigate to={destination} replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +39,7 @@ export function Register() {
       // After register, login to get cookie
       await authApi.login({ email, password });
       await checkAuth();
-      navigate('/projects');
+      navigate(destination, { replace: true });
     } catch (err: any) {
       setError(err.message || 'Failed to register');
     } finally {

@@ -1,36 +1,29 @@
-import { createProject, findProjectById, findProjectsByUserId
-     ,updateProject, deleteProject } from "../repositories/project.repository";
-
-import { createProjectMember, findProjectMembers } from "../repositories/project-member.repository";  
-import { MemberRole, MembershipStatus } from "@prisma/client";
+import { createProjectWithOwner, findProjectById, findProjectsByUserId, updateProject, deleteProject } from "../repositories/project.repository";
+import { findProjectMembers } from "../repositories/project-member.repository";  
 import { assertActiveMember, assertProjectOwner } from "./access.service";
 
-export async function createProjectService(data:{ name: string,
-  userId: string;
-  stack: string;
-}){
-     if(!data.name || data.name.trim().length === 0){
-          throw new Error("Project Name is Required");
-     }
-       if (!data.userId || data.userId.trim().length === 0) {
+export async function createProjectService(data:{ name: string, userId: string; stack: string;}){
+  
+  if(!data.name || data.name.trim().length === 0){
+    throw new Error("Project Name is Required");
+  }
+
+  if (!data.userId || data.userId.trim().length === 0) {
     throw new Error("User ID is Required");
   }
 
   if (!data.stack || data.stack.trim().length === 0) {
     throw new Error("Stack is Required")
   }
-  // creating project with basic name
-     const project = await createProject({name: data.name.trim()});
-// creating project with main user's data n more shit 
-    await createProjectMember({
-      userId: data.userId,
-      projectId: project.id,
-      stack: data.stack.trim(),
-      role: MemberRole.OWNER,
-      status: MembershipStatus.ACTIVE,
-    });
 
-     return project;
+  // One atomic write: the project, its owner, and the three starter lists
+  const project = await createProjectWithOwner({
+    name: data.name.trim(),
+    ownerId: data.userId,
+    stack: data.stack.trim(),
+  });
+
+  return project;
 }
 
 export async function getProjectByIdService(projectId: string, requesterId: string){

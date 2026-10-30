@@ -53,10 +53,13 @@ export async function findProjectMembershipsByUserId(
 
 export async function findProjectMembers(projectId: string){
 
-  const members = await prisma.projectMember.findMany({where: {
-     projectId,
-     status: MembershipStatus.ACTIVE,
-},
+     const members = await prisma.projectMember.findMany({where: {
+          projectId,
+          status: MembershipStatus.ACTIVE,
+     },
+     include: {
+          user: { select: { id: true, name: true, username: true } },
+     },
      orderBy: {
           id: "asc",
      },

@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { taskService } from "../services/taskService";
-import { getIO } from "../library/socket";
+import { getIO, notifyMyTasksChanged } from "../library/socket";
 
 export async function createTask(req: Request, res: Response): Promise<void> {
   try {
@@ -28,6 +28,7 @@ export async function createTask(req: Request, res: Response): Promise<void> {
 
 
     getIO().to(`project:${task.projectId}`).emit("task:created", task);
+    notifyMyTasksChanged([task.assigneeId], task.projectId, task.id);
 
     res.status(201).json({ task });
   } catch (error) {
@@ -96,9 +97,11 @@ export async function updateTask(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const task = await taskService.updateTask({ taskId, title, description, stack, assigneeId }, requesterId);
+    const { task, previousAssigneeId } = await taskService.updateTask({ taskId, title, description, stack, assigneeId }, requesterId);
 
     getIO().to(`project:${task.projectId}`).emit("task:updated", task);
+    // Both the person who lost the task and the person who got it
+    notifyMyTasksChanged([previousAssigneeId, task.assigneeId], task.projectId, task.id);
 
     res.status(200).json({ task });
   } catch (error) {
@@ -148,6 +151,7 @@ export async function moveTask(req: Request, res: Response): Promise<void> {
     const task = await taskService.moveTask({ taskId, newListId, newPosition }, requesterId);
 
     getIO().to(`project:${task.projectId}`).emit("task:moved", task);
+    notifyMyTasksChanged([task.assigneeId], task.projectId, task.id);
 
     res.status(200).json({ task });
   } catch (error) {
@@ -187,9 +191,10 @@ export async function deleteTask(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const deleted = await taskService.deleteTask(taskId, requesterId);
+    const { deleted, assigneeId } = await taskService.deleteTask(taskId, requesterId);
 
     getIO().to(`project:${deleted.projectId}`).emit("task:deleted", deleted);
+    notifyMyTasksChanged([assigneeId], deleted.projectId, deleted.id);
 
     res.status(200).json({ deleted });
   } catch (error) {
@@ -201,6 +206,26 @@ export async function deleteTask(req: Request, res: Response): Promise<void> {
       res.status(404).json({ message: error.message });
       return;
     }
+    console.error(error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+}
+
+export async function getMyTasks(req: Request, res: Response): Promise<void> {
+  try {
+    const requesterId = req.user?.id;
+    if (!requesterId) {
+      res.status(401).json({ message: "Authentication required" });
+      return;
+    }
+
+    // ?includeDone=true brings back tasks in DONE lists; anything else leaves them out
+    const includeDone = req.query.includeDone === "true";
+
+    const tasks = await taskService.getMyTasks(requesterId, includeDone);
+
+    res.status(200).json({ tasks });
+  } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal Server Error" });
   }

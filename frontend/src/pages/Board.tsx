@@ -2,7 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useBoardStore } from '../store/boardStore';
-import { listsApi, tasksApi, projectsApi, Project, ListWithTasks, TaskSummary, TaskDetail } from '../api/client';
+import { listsApi, tasksApi, projectsApi, membersApi, Project, ListWithTasks, TaskSummary, TaskDetail } from '../api/client';
+import { useMemberStore } from '../store/memberStore';
+import { Avatar } from '../components/common/Avatar';
 import { connectSocket } from '../api/socket';
 import { Loader2, Plus, X, MoreHorizontal, GripVertical, Edit2, Users, Radio, Check, MessageSquare } from 'lucide-react';
 import {
@@ -52,6 +54,13 @@ function TaskCard({
 
   const onlineUserIds = useBoardStore(state => state.onlineUserIds);
   const isAssigneeOnline = task.assigneeId ? onlineUserIds.has(task.assigneeId) : false;
+
+  const assigneeName = useMemberStore(state =>
+    task.assigneeId ? state.namesById[task.assigneeId] : undefined
+  );
+  const membersLoaded = useMemberStore(state => state.loaded);
+  // A name we can't find after loading means the assignee has left the project
+  const assigneeLabel = assigneeName ?? (membersLoaded ? 'Former member' : '');
 
   return (
     <div
@@ -109,16 +118,11 @@ function TaskCard({
         {task.title}
       </p>
 
-      {/* Assignee avatar */}
+      {/* Assignee: avatar only, name appears on hover */}
       {task.assigneeId && (
         <div className="mt-3 flex justify-end">
-          <div className="relative">
-            <div
-              className="w-6 h-6 rounded-full bg-[#1C2127] border border-[rgba(255,255,255,0.10)] flex items-center justify-center text-[10px] font-bold text-[#8A9099]"
-              title={task.assigneeId}
-            >
-              {task.assigneeId.slice(0, 2).toUpperCase()}
-            </div>
+          <div role="img" aria-label={assigneeLabel} className="relative shrink-0 group/assignee">
+            <Avatar userId={task.assigneeId} name={assigneeName ?? '?'} size="xs" />
             <span
               className={cn(
                 "absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#161A1F]",
@@ -126,8 +130,17 @@ function TaskCard({
                   ? "bg-[#5EE6B0] shadow-[0_0_6px_rgba(94,230,176,0.6)]"
                   : "bg-[#5B616A]"
               )}
-              title={isAssigneeOnline ? "Assignee online" : "Assignee offline"}
             />
+
+            {/* Hover pop-up, placed to the left of the avatar */}
+            {assigneeLabel && (
+              <span className="pointer-events-none absolute right-full top-1/2 -translate-y-1/2 mr-2 z-20 max-w-[200px] truncate whitespace-nowrap rounded-md border border-[rgba(255,255,255,0.10)] bg-[#0B0D10] px-2 py-1 text-[11px] text-[#ECEAE4] shadow-lg opacity-0 transition-opacity group-hover/assignee:opacity-100">
+                {assigneeLabel}
+                <span className={isAssigneeOnline ? 'text-[#5EE6B0]' : 'text-[#5B616A]'}>
+                  {' · '}{isAssigneeOnline ? 'online' : 'offline'}
+                </span>
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -355,6 +368,10 @@ export function Board() {
     clearPresence,
   } = useBoardStore();
 
+  const setMembers = useMemberStore(state => state.setMembers);
+  const clearMembers = useMemberStore(state => state.clearMembers);
+  const renameMember = useMemberStore(state => state.renameMember);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [project, setProject] = useState<Project | null>(null);
@@ -379,6 +396,12 @@ export function Board() {
 
     // Fetch project details for header
     projectsApi.get(projectId).then(setProject).catch(() => {});
+
+    // Member names for the assignee labels on task cards
+    const loadMembers = () => {
+      membersApi.list(projectId).then(setMembers).catch(() => {});
+    };
+    loadMembers();
 
     // 1. Load board lists & tasks
     listsApi
@@ -429,6 +452,25 @@ export function Board() {
     const handlePresenceOffline = (data: { userId: string }) => {
       if (data?.userId) setUserOffline(data.userId);
     };
+    // Someone joined or was removed: refresh the names used on task cards
+    const handleMembersChanged = (data?: { projectId?: string }) => {
+      if (data?.projectId && data.projectId !== projectId) return;
+      loadMembers();
+    };
+
+    // A member was removed: the server already unassigned their tasks,
+    // so reload the board and the names
+    const handleMemberRemoved = (data?: { projectId?: string; userId?: string }) => {
+      if (data?.projectId && data.projectId !== projectId) return;
+      if (data?.userId && data.userId === user?.id) return; // that's me: AppShell is already taking me away
+      loadMembers();
+      listsApi.list(projectId).then(setBoard).catch(console.error);
+    };
+
+    // A teammate changed their name: update the labels on task cards
+    const handleProfileUpdated = (data: { userId?: string; name?: string }) => {
+      if (data?.userId && data.name) renameMember(data.userId, data.name);
+    };
 
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
@@ -442,6 +484,9 @@ export function Board() {
     socket.on('presence:snapshot', handlePresenceSnapshot);
     socket.on('presence:online', handlePresenceOnline);
     socket.on('presence:offline', handlePresenceOffline);
+    socket.on('member:joined', handleMembersChanged);
+    socket.on('member:removed', handleMemberRemoved);
+    socket.on('profile:updated', handleProfileUpdated);
 
     // Already connected (e.g. navigated here from another page)
     if (socket.connected) handleConnect();
@@ -459,7 +504,11 @@ export function Board() {
       socket.off('presence:snapshot', handlePresenceSnapshot);
       socket.off('presence:online', handlePresenceOnline);
       socket.off('presence:offline', handlePresenceOffline);
+      socket.off('member:joined', handleMembersChanged);
+      socket.off('member:removed', handleMemberRemoved);
+      socket.off('profile:updated', handleProfileUpdated);
       clearPresence();
+      clearMembers();
       clearBoard();
     };
   }, [projectId]);
