@@ -301,6 +301,7 @@ export const api = {
 };
 
 import axios, { AxiosError } from 'axios';
+import { goToLogin } from './session';
 
 export const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -332,13 +333,18 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    if (error.response?.status === 401) {
+    // The session check (/auth/me) is expected to 401 for signed-out visitors; the
+    // route guards handle that and remember where the user was going. A hard
+    // reload to /login here would lose that, so only redirect for other requests
+    // (the session expired mid-use).
+    const isSessionCheck = error.config?.url?.endsWith('/auth/me');
+    if (error.response?.status === 401 && !isSessionCheck) {
       if (
         !window.location.pathname.startsWith('/login') &&
         !window.location.pathname.startsWith('/register') &&
         window.location.pathname !== '/'
       ) {
-        window.location.href = '/login';
+        goToLogin();
       }
     }
     const message =

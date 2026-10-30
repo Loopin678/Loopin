@@ -32,7 +32,7 @@ export interface TaskDetail {
     commitId: string | null;
     priority?: string | null;
     dueDate?: string | null;
-    assignee?: { id: string; name: string; email: string } | null;
+    assignee?: { id: string; name: string; username: string | null } | null;
     tags?: string[];
     createdAt: Date;
     updatedAt: Date;

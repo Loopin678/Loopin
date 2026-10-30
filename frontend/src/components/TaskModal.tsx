@@ -30,16 +30,15 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   onUpdate,
   onDelete,
 }) => {
-  if (!task) return null;
-
-  const [title, setTitle] = useState(task.title);
-  const [description, setDescription] = useState(task.description || '');
-  const [stack, setStack] = useState(task.stack || '');
+  // Hooks must run on every render, so the "no task" early return comes after them
+  const [title, setTitle] = useState(task?.title ?? '');
+  const [description, setDescription] = useState(task?.description || '');
+  const [stack, setStack] = useState(task?.stack || '');
   const [priority, setPriority] = useState<"low" | "medium" | "high">(
-    task.priority === "high" || task.priority === "low" ? (task.priority as any) : "medium"
+    task?.priority === "high" || task?.priority === "low" ? (task.priority as any) : "medium"
   );
-  const [dueDate, setDueDate] = useState(task.dueDate || '');
-  const [assigneeId, setAssigneeId] = useState(task.assigneeId || task.assignee?.id || '');
+  const [dueDate, setDueDate] = useState(task?.dueDate || '');
+  const [assigneeId, setAssigneeId] = useState(task?.assigneeId || task?.assignee?.id || '');
 
   useEffect(() => {
     if (task) {
@@ -51,6 +50,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       setAssigneeId(task.assigneeId || task.assignee?.id || '');
     }
   }, [task]);
+
+  if (!task) return null;
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
