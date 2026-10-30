@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(loopin_desktop LANGUAGES CXX)
+project(loopin_desktop VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -21,6 +21,16 @@ pkg_check_modules(LIBGIT2 REQUIRED IMPORTED_TARGET libgit2)
 
 qt_standard_project_setup(REQUIRES 6.2)
 
+set(LOOPIN_APP_ICON_RESOURCES "")
+if(WIN32)
+    # Embeds packaging/loopin.ico as the .exe icon
+    set(LOOPIN_APP_ICON_RESOURCES packaging/loopin.rc)
+elseif(APPLE)
+    set(MACOSX_BUNDLE_ICON_FILE loopin.icns)
+    set(LOOPIN_APP_ICON_RESOURCES ${CMAKE_CURRENT_SOURCE_DIR}/packaging/loopin.icns)
+    set_source_files_properties(${LOOPIN_APP_ICON_RESOURCES} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+endif()
+
 qt_add_executable(loopin_desktop
     src/main.cpp
     src/auth/GitHubAuth.cpp
@@ -28,6 +38,24 @@ qt_add_executable(loopin_desktop
     src/git/DiffModel.cpp
     src/backend/ApiClient.cpp
     src/watcher/ChangeWatcher.cpp
+    ${LOOPIN_APP_ICON_RESOURCES}
+)
+
+set_target_properties(loopin_desktop PROPERTIES
+    WIN32_EXECUTABLE TRUE          # no console window behind the app on Windows
+    MACOSX_BUNDLE TRUE
+    MACOSX_BUNDLE_BUNDLE_NAME "Loopin"
+    MACOSX_BUNDLE_GUI_IDENTIFIER "com.loopin.desktop"
+    MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+    MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+)
+target_compile_definitions(loopin_desktop PRIVATE LOOPIN_VERSION="${PROJECT_VERSION}")
+
+# Window/taskbar icon at runtime
+qt_add_resources(loopin_desktop "app_icon"
+    PREFIX "/"
+    BASE packaging
+    FILES packaging/loopin.png
 )
 
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
@@ -83,3 +111,14 @@ target_link_libraries(loopin_cli PRIVATE
     Qt6::Qml
     PkgConfig::LIBGIT2
 )
+
+# ── Install rules (used by the release packaging) ──────────────────────
+include(GNUInstallDirs)
+install(TARGETS loopin_desktop loopin_cli
+    BUNDLE DESTINATION .
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+if(UNIX AND NOT APPLE)
+    install(FILES packaging/loopin.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+    install(FILES packaging/loopin.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps)
+endif()

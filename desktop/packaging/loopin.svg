@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#388bfd"/>
+      <stop offset="1" stop-color="#1f5fc4"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bg)"/>
+  <!-- two interlocking loops: a stylised infinity / commit loop -->
+  <path d="M128 128c-18-24-34-36-52-36a36 36 0 1 0 0 72c18 0 34-12 52-36zm0 0c18 24 34 36 52 36a36 36 0 1 0 0-72c-18 0-34 12-52 36z"
+        fill="none" stroke="#ffffff" stroke-width="20" stroke-linejoin="round"/>
+  <circle cx="76" cy="128" r="11" fill="#ffffff"/>
+  <circle cx="180" cy="128" r="11" fill="#ffffff"/>
+</svg>

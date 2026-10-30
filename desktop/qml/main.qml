@@ -8,7 +8,7 @@ ApplicationWindow {
     width: 950
     height: 700
     visible: true
-    title: "Loopin"
+    title: "Loopin " + Qt.application.version
     color: Theme.bg
 
     // Global application typography

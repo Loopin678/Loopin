@@ -125,3 +125,10 @@ skills-lock.json
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+# Desktop release packaging output
+desktop/dist/
+desktop/build-appimage/
+desktop/build-windows/
+desktop/build-macos/
+*.AppImage
+*.dmg

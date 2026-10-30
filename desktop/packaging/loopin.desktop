@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Loopin
+GenericName=Git client
+Comment=Group your changes into AI-written commits and link them to Loopin tasks
+Exec=loopin_desktop
+Icon=loopin
+Categories=Development;RevisionControl;
+Terminal=false
