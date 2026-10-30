@@ -137,6 +137,7 @@ export function TaskModal({ taskId, projectId, onClose }: TaskModalProps) {
             <div className="flex items-start gap-3 p-5 pb-4 border-b border-[rgba(255,255,255,0.06)] shrink-0">
               <div className="flex-1 min-w-0">
                 <input
+                  aria-label="Task title"
                   value={title}
                   onChange={e => setTitle(e.target.value)}
                   className="w-full bg-transparent text-lg font-bold text-[#ECEAE4] border border-transparent hover:border-[rgba(255,255,255,0.08)] focus:border-[#5EE6B0] rounded-lg px-2 py-1 focus:outline-none transition-colors"
@@ -162,7 +163,7 @@ export function TaskModal({ taskId, projectId, onClose }: TaskModalProps) {
               {/* Assignee + Stack */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="flex items-center justify-between text-xs font-semibold text-[#5B616A] uppercase tracking-wider mb-1.5">
+                  <label htmlFor="task-assignee" className="flex items-center justify-between text-xs font-semibold text-[#5B616A] uppercase tracking-wider mb-1.5">
                     <span className="flex items-center gap-1.5"><User size={12} /> Assignee</span>
                     {assigneeId && (
                       <span className={cn(
@@ -175,6 +176,7 @@ export function TaskModal({ taskId, projectId, onClose }: TaskModalProps) {
                     )}
                   </label>
                   <select
+                    id="task-assignee"
                     value={assigneeId}
                     onChange={e => setAssigneeId(e.target.value)}
                     className="w-full bg-[#161A1F] border border-[rgba(255,255,255,0.08)] rounded-lg px-3 py-2 text-sm text-[#ECEAE4] focus:outline-none focus:border-[#5EE6B0] transition-colors"
@@ -193,10 +195,11 @@ export function TaskModal({ taskId, projectId, onClose }: TaskModalProps) {
                 </div>
 
                 <div>
-                  <label className="flex items-center gap-1.5 text-xs font-semibold text-[#5B616A] uppercase tracking-wider mb-1.5">
+                  <label htmlFor="task-stack" className="flex items-center gap-1.5 text-xs font-semibold text-[#5B616A] uppercase tracking-wider mb-1.5">
                     <Tag size={12} /> Stack / Area
                   </label>
                   <input
+                    id="task-stack"
                     value={stack}
                     onChange={e => setStack(e.target.value)}
                     className="w-full bg-[#161A1F] border border-[rgba(255,255,255,0.08)] rounded-lg px-3 py-2 text-sm text-[#ECEAE4] focus:outline-none focus:border-[#5EE6B0] transition-colors placeholder:text-[#5B616A]"
@@ -207,10 +210,11 @@ export function TaskModal({ taskId, projectId, onClose }: TaskModalProps) {
 
               {/* Description */}
               <div>
-                <label className="block text-xs font-semibold text-[#5B616A] uppercase tracking-wider mb-1.5">
+                <label htmlFor="task-description" className="block text-xs font-semibold text-[#5B616A] uppercase tracking-wider mb-1.5">
                   Description
                 </label>
                 <textarea
+                  id="task-description"
                   value={description}
                   onChange={e => setDescription(e.target.value)}
                   rows={5}

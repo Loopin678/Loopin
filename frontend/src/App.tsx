@@ -15,7 +15,7 @@ import { getPostLoginPath } from './utils/postLoginPath';
 import { Profile } from './pages/Profile';
 
 // Protected route wrapper
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const location = useLocation();
   if (loading) {
@@ -33,7 +33,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 // Auth route (redirect if already authenticated)
-function GuestRoute({ children }: { children: React.ReactNode }) {
+export function GuestRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const location = useLocation();
   if (loading) {

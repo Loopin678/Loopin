@@ -56,10 +56,11 @@ export function Login() {
           </div>
         )}
         <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-[#8A9099] uppercase tracking-wider">
+          <label htmlFor="login-email" className="block text-xs font-semibold text-[#8A9099] uppercase tracking-wider">
             Email
           </label>
           <input
+            id="login-email"
             type="email"
             required
             autoComplete="email"
@@ -70,10 +71,11 @@ export function Login() {
           />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-[#8A9099] uppercase tracking-wider">
+          <label htmlFor="login-password" className="block text-xs font-semibold text-[#8A9099] uppercase tracking-wider">
             Password
           </label>
           <input
+            id="login-password"
             type="password"
             required
             autoComplete="current-password"

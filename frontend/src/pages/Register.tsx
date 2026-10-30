@@ -62,10 +62,11 @@ export function Register() {
           </div>
         )}
         <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-[#8A9099] uppercase tracking-wider">
+          <label htmlFor="register-name" className="block text-xs font-semibold text-[#8A9099] uppercase tracking-wider">
             Name
           </label>
           <input
+            id="register-name"
             type="text"
             required
             autoComplete="name"
@@ -76,10 +77,11 @@ export function Register() {
           />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-[#8A9099] uppercase tracking-wider">
+          <label htmlFor="register-email" className="block text-xs font-semibold text-[#8A9099] uppercase tracking-wider">
             Email
           </label>
           <input
+            id="register-email"
             type="email"
             required
             autoComplete="email"
@@ -90,10 +92,11 @@ export function Register() {
           />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-[#8A9099] uppercase tracking-wider">
+          <label htmlFor="register-password" className="block text-xs font-semibold text-[#8A9099] uppercase tracking-wider">
             Password
           </label>
           <input
+            id="register-password"
             type="password"
             required
             autoComplete="new-password"
