@@ -95,6 +95,7 @@ private:
     QJsonArray mockGroups(const QJsonArray& changes) const;
     // Human-readable error for a failed backend reply, including the server's message
     static QString backendErrorText(QNetworkReply* reply, const QString& what);
+    static QString ollamaChatUrl();
 
     QNetworkAccessManager m_nam;
     QString m_backendUrl;

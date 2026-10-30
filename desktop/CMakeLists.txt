@@ -129,3 +129,10 @@ if(UNIX AND NOT APPLE)
     install(FILES packaging/loopin.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
     install(FILES packaging/loopin.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps)
 endif()
+
+# ── Tests ───────────────────────────────────────────────────────────────
+option(LOOPIN_BUILD_TESTS "Build the desktop test suite (run with ctest)" OFF)
+if(LOOPIN_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()

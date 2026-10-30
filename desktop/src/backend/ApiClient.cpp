@@ -18,6 +18,14 @@ ApiClient::ApiClient(QObject* parent) : QObject(parent), m_backendUrl(QStringLit
     m_nam.setTransferTimeout(120000);
 }
 
+// Ollama's own OLLAMA_HOST convention ("host:port" or a full URL), default local
+QString ApiClient::ollamaChatUrl() {
+    QString host = qEnvironmentVariable("OLLAMA_HOST", QStringLiteral("http://localhost:11434"));
+    if (!host.contains("://")) host.prepend("http://");
+    while (host.endsWith('/')) host.chop(1);
+    return host + QStringLiteral("/api/chat");
+}
+
 QString ApiClient::backendErrorText(QNetworkReply* reply, const QString& what) {
     const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
     const QString serverMsg = QJsonDocument::fromJson(reply->readAll()).object().value("message").toString();
@@ -285,7 +293,7 @@ void ApiClient::requestCommitGroups(const QJsonArray& allChanges, const QString&
         responseFormat["type"] = "json_object";
         body["response_format"] = responseFormat;
 
-        QNetworkRequest req(QUrl(m_aiProvider == "openrouter" ? "https://openrouter.ai/api/v1/chat/completions" : "http://localhost:11434/api/chat"));
+        QNetworkRequest req(QUrl(m_aiProvider == "openrouter" ? QStringLiteral("https://openrouter.ai/api/v1/chat/completions") : ollamaChatUrl()));
         req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
         if (m_aiProvider == "openrouter") {
             req.setRawHeader("Authorization", ("Bearer " + m_openRouterApiKey).toUtf8());
@@ -482,7 +490,7 @@ void ApiClient::generateGitignore(const QStringList& files) {
 
         body["messages"] = messages;
 
-        QNetworkRequest req(QUrl(m_aiProvider == "openrouter" ? "https://openrouter.ai/api/v1/chat/completions" : "http://localhost:11434/api/chat"));
+        QNetworkRequest req(QUrl(m_aiProvider == "openrouter" ? QStringLiteral("https://openrouter.ai/api/v1/chat/completions") : ollamaChatUrl()));
         req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
         if (m_aiProvider == "openrouter") {
             req.setRawHeader("Authorization", ("Bearer " + m_openRouterApiKey).toUtf8());
@@ -607,7 +615,7 @@ void ApiClient::requestMergeResolution(const QString& filePath, const QString& f
         
         body["messages"] = messages;
 
-        QNetworkRequest req(QUrl(m_aiProvider == "openrouter" ? "https://openrouter.ai/api/v1/chat/completions" : "http://localhost:11434/api/chat"));
+        QNetworkRequest req(QUrl(m_aiProvider == "openrouter" ? QStringLiteral("https://openrouter.ai/api/v1/chat/completions") : ollamaChatUrl()));
         req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
         if (m_aiProvider == "openrouter") {
             req.setRawHeader("Authorization", ("Bearer " + m_openRouterApiKey).toUtf8());
