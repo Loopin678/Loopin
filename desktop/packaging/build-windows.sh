@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Builds the Windows installer (LoopinSetup.exe) and a portable zip.
 # File names carry no version, so .../releases/latest/download/<name> links never change.
-# Run from an MSYS2 MINGW64 shell with these packages installed:
-#   pacman -S --needed mingw-w64-x86_64-{gcc,cmake,ninja,pkgconf,qt6-base,qt6-declarative,qt6-tools,libgit2,qtkeychain-qt6,nsis} zip
+# Run from an MSYS2 UCRT64 shell (MINGW64 works too) with these packages installed:
+#   pacman -S --needed mingw-w64-ucrt-x86_64-{gcc,cmake,ninja,pkgconf,qt6-base,qt6-declarative,qt6-tools,libgit2,qtkeychain-qt6,nsis} zip
 #
 #   desktop/packaging/build-windows.sh [output-dir]
 set -euo pipefail
@@ -23,7 +23,9 @@ mkdir -p "$STAGE"
 cp "$WORK_DIR/build/loopin_desktop.exe" "$WORK_DIR/build/loopin_cli.exe" "$STAGE/"
 
 # Qt libraries, plugins and every QML module the app imports
-WINDEPLOYQT="$(command -v windeployqt6 || command -v windeployqt || echo /mingw64/share/qt6/bin/windeployqt.exe)"
+# MSYS2 sets MINGW_PREFIX to /ucrt64 or /mingw64 depending on the shell
+PREFIX="${MINGW_PREFIX:-/ucrt64}"
+WINDEPLOYQT="$(command -v windeployqt6 || command -v windeployqt || echo "$PREFIX/share/qt6/bin/windeployqt.exe")"
 "$WINDEPLOYQT" --release --no-translations --compiler-runtime \
     --qmldir "$DESKTOP_DIR/qml" "$STAGE/loopin_desktop.exe"
 # Fusion style and Qt.labs.settings are picked at runtime, so make sure they're there
@@ -35,7 +37,7 @@ for mod in QtQuick/Controls/Fusion Qt/labs/settings; do
     fi
 done
 
-# Non-Qt MinGW DLLs (libgit2, OpenSSL, zlib, ICU, ...) that windeployqt skips.
+# Non-Qt DLLs from the MSYS2 environment (libgit2, OpenSSL, zlib, ICU, ...) that windeployqt skips.
 # Repeat until nothing new appears, since copied DLLs have dependencies too.
 while :; do
     added=0
@@ -43,7 +45,7 @@ while :; do
         name="$(basename "$dll")"
         if [ ! -f "$STAGE/$name" ]; then cp "$dll" "$STAGE/"; added=1; fi
     done < <(find "$STAGE" -name '*.exe' -o -name '*.dll' | xargs -d '\n' ldd 2>/dev/null \
-             | awk '$3 ~ /^\/mingw64\// {print $3}' | sort -u)
+             | awk -v p="$PREFIX/" 'index($3, p) == 1 {print $3}' | sort -u)
     [ "$added" = 0 ] && break
 done
 

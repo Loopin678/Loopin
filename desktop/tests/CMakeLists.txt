@@ -17,7 +17,7 @@ set(LOOPIN_CORE_INCLUDES
 
 function(loopin_add_test name)
     add_test(NAME ${name} COMMAND ${name})
-    set_tests_properties(${name} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;LANGUAGE=en" TIMEOUT 120)
+    set_tests_properties(${name} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;LANGUAGE=en" TIMEOUT 120)
 endfunction()
 
 # Git behaviour (needs the git command line tool)

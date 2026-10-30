@@ -36,7 +36,7 @@ The same scripts work locally:
 
 | Platform | Command | Needs |
 |---|---|---|
-| Windows (MSYS2 MINGW64 shell) | `packaging/build-windows.sh` | `pacman -S --needed mingw-w64-x86_64-{gcc,cmake,ninja,pkgconf,qt6-base,qt6-declarative,qt6-tools,libgit2,qtkeychain-qt6,nsis} zip` |
+| Windows (MSYS2 UCRT64 shell) | `packaging/build-windows.sh` | `pacman -S --needed mingw-w64-ucrt-x86_64-{gcc,cmake,ninja,pkgconf,qt6-base,qt6-declarative,qt6-tools,libgit2,qtkeychain-qt6,nsis} zip` |
 | macOS | `packaging/build-macos.sh` | `brew install qt libgit2 ninja` |
 | Linux | `packaging/build-appimage.sh` | Qt 6.5+, libgit2, CMake, Ninja (downloads linuxdeploy itself) |
 
