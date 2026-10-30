@@ -140,9 +140,10 @@ export async function googleCallback(req: Request,res: Response): Promise<void>{
     const { code } = req.query;
 
     if (typeof code !== "string") {
-      res.status(400).json({
-        message: "Google authorization code is required",
-      });
+    //   res.status(400).json({
+    //     message: "Google authorization code is required",
+    //   });
+        res.redirect(`${process.env.FRONTEND_URL}/login?error=GoogleCodeMissing`);
       return;
     }
 
@@ -156,18 +157,20 @@ export async function googleCallback(req: Request,res: Response): Promise<void>{
 
     setAuthCookie(res, token);
 
-    res.status(200).json({
-      message: "Google authentication successful",
-    });
+    // res.status(200).json({
+    //   message: "Google authentication successful",
+    // });
+    res.redirect(`${process.env.FRONTEND_URL}/dashboard`);
   } catch (error) {
     if (
       error instanceof Error &&
       error.message === "EMAIL_ALREADY_REGISTERED"
     ) {
-      res.status(409).json({
-        message:
-          "An account exists already with this email. Please use email/password login",
-      });
+    //   res.status(409).json({
+    //     message:
+    //       "An account exists already with this email. Please use email/password login",
+    //   });
+    res.redirect(`${process.env.FRONTEND_URL}/login?error=GoogleAuthFailed`);
       return;
     }
 
