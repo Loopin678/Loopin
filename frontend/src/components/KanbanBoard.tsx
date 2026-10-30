@@ -235,7 +235,7 @@ function TaskColumn({
                         <option value="">Assignee</option>
                         {members.map((m) => (
                           <option key={m.userId} value={m.userId}>
-                            {m.user?.name || m.user?.email || 'Member'}
+                            {m.user?.name || m.user?.username || 'Member'}
                           </option>
                         ))}
                       </select>

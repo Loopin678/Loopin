@@ -7,6 +7,7 @@ import {createProjectMember,findProjectMember,findProjectMembers,findProjectMemb
   declinePendingProjectInvitation,
   transferProjectOwnership,
   findPendingProjectInvitationsByProject} from "../repositories/project-member.repository";
+  import { taskRepository } from "../repositories/taskRepository";
 
 
 export async function addProjectMemberService(
@@ -118,6 +119,19 @@ export async function removeProjectMemberService(projectId: string, requesterId:
   // just in case to recheck project member still exitst
   if (!removed) {
     throw new Error("Project member not found");
+  }
+
+  // Their tasks become unassigned instead of pointing at someone who left.
+  // Pending invitees can't have tasks, so this only applies to ACTIVE members.
+  // It runs AFTER the delete on purpose, and a failure here must not break the
+  // removal itself: the controller still has to emit the events and kick their
+  // sockets. If it fails, the card's "Former member" fallback covers it.
+  if (target.status === MembershipStatus.ACTIVE) {
+    try {
+      await taskRepository.clearAssigneeForUser(target.projectId, target.userId);
+    } catch (error) {
+      console.error("Failed to clear task assignments for removed member:", error);
+    }
   }
 
   // The row as it was before deletion: tells the controller whether this

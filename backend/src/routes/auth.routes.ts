@@ -4,12 +4,13 @@ import {register, login, logout, me, googleCallback, googleLogin,
      githubLogin, githubCallback
 } from "../controllers/auth.controller"
 import { requireAuth } from "../middleware/auth.middleware";
+import { authLimiter } from "../library/rateLimit";
 
 const router = Router();
 
-router.post("/register", register);
+router.post("/register", authLimiter, register);
 
-router.post("/login", login);
+router.post("/login", authLimiter, login);
 
 router.post("/logout", logout);
 

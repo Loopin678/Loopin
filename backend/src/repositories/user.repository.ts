@@ -1,4 +1,5 @@
 import {prisma } from "../library/prisma"
+import { Prisma } from "@prisma/client";
 
 // import { User } from "../types/user";
 // const users = new Map<string, User>();
@@ -6,6 +7,7 @@ import {prisma } from "../library/prisma"
 export async function createUser(data:{
     name: string;
     email: string;
+    username?: string;
     password?: string;
     googleId?: string;
     githubId?: string;
@@ -13,11 +15,29 @@ export async function createUser(data:{
     githubUrl?: string;
 })
 {
-    
-    const user = await prisma.user.create({
-        data,
+    try {
+        const user = await prisma.user.create({
+            data,
+        });
+        return user;
+    } catch (error) {
+        // Turn the database's "already exists" error into the clean errors the layers above expect
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+            const target = Array.isArray(error.meta?.target) ? error.meta.target : [];
+            if (target.includes("username")) throw new Error("USERNAME_TAKEN");
+            if (target.includes("email")) throw new Error("USER_ALREADY_EXISTS");
+        }
+        throw error;
+    }
+}
+
+export async function usernameExists(username: string): Promise<boolean> {
+    const user = await prisma.user.findUnique({
+        where: { username },
+        select: { id: true },
     });
-    return user;
+
+    return user !== null;
 }
 
 export async function findUserByEmail(email: string){

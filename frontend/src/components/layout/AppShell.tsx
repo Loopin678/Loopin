@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useCallback , useRef} from 'react';
-import { NavLink, useParams, useLocation, useNavigate } from 'react-router-dom';
-import { connectSocket, disconnectSocket } from '../../api/socket';
+import { NavLink, Link, useParams, useLocation, useNavigate } from 'react-router-dom';
+import { Avatar } from '../common/Avatar';import { connectSocket, disconnectSocket } from '../../api/socket';
 import { useAuth } from '../../context/AuthContext';
 import { projectsApi, Project } from '../../api/client';
-import { Menu, X, LogOut, FolderKanban, LayoutGrid, Users, Copy, Check, MessageSquare } from 'lucide-react';
+import { Menu, X, LogOut, FolderKanban, LayoutGrid, Users, MessageSquare, Home as HomeIcon } from 'lucide-react';
+import { rememberProject } from '../../utils/recentProjects';
 import { cn } from '../../utils/cn';
 import { useInvitations } from '../../hooks/useInvitations';
 import { NotificationBell } from '../common/NotificationBell';
+
 
 function NavItem({ to, icon: Icon, label }: { to: string; icon: React.ElementType; label: string }) {
   return (
@@ -29,13 +31,12 @@ function NavItem({ to, icon: Icon, label }: { to: string; icon: React.ElementTyp
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useAuth();
+  const { user, logout, setUser } = useAuth();
   const { projectId } = useParams<{ projectId?: string }>();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
-  const [copied, setCopied] = useState(false);
 
   // Callback to refresh projects after accepting an invitation (so the new project appears)
   // We store a counter that Projects.tsx can watch via context — simpler: expose via a
@@ -113,6 +114,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       }
     };
 
+    // I changed my name or username (in this tab or another one)
+    const handleProfileUpdated = (data: { userId?: string; name?: string; username?: string | null }) => {
+      if (data?.userId !== user.id || !data.name) return;
+      setUser({ ...user, name: data.name, username: data.username ?? null });
+    };
+
     // Events sent while offline are lost, so resync after a reconnect
     const handleReconnect = () => {
       syncInvitations();
@@ -124,6 +131,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     socket.on('invite:resolved', handleInviteResolved);
     socket.on('member:removed', handleMemberRemoved);
     socket.on('project:deleted', handleProjectDeleted);
+    socket.on('profile:updated', handleProfileUpdated);
     socket.io.on('reconnect', handleReconnect);
 
     return () => {
@@ -132,6 +140,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       socket.off('invite:resolved', handleInviteResolved);
       socket.off('member:removed', handleMemberRemoved);
       socket.off('project:deleted', handleProjectDeleted);
+      socket.off('profile:updated', handleProfileUpdated);
       socket.io.off('reconnect', handleReconnect);
     };
   }, [user?.id, projectId, handleAfterAccept, syncInvitations]);
@@ -139,23 +148,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (projectId) {
       projectsApi.get(projectId)
-        .then(setProject)
+        .then((p) => {
+          setProject(p);
+          // Only remember projects that actually loaded, so a project the user can't open is never recorded
+          if (user) rememberProject(user.id, p.id);
+        })
         .catch(() => setProject(null));
     } else {
       setProject(null);
     }
   }, [projectId]);
 
-  const copyUserId = () => {
-    if (!user?.id) return;
-    navigator.clipboard.writeText(user.id);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   // Breadcrumb
   const isMembers = location.pathname.includes('/members');
-
+  const isHome = location.pathname === '/home';
+  const isProfile = location.pathname === '/profile';
   // The socket authenticated with the old user's cookie when it connected,
   // so it must be closed on logout or the next login would reuse it.
   const handleLogout = () => {
@@ -199,6 +206,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+          <NavItem to="/home" icon={HomeIcon} label="Home" />
           <NavItem to="/projects" icon={FolderKanban} label="All Projects" />
 
           {projectId && (
@@ -217,31 +225,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* User Profile */}
         <div className="p-3 border-t border-[rgba(255,255,255,0.06)] shrink-0 space-y-2">
-          {/* User ID copy row for adding members */}
-          {user && (
-            <div className="bg-[#161A1F] rounded-lg px-2.5 py-1.5 flex items-center justify-between text-[11px] border border-[rgba(255,255,255,0.05)]">
-              <span className="text-[#5B616A] font-mono truncate max-w-[130px]" title={user.id}>
-                ID: {user.id.slice(0, 8)}...
-              </span>
-              <button
-                onClick={copyUserId}
-                className="text-[#8A9099] hover:text-[#5EE6B0] flex items-center gap-1 transition-colors"
-                title="Copy your User ID (for invitations)"
-              >
-                {copied ? <Check size={12} className="text-[#5EE6B0]" /> : <Copy size={12} />}
-                <span className="text-[10px]">{copied ? 'Copied' : 'Copy'}</span>
-              </button>
-            </div>
-          )}
-
-          <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg group">
-            <div className="w-7 h-7 rounded-full bg-[#1C2127] border border-[rgba(255,255,255,0.08)] flex items-center justify-center text-xs font-bold text-[#8A9099] shrink-0">
-              {user?.name.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-semibold truncate text-[#ECEAE4]">{user?.name}</div>
-              <div className="text-[10px] text-[#5B616A] truncate">{user?.email}</div>
-            </div>
+          <div className="flex items-center gap-1 rounded-lg group">
+            <Link
+              to="/profile"
+              title="View your profile"
+              className="flex-1 min-w-0 flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-[rgba(255,255,255,0.04)] transition-colors"
+            >
+              {user && <Avatar userId={user.id} name={user.name} size="sm" />}
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold truncate text-[#ECEAE4]">{user?.name}</div>
+                <div className="text-[10px] text-[#5B616A] truncate">
+                  {user?.username ? `@${user.username}` : user?.email}
+                </div>
+              </div>
+            </Link>
             <button
               onClick={handleLogout}
               className="p-1.5 text-[#5B616A] hover:text-red-400 hover:bg-red-950/30 rounded-lg transition-all shrink-0"
@@ -268,7 +265,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <span className="text-[#5EE6B0]">~/</span>
               <span>loopin</span>
               <span className="text-[#2A3040]">/</span>
-              <span className="text-[#8A9099]">projects</span>
+              <span className="text-[#8A9099]">{isHome ? 'home' : isProfile ? 'profile' : 'projects'}</span>            
               {project && (
                 <>
                   <span className="text-[#2A3040]">/</span>
@@ -315,12 +312,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             ? React.cloneElement(children as React.ReactElement<any>, {
                 _invitationsRefreshKey: projectsRefreshKey,
                 _invitations: invitations,
-                _invLoading: invLoading,
-                _invError: invError,
                 _actioningId: actioningId,
                 _onAcceptInvite: acceptInvitation,
                 _onDeclineInvite: declineInvitation,
-                _onRefreshInvites: refreshInvitations,
               })
             : children}
         </main>

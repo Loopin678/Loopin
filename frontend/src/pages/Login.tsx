@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, useLocation } from 'react-router-dom';
+import { getPostLoginPath } from '../utils/postLoginPath';
 import { useAuth } from '../context/AuthContext';
 import { authApi } from '../api/client';
 import { AuthLayout } from '../components/auth/AuthLayout';
@@ -12,9 +13,12 @@ export function Login() {
   const [loading, setLoading] = useState(false);
   const { user, checkAuth } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // The page they were trying to open before being sent to sign in, else Home
+  const destination = getPostLoginPath(location.state);
 
-  // Already authenticated → go to projects
-  if (user) return <Navigate to="/projects" replace />;
+  // Already authenticated → go on
+  if (user) return <Navigate to={destination} replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +33,7 @@ export function Login() {
       // Cookie is set by server automatically
       await authApi.login({ email, password });
       await checkAuth(); // re-fetch /api/auth/me to hydrate context
-      navigate('/projects');
+      navigate(destination, { replace: true });
     } catch (err: any) {
       setError(err.message || 'Failed to login');
     } finally {

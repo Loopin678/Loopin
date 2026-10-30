@@ -3,6 +3,7 @@ import { Server as HTTPServer} from "http";
 import jwt from "jsonwebtoken";
 import { findProjectMember } from "../repositories/project-member.repository";
 import { registerMessageHandlers } from "../Sockets/message.socket";
+import { applySocketRateLimit } from "./socketRateLimit";
 
 let io: SocketIOServer | null = null;
 
@@ -70,6 +71,7 @@ export function initSocket(httpServer: HTTPServer): SocketIOServer {
             origin: process.env.FRONTEND_URL,
             credentials: true,
         },
+        maxHttpBufferSize: 1e5, // 100 KB per message (the default is 1 MB)
     });
 
     io.use((socket, next) => {
@@ -99,6 +101,8 @@ export function initSocket(httpServer: HTTPServer): SocketIOServer {
         // Personal room: lets us reach this user directly (invites, removal
         // notices) no matter which project or page they're on.
         socket.join(`user:${socket.data.userId as string}`);
+
+        applySocketRateLimit(socket);
         
         // Projects this socket has started joining. Also stored on socket.data so
         // the helpers below can reset it when a member is removed.
@@ -218,4 +222,35 @@ export function closeProjectRoom(projectId: string, memberIds: string[]): void {
     });
 
     presence.delete(projectId);
+}
+
+// Tells people their "My tasks" list changed. The event carries ids only: the browser
+// refetches /api/tasks/mine itself, so nothing private is ever sent through the socket.
+export function notifyMyTasksChanged(
+    userIds: Array<string | null | undefined>,
+    projectId: string,
+    taskId: string
+): void {
+    const rooms = new Set<string>();
+    for (const id of userIds) {
+        if (id) rooms.add(`user:${id}`); // skips null/undefined, and the Set removes duplicates
+    }
+    if (rooms.size === 0) return;
+
+    getIO().to(Array.from(rooms)).emit("my-tasks:changed", { projectId, taskId });
+}
+
+// Tells teammates (and the user's own other tabs) that someone's name or handle changed.
+// Only public fields are sent: the same ones every project member can already see.
+export function notifyProfileUpdated(
+    user: { id: string; name: string; username: string | null },
+    projectIds: string[]
+): void {
+    const rooms = [`user:${user.id}`, ...projectIds.map((id) => `project:${id}`)];
+
+    getIO().to(rooms).emit("profile:updated", {
+        userId: user.id,
+        name: user.name,
+        username: user.username,
+    });
 }

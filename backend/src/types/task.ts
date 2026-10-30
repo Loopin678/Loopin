@@ -1,3 +1,5 @@
+import { ListKind } from "@prisma/client";
+
 export interface CreateTaskInput {
     title: string;
     listId: string;
@@ -76,4 +78,15 @@ export interface DeletedTask {
     id: string;
     listId: string;
     projectId: string;
+}
+
+// One row on the Home page's "My tasks" list
+export interface MyTask {
+    id: string;
+    title: string;
+    position: number;
+    stack: string | null;
+    updatedAt: Date;
+    project: { id: string; name: string };
+    list: { id: string; name: string; kind: ListKind };
 }

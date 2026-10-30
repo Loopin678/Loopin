@@ -152,10 +152,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               >
                 <option value="">Unassigned</option>
                 {members.map((m) => {
-                  const name = m.user?.name || m.user?.email || 'Teammate';
+                  const name = m.user?.name || m.user?.username || 'Teammate';
                   return (
                     <option key={m.userId} value={m.userId}>
-                      {name} ({m.user?.email || m.stack})
+                      {name} ({m.user?.username || m.stack})
                     </option>
                   );
                 })}
@@ -169,7 +169,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     </AvatarFallback>
                   </Avatar>
                   <span className="text-[11px] font-medium text-foreground max-w-[120px] truncate">
-                    {selectedMember.user?.name || selectedMember.user?.email}
+                    {selectedMember.user?.name || selectedMember.user?.username}
                   </span>
                 </div>
               )}

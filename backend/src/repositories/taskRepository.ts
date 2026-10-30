@@ -1,6 +1,6 @@
 import { prisma } from '../library/prisma'
-import { Prisma } from '@prisma/client';
-import { CreatedTask, CreateTaskInput, MoveTaskInput, TaskDetail , UpdateTaskInput, MovedTask, DeletedTask} from "../types/task";
+import { Prisma, MembershipStatus, ListKind } from '@prisma/client';
+import { CreatedTask, CreateTaskInput, MoveTaskInput, TaskDetail , UpdateTaskInput, MovedTask, DeletedTask, MyTask} from "../types/task";
 
 
 async function createTask(data: CreateTaskInput): Promise<CreatedTask> {
@@ -245,4 +245,63 @@ async function getTaskProjectId(taskId: string): Promise<string> {
     return task.projectId;
 }
 
-export const taskRepository = { createTask, getTaskDetail, getTasksByProjectId, updateTask, moveTask, deleteTask, getTaskProjectId };
+// Unassigns every task in a project that belongs to this user (used when they leave or are removed)
+async function clearAssigneeForUser(projectId: string, userId: string): Promise<number> {
+    const result = await prisma.task.updateMany({
+        where: { projectId, assigneeId: userId },
+        data: { assigneeId: null }
+    });
+
+    return result.count;
+}
+
+// Tasks assigned to this user, across all projects.
+// Two safety rules live in the query itself:
+//  1. the user must still be an ACTIVE member of the task's project (so leftover
+//     assignments from projects they left never show up)
+//  2. tasks in a DONE list are left out unless includeDone is true
+async function getTasksAssignedToUser(userId: string, includeDone: boolean): Promise<MyTask[]> {
+    const where: Prisma.TaskWhereInput = {
+        assigneeId: userId,
+        project: {
+            members: { some: { userId, status: MembershipStatus.ACTIVE } }
+        },
+        ...(includeDone ? {} : { list: { kind: { not: ListKind.DONE } } })
+    };
+
+    return prisma.task.findMany({
+        where,
+        select: {
+            id: true,
+            title: true,
+            position: true,
+            stack: true,
+            updatedAt: true,
+            project: { select: { id: true, name: true } },
+            list: { select: { id: true, name: true, kind: true } }
+        },
+        // Grouped by project, then in board order (To Do, In Progress, Done), then by position
+        orderBy: [
+            { project: { name: 'asc' } },
+            { projectId: 'asc' },
+            { list: { position: 'asc' } },
+            { position: 'asc' }
+        ]
+    });
+}
+
+// The project a task belongs to, and who it is currently assigned to
+async function getTaskAssignment(taskId: string): Promise<{ projectId: string; assigneeId: string | null }> {
+    const task = await prisma.task.findUnique({
+        where: { id: taskId },
+        select: { projectId: true, assigneeId: true }
+    });
+
+    if (!task) {
+        throw new Error('Task not found!');
+    }
+
+    return task;
+}
+
+export const taskRepository = { createTask, getTaskDetail, getTasksByProjectId, updateTask, moveTask, deleteTask, getTaskProjectId, clearAssigneeForUser, getTasksAssignedToUser, getTaskAssignment };

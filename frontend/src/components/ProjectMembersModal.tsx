@@ -225,7 +225,7 @@ export const ProjectMembersModal: React.FC<ProjectMembersModalProps> = ({
                 {members.map((m) => {
                   const isCurrent = m.userId === currentUser.id;
                   const displayName = m.user?.name || (isCurrent ? currentUser.name : 'Teammate');
-                  const displayEmail = m.user?.email || (isCurrent ? currentUser.email : '');
+                  const displayEmail = (isCurrent ? currentUser.email : (m.user?.username ? '@' + m.user.username : ''));
                   const isOwner = m.role === 'OWNER';
 
                   return (

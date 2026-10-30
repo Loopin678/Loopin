@@ -1,7 +1,6 @@
 import { listRepository } from "../repositories/listRepository";
 import { taskRepository } from "../repositories/taskRepository";
-import { CreateTaskInput, CreatedTask, TaskDetail,UpdateTaskInput,MoveTaskInput, MovedTask , DeletedTask} from "../types/task";
-import { assertActiveMember, assertValidAssignee } from "./access.service";
+import { CreateTaskInput, CreatedTask, TaskDetail,UpdateTaskInput,MoveTaskInput, MovedTask , DeletedTask, MyTask} from "../types/task";import { assertActiveMember, assertValidAssignee } from "./access.service";
 
 async function assertValidMoveTarget(taskId: string, newListId: string): Promise<void> {
     const [ taskProjectId, newList ] = await Promise.all([
@@ -42,25 +41,42 @@ async function getTaskDetail(taskId: string, requesterId: string): Promise<TaskD
   return task;
 }
 
-async function updateTask(data: UpdateTaskInput, requesterId: string): Promise<TaskDetail> {
-  const projectId = await taskRepository.getTaskProjectId(data.taskId);
+async function updateTask(
+  data: UpdateTaskInput,
+  requesterId: string
+): Promise<{ task: TaskDetail; previousAssigneeId: string | null }> {
+  // One lookup gives us both the project (for the access check) and the current assignee
+  const { projectId, assigneeId: previousAssigneeId } = await taskRepository.getTaskAssignment(data.taskId);
   await assertActiveMember(projectId, requesterId);
 
   if (data.assigneeId) {
     await assertValidAssignee(projectId, data.assigneeId);
   }
 
-  return taskRepository.updateTask(data);
+  const task = await taskRepository.updateTask(data);
+  return { task, previousAssigneeId };
 }
 
-async function deleteTask(taskId: string, requesterId: string): Promise<DeletedTask> {
-  const projectId = await taskRepository.getTaskProjectId(taskId);
+async function deleteTask(
+  taskId: string,
+  requesterId: string
+): Promise<{ deleted: DeletedTask; assigneeId: string | null }> {
+  // Read the assignee BEFORE the delete: afterwards the row is gone
+  const { projectId, assigneeId } = await taskRepository.getTaskAssignment(taskId);
   await assertActiveMember(projectId, requesterId);
-  return taskRepository.deleteTask(taskId);
+
+  const deleted = await taskRepository.deleteTask(taskId);
+  return { deleted, assigneeId };
 }
 
 async function getTasksByProject(projectId: string): Promise<TaskDetail[]> {
   return taskRepository.getTasksByProjectId(projectId);
 }
 
-export const taskService = { createTask, getTaskDetail, getTasksByProject, updateTask, moveTask, deleteTask };
+async function getMyTasks(userId: string, includeDone: boolean): Promise<MyTask[]> {
+  // No assertActiveMember here: this spans every project, so the membership
+  // rule is part of the repository query instead
+  return taskRepository.getTasksAssignedToUser(userId, includeDone);
+}
+
+export const taskService = { createTask, getTaskDetail, updateTask, moveTask, deleteTask, getMyTasks, getTasksByProject };

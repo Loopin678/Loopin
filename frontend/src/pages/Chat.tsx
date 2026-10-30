@@ -9,6 +9,7 @@ import {
   Users, MessageSquare, AtSign 
 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { Avatar } from '../components/common/Avatar';
 
 export function Chat() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -62,25 +63,15 @@ export function Chat() {
     // 3. Setup Socket.IO
     const socket = connectSocket();
 
-    // Guard to ensure we emit join-project only once per project
-    const joinedSet: Set<string> = (socket as any)._joinedProjects ?? new Set<string>();
-    (socket as any)._joinedProjects = joinedSet;
+    // The server ignores duplicate joins and just re-sends the presence snapshot,
+    // so it is safe to emit on every mount and on every (re)connect.
+    const join = () => socket.emit('join-project', projectId);
 
     const handleConnect = () => {
       setSocketConnected(true);
-      if (!joinedSet.has(projectId)) {
-        socket.emit('join-project', projectId);
-        joinedSet.add(projectId);
-      }
+      join();
     };
-
-    socket.on('connect', handleConnect);
-
-    if (socket.connected) {
-      handleConnect();
-    }
-
-    socket.on('disconnect', () => setSocketConnected(false));
+    const handleDisconnect = () => setSocketConnected(false);
 
     // Real-time message receiver
     const handleNewMessage = (msg: Message) => {
@@ -108,6 +99,26 @@ export function Chat() {
       setTimeout(() => setSendError(''), 4000);
     };
 
+    // The server dropped a message because too many were sent too quickly
+    const handleRateLimited = () => {
+      setSendError("You're sending messages too fast. Please slow down.");
+      setTimeout(() => setSendError(''), 4000);
+    };
+
+    // A teammate changed their name or username: update it on the messages already on screen
+    const handleProfileUpdated = (data: { userId?: string; name?: string; username?: string | null }) => {
+      if (!data?.userId || !data.name) return;
+      const userId = data.userId;
+      const name = data.name;
+      const username = data.username ?? null;
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.senderId === userId && m.sender ? { ...m, sender: { ...m.sender, name, username } } : m
+        )
+      );
+    };
+
     // Presence handlers
     const handleSnapshot = (data: { onlineUserIds: string[] }) => {
       setPresenceSnapshot(data?.onlineUserIds ?? []);
@@ -119,19 +130,28 @@ export function Chat() {
       if (data?.userId) setUserOffline(data.userId);
     };
 
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
     socket.on('new_message', handleNewMessage);
     socket.on('ai_typing', handleAiTyping);
     socket.on('message_error', handleMessageError);
+    socket.on('rate_limited', handleRateLimited);
+    socket.on('profile:updated', handleProfileUpdated);
     socket.on('presence:snapshot', handleSnapshot);
     socket.on('presence:online', handleOnline);
     socket.on('presence:offline', handleOffline);
 
+    // Already connected (e.g. navigated here from the board)
+    if (socket.connected) handleConnect();
+
     return () => {
       socket.off('connect', handleConnect);
-      socket.off('disconnect');
+      socket.off('disconnect', handleDisconnect);
       socket.off('new_message', handleNewMessage);
       socket.off('ai_typing', handleAiTyping);
       socket.off('message_error', handleMessageError);
+      socket.off('rate_limited', handleRateLimited);
+      socket.off('profile:updated', handleProfileUpdated);
       socket.off('presence:snapshot', handleSnapshot);
       socket.off('presence:online', handleOnline);
       socket.off('presence:offline', handleOffline);
@@ -147,9 +167,9 @@ export function Chat() {
     const content = inputText.trim();
 
     // Emit send_message to backend socket
+    // The server knows who we are from the login cookie, so no sender id is sent
     socket.emit('send_message', {
       projectId,
-      senderId: user.id,
       content,
     });
 
@@ -286,7 +306,7 @@ export function Chat() {
         ) : (
           messages.map(msg => {
             const isMe = msg.senderId === user?.id;
-            const isAi = msg.sender?.email === 'ai@loopin.system' || msg.sender?.name?.toLowerCase() === 'ai';
+            const isAi = msg.sender?.username === 'ai';
 
             return (
               <div
@@ -298,18 +318,13 @@ export function Chat() {
               >
                 {/* Avatar with presence */}
                 <div className="relative shrink-0 mt-0.5">
-                  <div
-                    className={cn(
-                      'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold',
-                      isAi
-                        ? 'bg-[#7C7FE8]/20 border border-[#7C7FE8]/40 text-[#A78BFA]'
-                        : isMe
-                        ? 'bg-[#5EE6B0]/20 border border-[#5EE6B0]/30 text-[#5EE6B0]'
-                        : 'bg-[#1C2127] border border-[rgba(255,255,255,0.08)] text-[#8A9099]'
-                    )}
-                  >
-                    {isAi ? <Bot size={14} /> : (msg.sender?.name || 'U').charAt(0).toUpperCase()}
-                  </div>
+                  {isAi ? (
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center bg-[#7C7FE8]/20 border border-[#7C7FE8]/40 text-[#A78BFA]">
+                      <Bot size={14} />
+                    </div>
+                  ) : (
+                    <Avatar userId={msg.senderId} name={msg.sender?.name ?? 'Member'} size="sm" />
+                  )}
                   {!isAi && (
                     <span
                       className={cn(
@@ -329,6 +344,9 @@ export function Chat() {
                     <span className="text-xs font-semibold text-[#8A9099]">
                       {isAi ? 'Loopin AI' : isMe ? 'You' : msg.sender?.name || 'Member'}
                     </span>
+                    {!isAi && !isMe && msg.sender?.username && (
+                      <span className="text-[10px] text-[#5B616A] font-mono">@{msg.sender.username}</span>
+                    )}
                     <span className="text-[10px] text-[#5B616A] font-mono">
                       {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
@@ -398,7 +416,7 @@ export function Chat() {
             type="text"
             value={inputText}
             onChange={e => setInputText(e.target.value)}
-            placeholder="Type a message... (use @ai for AI assistant)"
+            placeholder="Message your team... (@username to mention, @ai for the assistant)"
             className="flex-1 bg-[#161A1F] border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-2.5 text-sm text-[#ECEAE4] placeholder:text-[#5B616A] focus:outline-none focus:border-[#5EE6B0] transition-colors"
           />
 

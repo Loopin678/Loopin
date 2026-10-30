@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
@@ -10,10 +10,14 @@ import { Members } from './pages/Members';
 import { Chat } from './pages/Chat';
 import { FocusMode } from './pages/FocusMode';
 import { AppShell } from './components/layout/AppShell';
+import { Home } from './pages/Home';
+import { getPostLoginPath } from './utils/postLoginPath';
+import { Profile } from './pages/Profile';
 
 // Protected route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#0B0D10] text-[#ECEAE4]">
@@ -21,13 +25,17 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  if (!user) return <Navigate to="/login" replace />;
+  // Remember where they were heading, so signing in can send them back there
+  if (!user) {
+    return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
+  }
   return <>{children}</>;
 }
 
 // Auth route (redirect if already authenticated)
 function GuestRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#0B0D10] text-[#ECEAE4]">
@@ -35,7 +43,7 @@ function GuestRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  if (user) return <Navigate to="/projects" replace />;
+  if (user) return <Navigate to={getPostLoginPath(location.state)} replace />;
   return <>{children}</>;
 }
 
@@ -43,11 +51,32 @@ function AppRoutes() {
   return (
     <Routes>
       {/* Public */}
-      <Route path="/" element={<Landing />} />
+      {/* Signed-in users skip the marketing page and go to Home */}
+      <Route path="/" element={<GuestRoute><Landing /></GuestRoute>} />
       <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
       <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
 
       {/* Authenticated — wrapped in AppShell */}
+      <Route
+        path="/home"
+        element={
+          <ProtectedRoute>
+            <AppShell>
+              <Home />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+            <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <AppShell>
+              <Profile />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/projects"
         element={

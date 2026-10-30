@@ -1,6 +1,7 @@
 export interface User {
   id: string;
   name: string;
+  username?: string | null;
   email: string;
   googleId?: string | null;
   createdAt: string;
@@ -16,6 +17,15 @@ export interface Project {
 export type MemberRole = 'OWNER' | 'MEMBER';
 export type MembershipStatus = 'ACTIVE' | 'PENDING';
 
+// The only user fields the server sends inside a member row
+export interface MemberUser {
+  id: string;
+  name: string;
+  username: string | null;
+}
+
+export type ListKind = 'TODO' | 'IN_PROGRESS' | 'DONE' | 'CUSTOM';
+
 export interface ProjectMember {
   id: string;
   userId: string;
@@ -23,7 +33,7 @@ export interface ProjectMember {
   stack: string;
   role: MemberRole;
   status: MembershipStatus;
-  user?: User;
+  user?: MemberUser;
 }
 
 export interface ProjectInvite {

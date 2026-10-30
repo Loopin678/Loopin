@@ -348,8 +348,8 @@ apiClient.interceptors.response.use(
 );
 
 // ─── Types (shared with src/types) ──────────────────────────────────────────
-import type { MemberRole } from '../types';
-export type { User, Project, ProjectMember, MemberRole, MembershipStatus, List, Task, Commit, ProjectInvite } from '../types';
+import type { MemberRole, ListKind } from '../types';
+export type { User, Project, ProjectMember, MemberRole, MembershipStatus, MemberUser, ListKind, List, Task, Commit, ProjectInvite } from '../types';
 
 export interface PendingInvitation {
   id: string;
@@ -374,10 +374,22 @@ export interface TaskSummary {
   projectId: string;
 }
 
+// One row of "My tasks" on the Home page
+export interface MyTask {
+  id: string;
+  title: string;
+  position: number;
+  stack: string | null;
+  updatedAt: string;
+  project: { id: string; name: string };
+  list: { id: string; name: string; kind: ListKind };
+}
+
 export interface ListWithTasks {
   id: string;
   name: string;
   position: number;
+  kind: ListKind;
   projectId: string;
   createdAt: string;
   tasks: TaskSummary[];
@@ -403,7 +415,7 @@ export interface Message {
   projectId: string;
   senderId: string;
   createdAt: string;
-  sender?: User;
+  sender?: { id: string; name: string; username: string | null };
 }
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
@@ -531,6 +543,11 @@ export const listsApi = {
 // PATCH /api/tasks/:taskId/move         { newListId, newPosition }                            → 200 { task }
 // DELETE /api/tasks/:taskId                                                                   → 200 { deleted: { id, listId, projectId } }
 export const tasksApi = {
+  // GET /api/tasks/mine?includeDone=true → 200 { tasks: MyTask[] }
+  mine: async (includeDone = false) =>
+    (await apiClient.get<{ tasks: MyTask[] }>('/tasks/mine', {
+      params: includeDone ? { includeDone: true } : undefined,
+    })).data.tasks,
   create: async (
     projectId: string,
     data: { title: string; listId: string; description?: string; stack?: string; assigneeId?: string }
@@ -560,4 +577,41 @@ export const messagesApi = {
     const res = await apiClient.get<Message[] | { messages: Message[] }>(`/projects/${projectId}/messages`);
     return Array.isArray(res.data) ? res.data : (res.data as any).messages || [];
   },
+};
+
+// ─── Profiles ─────────────────────────────────────────────────────────────────
+// GET   /api/users/me          → 200 { profile: OwnProfile }
+// PATCH /api/users/me          { name?, username?, bio?, skills? } → 200 { profile } | 400 | 409 (username taken)
+// GET   /api/users/:userId     → 200 { profile: PublicProfile } | 404 (not someone you share a project with)
+export interface OwnProfile {
+  id: string;
+  name: string;
+  username: string | null;
+  bio: string | null;
+  skills: string[];
+  email: string;
+  createdAt: string;
+  hasPassword: boolean;
+  googleLinked: boolean;
+}
+
+export interface PublicProfile {
+  id: string;
+  name: string;
+  username: string | null;
+  bio: string | null;
+  skills: string[];
+  sharedProjects: { projectId: string; projectName: string; role: MemberRole; stack: string }[];
+}
+
+export const usersApi = {
+  me: async () =>
+    (await apiClient.get<{ profile: OwnProfile }>('/users/me')).data.profile,
+
+  updateMe: async (
+    data: Partial<{ name: string; username: string; bio: string | null; skills: string[] }>
+  ) => (await apiClient.patch<{ profile: OwnProfile }>('/users/me', data)).data.profile,
+
+  get: async (userId: string) =>
+    (await apiClient.get<{ profile: PublicProfile }>(`/users/${userId}`)).data.profile,
 };
