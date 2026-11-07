@@ -22,6 +22,7 @@ model User {
   githubId       String? @unique
   githubUsername String?  
   githubUrl     String?
+  fetchGithubRepositories Boolean @default(false)
 }
 
 model Project {
