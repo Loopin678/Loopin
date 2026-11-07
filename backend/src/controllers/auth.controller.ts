@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import { getUserById,loginUser ,registerUser, loginWithGoogle
-  ,loginWithGithub
- } from "../services/auth.service";
+    ,loginWithGithub} from "../services/auth.service";
 import { getGoogleUser, getGoogleAuthUrl } from "../services/google.service";
 import { getGitHubAuthUrl, getGitHubUser } from "../services/github.service";
+import { getGitHubRepositoryPreference, setGitHubRepositoryPreference} from "../services/auth.service"
 import { randomBytes } from "crypto";
 
 function setAuthCookie(res: Response, token: string): void{
@@ -260,4 +260,60 @@ try{
         message:"Github Authentication failed"
     });
 }
+}
+
+
+export async function getGitHubPreference(req: Request,res: Response): Promise<void>{
+    try{
+        const userId = req.user?.id;
+
+        if(!userId){
+            res.status(401).json({
+                message: "Unauthorized",
+            });
+            return;
+        }
+        const preference = await getGitHubRepositoryPreference(userId);
+
+        res.status(200).json({preference});
+
+    }catch(error){
+        if (error instanceof Error && error.message === "USER_NOT_FOUND"){
+            res.status(404).json({message: "User not found"});
+            return;
+        }
+        console.error("GET GITHUB PREFERENCE ERROR:", error);
+
+        res.status(500).json({message: "Internal Server Error"});
+    }
+}
+
+export async function updateGitHubPreference(req: Request,res: Response): Promise<void>{
+    try{
+        const userId = req.user?.id;
+        const { enabled } = req.body;
+
+        if(!userId){
+            res.status(401).json({
+                message: "Unauthorized",
+            });
+            return;
+        }
+
+        if(typeof enabled !== "boolean"){
+            res.status(400).json({
+                message: "enabled must be a boolean",
+            });
+            return;
+        }
+
+        const preference = await setGitHubRepositoryPreference(userId, enabled);
+
+        res.status(200).json({message: "GitHub repository preference updated",preference,});
+
+    } catch(error){
+        console.error("UPDATE GITHUB PREFERENCE ERROR:", error);
+
+        res.status(500).json({message: "Internal Server Error"});
+    }
 }

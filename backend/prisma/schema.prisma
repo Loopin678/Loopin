@@ -23,6 +23,7 @@ model User {
   githubUsername String?  
   githubUrl     String?
   fetchGithubRepositories Boolean @default(false)
+  githubAccessToken String?
 }
 
 model Project {

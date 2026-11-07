@@ -49,6 +49,18 @@ export async function findUserByGithubId(githubId: string){
     return user;
 }
 
+export async function updateGithubRepositoryPreference(userId: string, enabled: boolean){
+    return await prisma.user.update({
+        where:{id: userId},
+        data:{
+            fetchGithubRepositories: enabled,
+        },
+        select:{
+            id: true,
+            fetchGithubRepositories: true,
+        },
+    });
+}
 
 // not need anymore now that we using prisma
 // export async function userExistsByEmail(email: string): Promise<boolean>{

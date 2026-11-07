@@ -1,7 +1,9 @@
 import { Router } from "express";
 
 import {register, login, logout, me, googleCallback, googleLogin,
-     githubLogin, githubCallback
+     githubLogin, githubCallback,
+     getGitHubPreference,
+     updateGitHubPreference
 } from "../controllers/auth.controller"
 import { requireAuth } from "../middleware/auth.middleware";
 
@@ -22,5 +24,9 @@ router.get("/github", githubLogin);
 router.get("/google/callback",googleCallback);
 
 router.get("/github/callback",githubCallback);
+
+router.get("/github/preferences", requireAuth, getGitHubPreference);
+
+router.patch("/github/prefernces", requireAuth, updateGitHubPreference);
 
 export default router;

@@ -6,7 +6,7 @@ import {
     findUserByEmail, 
     findUserByGoogleId, 
     findUserById,
-    findUserByGithubId 
+    findUserByGithubId , updateGithubRepositoryPreference
 } from "../repositories/user.repository";
 import { JWT_SECRET, JWT_EXPIRES_IN } from "../library/auth";
 
@@ -176,4 +176,21 @@ export async function getUserById(id: string): Promise<PublicUser | null>{
     return toPublicUser(user);
 }
 
+
+export async function getGithubRepositoryPreference(userId: string){
+    const user = await findUserById(userId);
+    if(!user){
+        throw new Error("USER_NOT_FOUND");
+    }
+    return{
+        fetchGithubRepositories: user.fetchGithubRepositories
+    };
+}
+export async function setGithubRepositoryPreference(userId: string, enabled: boolean){
+try {
+    return await updateGithubRepositoryPreference(userId, enabled);
+} catch (err) {
+    throw err;
+}
+}
 // export const authService = new authService();
