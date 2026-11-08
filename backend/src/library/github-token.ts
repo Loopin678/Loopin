@@ -28,7 +28,7 @@ export function encryptGitHubToken(token: string): string {
 
      const authTag = cipher.getAuthTag();
 
-     return[
+     return [
          iv.toString("base64"),
          authTag.toString("base64"),
          encrypted.toString("base64"),
