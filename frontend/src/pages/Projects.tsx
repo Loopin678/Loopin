@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { projectsApi, Project } from '../api/client';
 import {
-  FolderKanban, Plus, Loader2, Trash2, Clock, Edit2, X,
+  FolderKanban, Plus, Loader2, Trash2, Clock, Edit2, X, Search, ArrowRight,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { projectCover, projectMonogram, timeAgo } from '../utils/projectStyle';
 
 // Injected by AppShell via React.cloneElement. The key changes whenever something
 // can change this user's project list: an invitation was accepted, they were
@@ -26,6 +27,7 @@ export function Projects({ _invitationsRefreshKey = 0 }: ProjectsProps) {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
 
   // Rename state
   const [renameProject, setRenameProject] = useState<Project | null>(null);
@@ -125,107 +127,143 @@ export function Projects({ _invitationsRefreshKey = 0 }: ProjectsProps) {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <Loader2 className="animate-spin text-[#5EE6B0]" size={32} />
+        <Loader2 className="animate-spin text-[#D0E36A]" size={32} />
       </div>
     );
   }
 
   const stackOptions = ['Frontend', 'Backend', 'Fullstack', 'Mobile', 'DevOps', 'Data', 'Design'];
 
+  const q = query.trim().toLowerCase();
+  const visibleProjects = q ? projects.filter(p => p.name.toLowerCase().includes(q)) : projects;
+
   return (
     <div className="h-full overflow-y-auto custom-scrollbar">
-      <div className="p-8 max-w-6xl mx-auto">
-        {/* Page Header */}
-        <div className="flex items-start justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-[#ECEAE4]">Your Projects</h1>
-            <p className="text-sm text-[#8A9099] mt-1.5">
-              {projects.length === 0
-                ? 'No projects yet. Create your first workspace.'
-                : `${projects.length} workspace${projects.length !== 1 ? 's' : ''}`}
-            </p>
-          </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#5EE6B0] text-black font-bold text-sm rounded-lg hover:bg-[#4CD59F] transition-colors shadow-sm shrink-0"
-          >
-            <Plus size={16} strokeWidth={2.5} />
-            New Project
-          </button>
-        </div>
-
-        {/* Empty State */}
-        {projects.length === 0 && (
-          <div className="flex flex-col items-center justify-center border-2 border-dashed border-[rgba(255,255,255,0.06)] rounded-2xl py-24 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-[#111418] border border-[rgba(255,255,255,0.06)] flex items-center justify-center mb-4">
-              <FolderKanban size={28} className="text-[#5B616A]" />
+      <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+        {/* Page banner */}
+        <section className="relative overflow-hidden rounded-[28px] dusk-sky animate-rise">
+          <div className="absolute inset-x-0 bottom-0 h-[38%] hills opacity-70" aria-hidden />
+          <div className="relative px-6 md:px-10 py-8 md:py-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div>
+              <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-[#E2EE9C] bg-[#0B0C0A]/40 border border-[#D0E36A]/25">
+                <FolderKanban size={12} className="text-[#D0E36A]" /> Workspaces
+              </span>
+              <h1 className="mt-4 text-3xl md:text-5xl font-semibold text-white">Your projects</h1>
+              <p className="mt-2 text-sm md:text-base text-white/75">
+                {projects.length === 0
+                  ? 'No projects yet. Create your first workspace.'
+                  : `${projects.length} workspace${projects.length !== 1 ? 's' : ''}, all in one loop.`}
+              </p>
             </div>
-            <h3 className="text-lg font-bold text-[#ECEAE4]">No projects yet</h3>
-            <p className="text-sm text-[#8A9099] mt-1 mb-6">
-              Create a project to start planning your work in a loop.
-            </p>
             <button
               onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-[#161A1F] text-[#ECEAE4] border border-[rgba(255,255,255,0.08)] rounded-lg text-sm font-semibold hover:bg-[#1C2127] transition-colors"
+              className="group self-start md:self-auto inline-flex items-center gap-2 pl-4 pr-5 py-2.5 bg-[#D0E36A] text-[#0B0C0A] font-bold text-sm rounded-full hover:bg-[#BED158] hover:shadow-[0_0_28px_rgba(208,227,106,0.4)] transition-all shrink-0"
+            >
+              <Plus size={16} strokeWidth={2.5} className="transition-transform group-hover:rotate-90" />
+              New project
+            </button>
+          </div>
+        </section>
+
+        {/* Search */}
+        {projects.length > 0 && (
+          <div className="animate-rise [animation-delay:100ms] relative max-w-md">
+            <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#6E7268]" />
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search projects…"
+              className="w-full pl-10 pr-4 py-2.5 rounded-full bg-[#151713] border border-white/10 text-sm text-white placeholder:text-[#6E7268] focus:outline-none focus:border-[#D0E36A]/60 focus:shadow-[0_0_0_4px_rgba(208,227,106,0.08)] transition-all"
+            />
+          </div>
+        )}
+
+        {/* Empty state */}
+        {projects.length === 0 && (
+          <div className="animate-rise flex flex-col items-center justify-center rounded-[28px] border border-dashed border-white/10 bg-[#151713]/50 py-20 px-6 text-center">
+            <div className="w-16 h-16 rounded-[22px] bg-[#D0E36A]/10 border border-[#D0E36A]/25 flex items-center justify-center mb-4 animate-pulse-glow">
+              <FolderKanban size={28} className="text-[#D0E36A]" />
+            </div>
+            <h3 className="text-xl font-semibold text-white">No projects yet</h3>
+            <p className="text-sm text-[#A1A69B] mt-1 mb-6">Create a project to start planning your work in a loop.</p>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#D0E36A] text-[#0B0C0A] rounded-full text-sm font-bold hover:bg-[#BED158] transition-colors"
             >
               <Plus size={16} /> Create first project
             </button>
           </div>
         )}
 
-        {/* Projects Grid */}
-        {projects.length > 0 && (
+        {projects.length > 0 && visibleProjects.length === 0 && (
+          <p className="text-sm text-[#A1A69B] px-1">No projects match “{query}”.</p>
+        )}
+
+        {/* Projects grid */}
+        {visibleProjects.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {projects.map((project, index) => {
-              const accentColors = ['#5EE6B0', '#7C7FE8', '#F59E0B', '#EF4444', '#06B6D4'];
-              const accent = accentColors[index % accentColors.length];
-              return (
-                <div
-                  key={project.id}
-                  onClick={() => navigate(`/projects/${project.id}`)}
-                  className="group relative bg-[#111418] border border-[rgba(255,255,255,0.06)] rounded-xl p-5 cursor-pointer hover:border-[rgba(255,255,255,0.12)] hover:bg-[#161A1F] transition-all"
-                >
-                  {/* Top accent line */}
-                  <div className="absolute top-0 left-0 right-0 h-0.5 rounded-t-xl" style={{ backgroundColor: accent }} />
-
-                  <div className="flex items-start justify-between mb-4">
-                    <div
-                      className="w-10 h-10 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: `${accent}18`, border: `1px solid ${accent}30` }}
+            {visibleProjects.map((project, index) => (
+              <div
+                key={project.id}
+                onClick={() => navigate(`/projects/${project.id}`)}
+                className="animate-rise group relative cursor-pointer rounded-[24px] bg-[#151713] border border-white/5 p-2 hover:border-[#D0E36A]/30 hover:-translate-y-1 hover:shadow-[0_24px_50px_-24px_rgba(208,227,106,0.35)] transition-all duration-300"
+                style={{ animationDelay: `${120 + Math.min(index, 8) * 50}ms` }}
+              >
+                {/* Cover */}
+                <div className={cn('relative h-28 rounded-[18px] overflow-hidden bg-gradient-to-br', projectCover(project.id))}>
+                  <div className="absolute inset-x-0 bottom-0 h-2/3 hills opacity-60" aria-hidden />
+                  <span className="absolute left-4 bottom-3 font-display text-3xl font-semibold text-white/90 drop-shadow transition-transform duration-500 group-hover:scale-110 origin-bottom-left">
+                    {projectMonogram(project.name)}
+                  </span>
+                  <div className="absolute top-2.5 right-2.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={e => handleStartRename(e, project)}
+                      className="p-1.5 rounded-full bg-[#0B0C0A]/60 backdrop-blur text-white/80 hover:text-white hover:bg-[#0B0C0A]/80 transition-all"
+                      title="Rename project"
                     >
-                      <FolderKanban size={18} style={{ color: accent }} strokeWidth={2} />
-                    </div>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                      <button
-                        onClick={e => handleStartRename(e, project)}
-                        className="p-1.5 rounded-lg text-[#5B616A] hover:text-[#ECEAE4] hover:bg-[#1C2127] transition-all"
-                        title="Rename project"
-                      >
-                        <Edit2 size={13} />
-                      </button>
-                      <button
-                        onClick={e => handleDelete(e, project.id)}
-                        disabled={deleteId === project.id}
-                        className="p-1.5 rounded-lg text-[#5B616A] hover:text-red-400 hover:bg-red-950/30 transition-all"
-                        title="Delete project"
-                      >
-                        {deleteId === project.id ? (
-                          <Loader2 size={13} className="animate-spin" />
-                        ) : (
-                          <Trash2 size={13} />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  <h3 className="font-bold text-[#ECEAE4] mb-1 truncate">{project.name}</h3>
-                  <div className="flex items-center gap-1.5 text-xs text-[#5B616A] font-mono">
-                    <Clock size={11} />
-                    {new Date(project.createdAt).toLocaleDateString()}
+                      <Edit2 size={13} />
+                    </button>
+                    <button
+                      onClick={e => handleDelete(e, project.id)}
+                      disabled={deleteId === project.id}
+                      className="p-1.5 rounded-full bg-[#0B0C0A]/60 backdrop-blur text-white/80 hover:text-red-400 hover:bg-[#0B0C0A]/80 transition-all"
+                      title="Delete project"
+                    >
+                      {deleteId === project.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                    </button>
                   </div>
                 </div>
-              );
-            })}
+
+                {/* Body */}
+                <div className="px-3 pt-3.5 pb-2.5">
+                  <h3 className="font-display text-[17px] font-semibold text-white truncate group-hover:text-[#D0E36A] transition-colors">
+                    {project.name}
+                  </h3>
+                  <div className="mt-2 flex items-center justify-between text-xs text-[#6E7268]">
+                    <span className="flex items-center gap-1.5">
+                      <Clock size={11} />
+                      {timeAgo(project.createdAt)}
+                    </span>
+                    <span className="flex items-center gap-1 text-[#A1A69B] opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all">
+                      Open <ArrowRight size={12} />
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* New project tile */}
+            {!q && (
+              <button
+                onClick={() => setShowCreate(true)}
+                className="group min-h-[190px] rounded-[24px] border-2 border-dashed border-white/10 flex flex-col items-center justify-center gap-3 text-[#6E7268] hover:text-[#D0E36A] hover:border-[#D0E36A]/40 hover:bg-[#D0E36A]/[0.03] transition-all"
+              >
+                <span className="w-11 h-11 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-[#D0E36A] group-hover:text-[#0B0C0A] transition-colors">
+                  <Plus size={18} className="transition-transform group-hover:rotate-90" />
+                </span>
+                <span className="text-sm font-semibold">New project</span>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -234,12 +272,12 @@ export function Projects({ _invitationsRefreshKey = 0 }: ProjectsProps) {
       {showCreate && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/70 backdrop-blur-md"
             onClick={() => !creating && setShowCreate(false)}
           />
-          <div className="relative w-full max-w-md bg-[#111418] border border-[rgba(255,255,255,0.10)] rounded-2xl shadow-2xl p-6 animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-bold text-[#ECEAE4] mb-1">New Project</h3>
-            <p className="text-sm text-[#8A9099] mb-5">Give your workspace a name and tech focus.</p>
+          <div className="relative w-full max-w-md bg-[#151713] border border-[#D0E36A]/15 rounded-[28px] shadow-2xl shadow-black/60 p-6 animate-rise animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-semibold text-[#F4F5EF] mb-1">New project</h3>
+            <p className="text-sm text-[#A1A69B] mb-5">Give your workspace a name and tech focus.</p>
 
             <form onSubmit={handleCreate} className="space-y-4">
               {createError && (
@@ -248,7 +286,7 @@ export function Projects({ _invitationsRefreshKey = 0 }: ProjectsProps) {
                 </div>
               )}
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-[#8A9099] uppercase tracking-wider">
+                <label className="block text-xs font-semibold text-[#A1A69B] uppercase tracking-wider">
                   Project Name <span className="text-red-400">*</span>
                 </label>
                 <input
@@ -257,13 +295,13 @@ export function Projects({ _invitationsRefreshKey = 0 }: ProjectsProps) {
                   autoFocus
                   value={newProjectName}
                   onChange={e => setNewProjectName(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#161A1F] border border-[rgba(255,255,255,0.08)] rounded-lg focus:outline-none focus:border-[#5EE6B0] text-sm text-[#ECEAE4] transition-colors placeholder:text-[#5B616A]"
+                  className="w-full px-3 py-2.5 bg-[#1B1E19] border border-[rgba(255,255,255,0.08)] rounded-xl focus:outline-none focus:border-[#D0E36A] text-sm text-[#F4F5EF] transition-colors placeholder:text-[#6E7268]"
                   placeholder="e.g. Loopin v2, Campus App"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-[#8A9099] uppercase tracking-wider">
+                <label className="block text-xs font-semibold text-[#A1A69B] uppercase tracking-wider">
                   Tech Stack / Focus <span className="text-red-400">*</span>
                 </label>
                 <div className="flex gap-2 flex-wrap mb-2">
@@ -273,10 +311,10 @@ export function Projects({ _invitationsRefreshKey = 0 }: ProjectsProps) {
                       type="button"
                       onClick={() => setNewProjectStack(opt)}
                       className={cn(
-                        "px-2.5 py-1 rounded-md text-xs font-semibold transition-all",
+                        "px-3 py-1 rounded-full text-xs font-semibold transition-all",
                         newProjectStack === opt
-                          ? "bg-[#5EE6B0] text-black"
-                          : "bg-[#161A1F] text-[#8A9099] border border-[rgba(255,255,255,0.06)] hover:border-[rgba(255,255,255,0.12)]"
+                          ? "bg-[#D0E36A] text-black"
+                          : "bg-[#1B1E19] text-[#A1A69B] border border-[rgba(255,255,255,0.06)] hover:border-[rgba(255,255,255,0.12)]"
                       )}
                     >
                       {opt}
@@ -287,7 +325,7 @@ export function Projects({ _invitationsRefreshKey = 0 }: ProjectsProps) {
                   type="text"
                   value={newProjectStack}
                   onChange={e => setNewProjectStack(e.target.value)}
-                  className="w-full px-3 py-2 bg-[#161A1F] border border-[rgba(255,255,255,0.08)] rounded-lg focus:outline-none focus:border-[#5EE6B0] text-sm text-[#ECEAE4] transition-colors placeholder:text-[#5B616A]"
+                  className="w-full px-3 py-2 bg-[#1B1E19] border border-[rgba(255,255,255,0.08)] rounded-xl focus:outline-none focus:border-[#D0E36A] text-sm text-[#F4F5EF] transition-colors placeholder:text-[#6E7268]"
                   placeholder="Or type a custom stack..."
                 />
               </div>
@@ -296,14 +334,14 @@ export function Projects({ _invitationsRefreshKey = 0 }: ProjectsProps) {
                 <button
                   type="button"
                   onClick={() => { setShowCreate(false); setNewProjectName(''); setCreateError(''); }}
-                  className="px-4 py-2 text-sm font-medium text-[#8A9099] hover:text-[#ECEAE4] transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-[#A1A69B] hover:text-[#F4F5EF] transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={creating || !newProjectName.trim() || !newProjectStack.trim()}
-                  className="flex items-center gap-2 px-5 py-2 bg-[#5EE6B0] text-black text-sm font-bold rounded-lg hover:bg-[#4CD59F] disabled:opacity-50 transition-colors"
+                  className="flex items-center gap-2 px-5 py-2 bg-[#D0E36A] text-black text-sm font-bold rounded-full hover:bg-[#BED158] disabled:opacity-50 transition-colors"
                 >
                   {creating ? <Loader2 size={14} className="animate-spin" /> : null}
                   {creating ? 'Creating...' : 'Create Project'}
@@ -318,12 +356,12 @@ export function Projects({ _invitationsRefreshKey = 0 }: ProjectsProps) {
       {renameProject && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/70 backdrop-blur-md"
             onClick={() => !renaming && setRenameProject(null)}
           />
-          <div className="relative w-full max-w-sm bg-[#111418] border border-[rgba(255,255,255,0.10)] rounded-2xl shadow-2xl p-6 animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-bold text-[#ECEAE4] mb-1">Rename Project</h3>
-            <p className="text-sm text-[#8A9099] mb-4">Enter a new name for this workspace.</p>
+          <div className="relative w-full max-w-sm bg-[#151713] border border-[#D0E36A]/15 rounded-[28px] shadow-2xl shadow-black/60 p-6 animate-rise animate-in fade-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-semibold text-[#F4F5EF] mb-1">Rename project</h3>
+            <p className="text-sm text-[#A1A69B] mb-4">Enter a new name for this workspace.</p>
 
             <form onSubmit={handleRename} className="space-y-4">
               {renameError && (
@@ -332,7 +370,7 @@ export function Projects({ _invitationsRefreshKey = 0 }: ProjectsProps) {
                 </div>
               )}
               <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-[#8A9099] uppercase tracking-wider">
+                <label className="block text-xs font-semibold text-[#A1A69B] uppercase tracking-wider">
                   Project Name
                 </label>
                 <input
@@ -341,7 +379,7 @@ export function Projects({ _invitationsRefreshKey = 0 }: ProjectsProps) {
                   autoFocus
                   value={renameName}
                   onChange={e => setRenameName(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-[#161A1F] border border-[rgba(255,255,255,0.08)] rounded-lg focus:outline-none focus:border-[#5EE6B0] text-sm text-[#ECEAE4] transition-colors placeholder:text-[#5B616A]"
+                  className="w-full px-3 py-2.5 bg-[#1B1E19] border border-[rgba(255,255,255,0.08)] rounded-xl focus:outline-none focus:border-[#D0E36A] text-sm text-[#F4F5EF] transition-colors placeholder:text-[#6E7268]"
                 />
               </div>
 
@@ -349,14 +387,14 @@ export function Projects({ _invitationsRefreshKey = 0 }: ProjectsProps) {
                 <button
                   type="button"
                   onClick={() => setRenameProject(null)}
-                  className="px-4 py-2 text-sm font-medium text-[#8A9099] hover:text-[#ECEAE4] transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-[#A1A69B] hover:text-[#F4F5EF] transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={renaming || !renameName.trim()}
-                  className="flex items-center gap-2 px-5 py-2 bg-[#5EE6B0] text-black text-sm font-bold rounded-lg hover:bg-[#4CD59F] disabled:opacity-50 transition-colors"
+                  className="flex items-center gap-2 px-5 py-2 bg-[#D0E36A] text-black text-sm font-bold rounded-full hover:bg-[#BED158] disabled:opacity-50 transition-colors"
                 >
                   {renaming ? <Loader2 size={14} className="animate-spin" /> : null}
                   {renaming ? 'Saving...' : 'Save'}

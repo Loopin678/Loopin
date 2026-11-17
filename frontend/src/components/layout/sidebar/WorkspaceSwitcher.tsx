@@ -23,19 +23,19 @@ export function WorkspaceSwitcher({ projects, currentProject, isCollapsed }: Wor
       <Popover.Trigger asChild>
         <button 
           className={cn(
-            "flex items-center text-left w-full hover:bg-white rounded-lg transition-all duration-200 ease-out group focus:outline-none focus-visible:ring-2 focus-visible:ring-[#111111] border border-transparent hover:border-black/10 hover:shadow-sm",
+            "flex items-center text-left w-full hover:bg-white rounded-lg transition-all duration-200 ease-out group focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0B0C0A] border border-transparent hover:border-black/10 hover:shadow-sm",
             isCollapsed ? "p-1.5 justify-center mt-2" : "p-2 mt-2 justify-between"
           )}
           aria-label="Switch project"
         >
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded bg-[#111111] text-white flex items-center justify-center font-bold text-sm shrink-0 transition-transform group-hover:scale-[1.02]">
+            <div className="w-8 h-8 rounded bg-[#0B0C0A] text-white flex items-center justify-center font-bold text-sm shrink-0 transition-transform group-hover:scale-[1.02]">
               {currentProject?.name?.charAt(0).toUpperCase() || 'W'}
             </div>
             
             {!isCollapsed && (
               <div className="flex flex-col min-w-0">
-                <span className="font-display font-bold text-sm text-[#111111] truncate leading-tight tracking-wide">
+                <span className="font-display font-bold text-sm text-[#0B0C0A] truncate leading-tight tracking-wide">
                   {currentProject?.name || 'Select Workspace'}
                 </span>
               </div>

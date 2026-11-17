@@ -45,12 +45,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0B0D10] flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-[#0B0C0A] flex flex-col items-center justify-center">
         <div className="relative flex items-center justify-center">
-          <div className="absolute w-16 h-16 border border-[#5EE6B0]/20 rounded-full animate-ping" />
-          <Loader2 size={32} className="animate-spin text-[#5EE6B0] relative z-10" />
+          <div className="absolute w-16 h-16 border border-[#D0E36A]/20 rounded-full animate-ping" />
+          <Loader2 size={32} className="animate-spin text-[#D0E36A] relative z-10" />
         </div>
-        <p className="mt-4 text-sm font-mono text-[#5B616A]">Resolving session...</p>
+        <p className="mt-4 text-sm font-mono text-[#6E7268]">Resolving session...</p>
       </div>
     );
   }

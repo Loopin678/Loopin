@@ -69,7 +69,7 @@ export function FocusMode() {
   const hue = task?.stack ? task.stack.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 360 : 0;
 
   return (
-    <div className="fixed inset-0 bg-[#060709] text-[var(--color-text-main)] font-sans flex flex-col z-[200]">
+    <div className="fixed inset-0 bg-[#080907] text-[var(--color-text-main)] font-sans flex flex-col z-[200]">
       {/* Decorative Focus Loop */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
         <div className="w-[80vw] h-[80vw] max-w-[900px] max-h-[900px] rounded-full border border-[var(--color-accent)] opacity-10 blur-sm animate-[spin_60s_linear_infinite]" />
@@ -77,7 +77,7 @@ export function FocusMode() {
       </div>
 
       {/* Topbar */}
-      <header className="h-16 border-b border-[var(--color-border)] flex items-center justify-between px-6 shrink-0 relative z-10 bg-[#060709]/80 backdrop-blur-md">
+      <header className="h-16 border-b border-[var(--color-border)] flex items-center justify-between px-6 shrink-0 relative z-10 bg-[#080907]/80 backdrop-blur-md">
         <div className="flex items-center gap-4">
           <button 
             onClick={() => navigate(`/projects/${projectId}`)}
@@ -114,7 +114,7 @@ export function FocusMode() {
             <div className="flex items-center gap-4 mb-16">
               <button 
                 onClick={() => setIsActive(!isActive)}
-                className="w-16 h-16 rounded-full bg-[var(--color-accent)] text-black flex items-center justify-center hover:bg-[#4CD59F] hover:scale-105 transition-all shadow-mint-glow"
+                className="w-16 h-16 rounded-full bg-[var(--color-accent)] text-black flex items-center justify-center hover:bg-[#BED158] hover:scale-105 transition-all shadow-mint-glow"
               >
                 {isActive ? <Pause size={28} className="fill-black" /> : <Play size={28} className="fill-black ml-1" />}
               </button>

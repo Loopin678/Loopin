@@ -17,10 +17,10 @@ export function BoardFilterSort({ activeFiltersCount = 0 }: BoardFilterSortProps
       <Popover.Root open={filterOpen} onOpenChange={setFilterOpen}>
         <Popover.Trigger asChild>
           <button className={cn(
-            "flex items-center gap-2 px-4 py-2 text-sm font-bold bg-white border rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#111111]",
+            "flex items-center gap-2 px-4 py-2 text-sm font-bold bg-white border rounded-lg shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#0B0C0A]",
             activeFiltersCount > 0 
               ? "border-editorial-cobalt text-editorial-cobalt bg-editorial-cobalt/5 hover:bg-editorial-cobalt/10" 
-              : "border-black/10 text-black/60 hover:bg-black/5 hover:text-[#111111]"
+              : "border-black/10 text-black/60 hover:bg-black/5 hover:text-[#0B0C0A]"
           )}>
             <Filter size={16} strokeWidth={2} /> 
             <span>Filter</span>
@@ -34,7 +34,7 @@ export function BoardFilterSort({ activeFiltersCount = 0 }: BoardFilterSortProps
         <Popover.Portal>
           <Popover.Content align="start" sideOffset={6} className="w-[240px] bg-white border border-black/10 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 p-1 z-50 font-sans">
             <div className="px-3 py-2 border-b border-black/5 mb-1">
-              <h4 className="font-display text-sm font-bold text-[#111111]">Filter</h4>
+              <h4 className="font-display text-sm font-bold text-[#0B0C0A]">Filter</h4>
             </div>
             
             <div className="px-2 py-1">
@@ -69,7 +69,7 @@ export function BoardFilterSort({ activeFiltersCount = 0 }: BoardFilterSortProps
       {/* SORT */}
       <Popover.Root open={sortOpen} onOpenChange={setSortOpen}>
         <Popover.Trigger asChild>
-          <button className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-black/60 bg-white border border-black/10 rounded-lg hover:bg-black/5 hover:text-[#111111] shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#111111]">
+          <button className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-black/60 bg-white border border-black/10 rounded-lg hover:bg-black/5 hover:text-[#0B0C0A] shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-[#0B0C0A]">
             <ArrowUpDown size={16} strokeWidth={2} /> 
             <span>Sort</span>
           </button>
@@ -77,7 +77,7 @@ export function BoardFilterSort({ activeFiltersCount = 0 }: BoardFilterSortProps
         <Popover.Portal>
           <Popover.Content align="start" sideOffset={6} className="w-[200px] bg-white border border-black/10 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 p-1 z-50 font-sans">
             <div className="px-3 py-2 border-b border-black/5 mb-1">
-              <h4 className="font-display text-sm font-bold text-[#111111]">Sort by</h4>
+              <h4 className="font-display text-sm font-bold text-[#0B0C0A]">Sort by</h4>
             </div>
             <button className="flex items-center justify-between w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-black/50 hover:bg-black/5 transition-colors opacity-50 cursor-not-allowed" title="Coming soon">
               Created Date

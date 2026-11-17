@@ -89,16 +89,16 @@ function InviteModal({ projectId, onClose, onSuccess }: InviteModalProps) {
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
 
       {/* Modal */}
-      <div className="relative w-full max-w-md bg-[#111418] border border-[rgba(255,255,255,0.08)] rounded-2xl shadow-2xl p-6 z-10">
+      <div className="relative w-full max-w-md bg-[#151713] border border-[rgba(255,255,255,0.08)] rounded-[24px] shadow-2xl p-6 z-10">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
-            <UserPlus size={18} className="text-[#5EE6B0]" />
-            <h2 className="text-base font-bold text-[#ECEAE4]">Invite Member</h2>
+            <UserPlus size={18} className="text-[#D0E36A]" />
+            <h2 className="text-base font-bold text-[#F4F5EF]">Invite Member</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-[#5B616A] hover:text-[#ECEAE4] hover:bg-[#1C2127] rounded-lg transition-colors"
+            className="p-1.5 text-[#6E7268] hover:text-[#F4F5EF] hover:bg-[#23271F] rounded-lg transition-colors"
           >
             <X size={16} />
           </button>
@@ -106,9 +106,9 @@ function InviteModal({ projectId, onClose, onSuccess }: InviteModalProps) {
 
         {success ? (
           <div className="flex flex-col items-center justify-center py-6 gap-3">
-            <CheckCircle2 size={40} className="text-[#5EE6B0]" />
-            <p className="text-sm font-semibold text-[#ECEAE4]">Invitation sent!</p>
-            <p className="text-xs text-[#8A9099]">The user will appear in pending invitations.</p>
+            <CheckCircle2 size={40} className="text-[#D0E36A]" />
+            <p className="text-sm font-semibold text-[#F4F5EF]">Invitation sent!</p>
+            <p className="text-xs text-[#A1A69B]">The user will appear in pending invitations.</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -120,11 +120,11 @@ function InviteModal({ projectId, onClose, onSuccess }: InviteModalProps) {
             )}
 
             <div>
-              <label className="block text-xs font-semibold text-[#5B616A] uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-semibold text-[#6E7268] uppercase tracking-wider mb-1.5">
                 Email Address <span className="text-red-400">*</span>
               </label>
               <div className="relative">
-                <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5B616A] pointer-events-none" />
+                <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6E7268] pointer-events-none" />
                 <input
                   type="email"
                   required
@@ -132,13 +132,13 @@ function InviteModal({ projectId, onClose, onSuccess }: InviteModalProps) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="user@example.com"
-                  className="w-full pl-9 pr-3 py-2.5 bg-[#161A1F] border border-[rgba(255,255,255,0.08)] rounded-lg focus:outline-none focus:border-[#5EE6B0] text-sm text-[#ECEAE4] transition-colors placeholder:text-[#5B616A]"
+                  className="w-full pl-9 pr-3 py-2.5 bg-[#1B1E19] border border-[rgba(255,255,255,0.08)] rounded-lg focus:outline-none focus:border-[#D0E36A] text-sm text-[#F4F5EF] transition-colors placeholder:text-[#6E7268]"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#5B616A] uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-semibold text-[#6E7268] uppercase tracking-wider mb-1.5">
                 Stack / Role <span className="text-red-400">*</span>
               </label>
               <input
@@ -147,11 +147,11 @@ function InviteModal({ projectId, onClose, onSuccess }: InviteModalProps) {
                 value={stack}
                 onChange={(e) => setStack(e.target.value)}
                 placeholder="e.g. Frontend, Backend, Design…"
-                className="w-full px-3 py-2.5 bg-[#161A1F] border border-[rgba(255,255,255,0.08)] rounded-lg focus:outline-none focus:border-[#5EE6B0] text-sm text-[#ECEAE4] transition-colors placeholder:text-[#5B616A]"
+                className="w-full px-3 py-2.5 bg-[#1B1E19] border border-[rgba(255,255,255,0.08)] rounded-lg focus:outline-none focus:border-[#D0E36A] text-sm text-[#F4F5EF] transition-colors placeholder:text-[#6E7268]"
               />
             </div>
 
-            <p className="text-xs text-[#5B616A]">
+            <p className="text-xs text-[#6E7268]">
               The invitation will be sent as a pending request. The user must accept it to join.
             </p>
 
@@ -159,14 +159,14 @@ function InviteModal({ projectId, onClose, onSuccess }: InviteModalProps) {
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 px-4 py-2.5 rounded-lg border border-[rgba(255,255,255,0.08)] text-sm text-[#8A9099] hover:text-[#ECEAE4] hover:border-[rgba(255,255,255,0.15)] transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-lg border border-[rgba(255,255,255,0.08)] text-sm text-[#A1A69B] hover:text-[#F4F5EF] hover:border-[rgba(255,255,255,0.15)] transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={submitting || !email.trim() || !stack.trim()}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#5EE6B0] text-black text-sm font-bold rounded-lg hover:bg-[#4CD59F] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-[#D0E36A] text-black text-sm font-bold rounded-full hover:bg-[#BED158] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {submitting ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
                 {submitting ? 'Sending…' : 'Send Invitation'}
@@ -224,13 +224,13 @@ function TransferOwnershipModal({ projectId, members, currentUserId, onClose, on
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <div className="relative w-full max-w-md bg-[#111418] border border-[rgba(255,255,255,0.08)] rounded-2xl shadow-2xl p-6 z-10">
+      <div className="relative w-full max-w-md bg-[#151713] border border-[rgba(255,255,255,0.08)] rounded-[24px] shadow-2xl p-6 z-10">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <ArrowLeftRight size={18} className="text-[#F59E0B]" />
-            <h2 className="text-base font-bold text-[#ECEAE4]">Transfer Ownership</h2>
+            <h2 className="text-base font-bold text-[#F4F5EF]">Transfer Ownership</h2>
           </div>
-          <button onClick={onClose} className="p-1.5 text-[#5B616A] hover:text-[#ECEAE4] hover:bg-[#1C2127] rounded-lg transition-colors">
+          <button onClick={onClose} className="p-1.5 text-[#6E7268] hover:text-[#F4F5EF] hover:bg-[#23271F] rounded-lg transition-colors">
             <X size={16} />
           </button>
         </div>
@@ -242,12 +242,12 @@ function TransferOwnershipModal({ projectId, members, currentUserId, onClose, on
           </div>
         )}
 
-        <p className="text-xs text-[#8A9099] mb-4">
+        <p className="text-xs text-[#A1A69B] mb-4">
           Select a member to transfer project ownership to. You will become a regular member.
         </p>
 
         {eligibleMembers.length === 0 ? (
-          <p className="text-sm text-[#5B616A] text-center py-4">No eligible members to transfer ownership to.</p>
+          <p className="text-sm text-[#6E7268] text-center py-4">No eligible members to transfer ownership to.</p>
         ) : (
           <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar mb-5">
             {eligibleMembers.map((m) => (
@@ -257,7 +257,7 @@ function TransferOwnershipModal({ projectId, members, currentUserId, onClose, on
                   'flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors',
                   selectedUserId === m.userId
                     ? 'border-[#F59E0B]/60 bg-[#F59E0B]/10'
-                    : 'border-[rgba(255,255,255,0.06)] hover:border-[rgba(255,255,255,0.12)] bg-[#161A1F]'
+                    : 'border-[rgba(255,255,255,0.06)] hover:border-[rgba(255,255,255,0.12)] bg-[#1B1E19]'
                 )}
               >
                 <input
@@ -270,8 +270,8 @@ function TransferOwnershipModal({ projectId, members, currentUserId, onClose, on
                 />
                 <Avatar userId={m.userId} name={m.user?.name ?? '?'} size="sm" />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-[#ECEAE4] truncate">{m.user?.name ?? 'Unknown user'}</p>
-                  <p className="text-xs text-[#5B616A]">{m.stack}</p>
+                  <p className="text-sm font-medium text-[#F4F5EF] truncate">{m.user?.name ?? 'Unknown user'}</p>
+                  <p className="text-xs text-[#6E7268]">{m.stack}</p>
                 </div>
               </label>
             ))}
@@ -279,7 +279,7 @@ function TransferOwnershipModal({ projectId, members, currentUserId, onClose, on
         )}
 
         <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-lg border border-[rgba(255,255,255,0.08)] text-sm text-[#8A9099] hover:text-[#ECEAE4] transition-colors">
+          <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-lg border border-[rgba(255,255,255,0.08)] text-sm text-[#A1A69B] hover:text-[#F4F5EF] transition-colors">
             Cancel
           </button>
           <button
@@ -522,7 +522,7 @@ export function Members() {
         'inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border',
         role === 'OWNER'
           ? 'text-[#F59E0B] bg-[#F59E0B]/10 border-[#F59E0B]/30'
-          : 'text-[#8A9099] bg-[rgba(255,255,255,0.05)] border-[rgba(255,255,255,0.08)]'
+          : 'text-[#A1A69B] bg-[rgba(255,255,255,0.05)] border-[rgba(255,255,255,0.08)]'
       )}
     >
       {role === 'OWNER' && <Crown size={9} />}
@@ -536,7 +536,7 @@ export function Members() {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <Loader2 className="animate-spin text-[#5EE6B0]" size={32} />
+        <Loader2 className="animate-spin text-[#D0E36A]" size={32} />
       </div>
     );
   }
@@ -545,25 +545,31 @@ export function Members() {
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar">
-      <div className="p-8 max-w-3xl mx-auto">
+      <div className="p-4 md:p-6 lg:p-8 max-w-4xl mx-auto">
 
         {/* ── Page Header ─────────────────────────────────────────────────── */}
-        <div className="mb-8 flex items-start justify-between gap-4">
+        <div className="relative overflow-hidden rounded-[28px] dusk-sky mb-6 animate-rise">
+          <div className="absolute inset-x-0 bottom-0 h-[38%] hills opacity-70" aria-hidden />
+          <div className="relative px-6 md:px-8 py-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-[#ECEAE4]">Members</h1>
-            <p className="text-sm text-[#8A9099] mt-1.5">
+            <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-[#E2EE9C] bg-[#0B0C0A]/40 border border-[#D0E36A]/25">
+              <UserPlus size={12} className="text-[#D0E36A]" /> Team
+            </span>
+            <h1 className="mt-3 text-3xl md:text-4xl font-semibold text-[#F4F5EF]">Members</h1>
+            <p className="text-sm text-white/75 mt-1.5">
               Manage who has access to this project workspace.
             </p>
           </div>
           {isOwner && (
             <button
               onClick={() => setShowInviteModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#5EE6B0] text-black text-sm font-bold rounded-lg hover:bg-[#4CD59F] transition-colors shrink-0"
+              className="self-start sm:self-auto flex items-center gap-2 px-4 py-2.5 bg-[#D0E36A] text-[#0B0C0A] text-sm font-bold rounded-full hover:bg-[#BED158] hover:shadow-[0_0_28px_rgba(208,227,106,0.4)] transition-all shrink-0"
             >
               <UserPlus size={15} />
               Invite Member
             </button>
           )}
+          </div>
         </div>
 
         {/* ── Action error banner ──────────────────────────────────────────── */}
@@ -577,32 +583,32 @@ export function Members() {
         {error && (
           <div className="mb-5 p-4 text-sm text-red-400 bg-red-950/30 border border-red-900/50 rounded-xl">
             {error}
-            <button onClick={() => loadMembers()} className="ml-3 underline text-[#8A9099] hover:text-[#ECEAE4]">Retry</button>
+            <button onClick={() => loadMembers()} className="ml-3 underline text-[#A1A69B] hover:text-[#F4F5EF]">Retry</button>
           </div>
         )}
 
         {/* ── Summary Cards ───────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="bg-[#111418] border border-[rgba(255,255,255,0.06)] rounded-2xl p-5">
+          <div className="bg-[#151713] border border-[rgba(255,255,255,0.06)] rounded-[24px] p-5">
             <div className="flex items-center gap-2 mb-2">
-              <Users size={15} className="text-[#5EE6B0]" />
-              <span className="text-xs font-semibold text-[#8A9099] uppercase tracking-wider">Active Members</span>
+              <Users size={15} className="text-[#D0E36A]" />
+              <span className="text-xs font-semibold text-[#A1A69B] uppercase tracking-wider">Active Members</span>
             </div>
-            <p className="text-3xl font-bold text-[#ECEAE4]">{members.length}</p>
-            <p className="text-xs text-[#5B616A] mt-1">{onlineCount} online now</p>
+            <p className="text-3xl font-bold text-[#F4F5EF]">{members.length}</p>
+            <p className="text-xs text-[#6E7268] mt-1">{onlineCount} online now</p>
           </div>
-          <div className="bg-[#111418] border border-[rgba(255,255,255,0.06)] rounded-2xl p-5">
+          <div className="bg-[#151713] border border-[rgba(255,255,255,0.06)] rounded-[24px] p-5">
             <div className="flex items-center gap-2 mb-2">
               <Clock size={15} className="text-[#F59E0B]" />
-              <span className="text-xs font-semibold text-[#8A9099] uppercase tracking-wider">Pending Invites</span>
+              <span className="text-xs font-semibold text-[#A1A69B] uppercase tracking-wider">Pending Invites</span>
             </div>
-            <p className="text-3xl font-bold text-[#ECEAE4]">{outgoingInvitations.length}</p>
-            <p className="text-xs text-[#5B616A] mt-1">Awaiting acceptance</p>
+            <p className="text-3xl font-bold text-[#F4F5EF]">{outgoingInvitations.length}</p>
+            <p className="text-xs text-[#6E7268] mt-1">Awaiting acceptance</p>
           </div>
         </div>
 
         {/* ── Tabs ────────────────────────────────────────────────────────── */}
-        <div className="flex gap-1 p-1 bg-[#111418] border border-[rgba(255,255,255,0.06)] rounded-xl mb-6">
+        <div className="flex gap-1 p-1 bg-[#151713] border border-[rgba(255,255,255,0.06)] rounded-2xl mb-6">
           {(['active', 'pending'] as Tab[]).map((tab) => (
             <button
               key={tab}
@@ -610,8 +616,8 @@ export function Members() {
               className={cn(
                 'flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-colors',
                 activeTab === tab
-                  ? 'bg-[#1C2127] text-[#ECEAE4] shadow-sm'
-                  : 'text-[#5B616A] hover:text-[#8A9099]'
+                  ? 'bg-[#23271F] text-[#F4F5EF] shadow-sm'
+                  : 'text-[#6E7268] hover:text-[#A1A69B]'
               )}
             >
               {tab === 'active' ? (
@@ -619,7 +625,7 @@ export function Members() {
                   <Users size={14} />
                   Active
                   <span className={cn('px-1.5 py-0.5 rounded-full text-[10px] font-mono',
-                    activeTab === 'active' ? 'bg-[#5EE6B0]/15 text-[#5EE6B0]' : 'bg-[rgba(255,255,255,0.05)] text-[#5B616A]'
+                    activeTab === 'active' ? 'bg-[#D0E36A]/15 text-[#D0E36A]' : 'bg-[rgba(255,255,255,0.05)] text-[#6E7268]'
                   )}>
                     {members.length}
                   </span>
@@ -631,7 +637,7 @@ export function Members() {
                   <span className={cn('px-1.5 py-0.5 rounded-full text-[10px] font-mono',
                     activeTab === 'pending' && outgoingInvitations.length > 0
                       ? 'bg-[#F59E0B]/15 text-[#F59E0B]'
-                      : 'bg-[rgba(255,255,255,0.05)] text-[#5B616A]'
+                      : 'bg-[rgba(255,255,255,0.05)] text-[#6E7268]'
                   )}>
                     {outgoingInvitations.length}
                   </span>
@@ -645,18 +651,18 @@ export function Members() {
 
         {/* ACTIVE MEMBERS TAB */}
         {activeTab === 'active' && (
-          <div className="bg-[#111418] border border-[rgba(255,255,255,0.06)] rounded-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.06)] bg-[#161A1F] flex items-center justify-between">
+          <div className="bg-[#151713] border border-[rgba(255,255,255,0.06)] rounded-[24px] overflow-hidden">
+            <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.06)] bg-[#1B1E19] flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Users size={15} className="text-[#5B616A]" />
-                <h2 className="text-xs font-bold text-[#8A9099] uppercase tracking-wider">
+                <Users size={15} className="text-[#6E7268]" />
+                <h2 className="text-base font-semibold text-[#F4F5EF]">
                   Active Members ({members.length})
                 </h2>
               </div>
               <div className="flex items-center gap-3">
                 {onlineCount > 0 && (
-                  <span className="flex items-center gap-1.5 text-xs font-mono text-[#5EE6B0] bg-[#5EE6B0]/10 border border-[#5EE6B0]/20 px-2.5 py-0.5 rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#5EE6B0] animate-pulse" />
+                  <span className="flex items-center gap-1.5 text-xs font-mono text-[#D0E36A] bg-[#D0E36A]/10 border border-[#D0E36A]/20 px-2.5 py-0.5 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#D0E36A] animate-pulse" />
                     {onlineCount} online
                   </span>
                 )}
@@ -675,9 +681,9 @@ export function Members() {
 
             {sortedMembers.length === 0 ? (
               <div className="py-16 text-center">
-                <Users size={32} className="text-[#5B616A] mx-auto mb-3" />
-                <p className="text-sm text-[#8A9099]">No active members yet</p>
-                <p className="text-xs text-[#5B616A] mt-1">Invite members to get started</p>
+                <Users size={32} className="text-[#6E7268] mx-auto mb-3" />
+                <p className="text-sm text-[#A1A69B]">No active members yet</p>
+                <p className="text-xs text-[#6E7268] mt-1">Invite members to get started</p>
               </div>
             ) : (
               <div className="divide-y divide-[rgba(255,255,255,0.04)]">
@@ -701,7 +707,7 @@ export function Members() {
                   return (
                     <div
                       key={member.id}
-                      className="flex items-center justify-between px-6 py-4 hover:bg-[#161A1F] transition-colors"
+                      className="flex items-center justify-between px-6 py-4 hover:bg-[#1B1E19] transition-colors"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         {/* Avatar with presence dot */}
@@ -712,8 +718,8 @@ export function Members() {
                           <Avatar userId={member.userId} name={member.user?.name ?? '?'} size="md" />
                           <span
                             className={cn(
-                              'absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#111418]',
-                              isOnline ? 'bg-[#5EE6B0] shadow-[0_0_8px_rgba(94,230,176,0.6)]' : 'bg-[#5B616A]'
+                              'absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#151713]',
+                              isOnline ? 'bg-[#D0E36A] shadow-[0_0_8px_rgba(208,227,106,0.6)]' : 'bg-[#6E7268]'
                             )}
                             title={isOnline ? 'Online' : 'Offline'}
                           />
@@ -724,30 +730,30 @@ export function Members() {
                             <button
                               type="button"
                               onClick={() => setProfileUserId(member.userId)}
-                              className="text-sm font-semibold text-[#ECEAE4] truncate text-left hover:text-[#5EE6B0] transition-colors"
+                              className="text-sm font-semibold text-[#F4F5EF] truncate text-left hover:text-[#D0E36A] transition-colors"
                             >
                               {member.user?.name ?? 'Unknown user'}
-                              {isSelf && <span className="text-[#5B616A] ml-1 font-normal">(you)</span>}
+                              {isSelf && <span className="text-[#6E7268] ml-1 font-normal">(you)</span>}
                             </button>
                             <RoleBadge role={member.role} />
                             <span
                               className={cn(
                                 'inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border',
                                 isOnline
-                                  ? 'text-[#5EE6B0] bg-[#5EE6B0]/10 border-[#5EE6B0]/25'
-                                  : 'text-[#5B616A] bg-[#161A1F] border-[rgba(255,255,255,0.05)]'
+                                  ? 'text-[#D0E36A] bg-[#D0E36A]/10 border-[#D0E36A]/25'
+                                  : 'text-[#6E7268] bg-[#1B1E19] border-[rgba(255,255,255,0.05)]'
                               )}
                             >
-                              <span className={cn('w-1.5 h-1.5 rounded-full', isOnline ? 'bg-[#5EE6B0] animate-pulse' : 'bg-[#5B616A]')} />
+                              <span className={cn('w-1.5 h-1.5 rounded-full', isOnline ? 'bg-[#D0E36A] animate-pulse' : 'bg-[#6E7268]')} />
                               {isOnline ? 'online' : 'offline'}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-xs text-[#5EE6B0] bg-[rgba(94,230,176,0.10)] px-2 py-0.5 rounded-full font-medium">
+                            <span className="text-xs text-[#D0E36A] bg-[rgba(208,227,106,0.10)] px-2 py-0.5 rounded-full font-medium">
                               {member.stack}
                             </span>
                             {member.user?.username && (
-                              <span className="text-xs text-[#5B616A] font-mono">@{member.user.username}</span>
+                              <span className="text-xs text-[#6E7268] font-mono">@{member.user.username}</span>
                             )}
                           </div>
                         </div>
@@ -755,7 +761,7 @@ export function Members() {
 
                       <div className="flex items-center gap-2 shrink-0">
                         {showOwnerCannotLeave && (
-                          <span className="text-xs text-[#5B616A] italic hidden sm:block">
+                          <span className="text-xs text-[#6E7268] italic hidden sm:block">
                             Transfer or delete project to leave
                           </span>
                         )}
@@ -766,8 +772,8 @@ export function Members() {
                             className={cn(
                               'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all',
                               isSelf
-                                ? 'text-[#8A9099] hover:text-[#ECEAE4] hover:bg-[#1C2127]'
-                                : 'text-[#5B616A] hover:text-red-400 hover:bg-red-950/30'
+                                ? 'text-[#A1A69B] hover:text-[#F4F5EF] hover:bg-[#23271F]'
+                                : 'text-[#6E7268] hover:text-red-400 hover:bg-red-950/30'
                             )}
                             title={isSelf ? 'Leave project' : 'Remove member'}
                           >
@@ -792,22 +798,22 @@ export function Members() {
 
         {/* PENDING INVITATIONS TAB */}
         {activeTab === 'pending' && (
-          <div className="bg-[#111418] border border-[rgba(255,255,255,0.06)] rounded-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.06)] bg-[#161A1F] flex items-center justify-between">
+          <div className="bg-[#151713] border border-[rgba(255,255,255,0.06)] rounded-[24px] overflow-hidden">
+            <div className="px-6 py-4 border-b border-[rgba(255,255,255,0.06)] bg-[#1B1E19] flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Clock size={15} className="text-[#F59E0B]" />
-                <h2 className="text-xs font-bold text-[#8A9099] uppercase tracking-wider">
+                <h2 className="text-base font-semibold text-[#F4F5EF]">
                   Pending Invitations ({outgoingInvitations.length})
                 </h2>
               </div>
-              {invitesLoading && <Loader2 size={14} className="animate-spin text-[#5B616A]" />}
+              {invitesLoading && <Loader2 size={14} className="animate-spin text-[#6E7268]" />}
             </div>
 
             {outgoingInvitations.length === 0 ? (
               <div className="py-16 text-center">
-                <Clock size={32} className="text-[#5B616A] mx-auto mb-3" />
-                <p className="text-sm text-[#8A9099]">No pending invitations</p>
-                <p className="text-xs text-[#5B616A] mt-1">
+                <Clock size={32} className="text-[#6E7268] mx-auto mb-3" />
+                <p className="text-sm text-[#A1A69B]">No pending invitations</p>
+                <p className="text-xs text-[#6E7268] mt-1">
                   {isOwner
                     ? 'Invitations sent to new members will appear here until accepted.'
                     : 'No pending invitations for this project.'}
@@ -821,17 +827,17 @@ export function Members() {
                   return (
                     <div
                       key={inv.id}
-                      className="flex items-center justify-between px-6 py-4 hover:bg-[#161A1F] transition-colors"
+                      className="flex items-center justify-between px-6 py-4 hover:bg-[#1B1E19] transition-colors"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="relative shrink-0">
-                          <div className="w-10 h-10 rounded-full bg-[#1C2127] border border-[rgba(255,255,255,0.08)] flex items-center justify-center text-xs font-bold text-[#8A9099]">
+                          <div className="w-10 h-10 rounded-full bg-[#23271F] border border-[rgba(255,255,255,0.08)] flex items-center justify-center text-xs font-bold text-[#A1A69B]">
                             {displayEmail.charAt(0).toUpperCase()}
                           </div>
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-semibold text-[#ECEAE4] truncate">
+                            <span className="text-sm font-semibold text-[#F4F5EF] truncate">
                               {displayEmail}
                             </span>
                             <RoleBadge role={inv.role} />
@@ -841,10 +847,10 @@ export function Members() {
                             </span>
                           </div>
                           <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-xs text-[#5EE6B0] bg-[rgba(94,230,176,0.10)] px-2 py-0.5 rounded-full font-medium">
+                            <span className="text-xs text-[#D0E36A] bg-[rgba(208,227,106,0.10)] px-2 py-0.5 rounded-full font-medium">
                               {inv.stack}
                             </span>
-                            <span className="text-xs text-[#5B616A]">
+                            <span className="text-xs text-[#6E7268]">
                               Awaiting acceptance
                             </span>
                           </div>
@@ -857,7 +863,7 @@ export function Members() {
                           <button
                             onClick={() => handleRevokeInvitation(inv)}
                             disabled={isActioning}
-                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-[#5B616A] hover:text-red-400 hover:bg-red-950/30 transition-all disabled:opacity-50"
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-[#6E7268] hover:text-red-400 hover:bg-red-950/30 transition-all disabled:opacity-50"
                             title="Cancel invitation"
                           >
                             {isActioning ? (

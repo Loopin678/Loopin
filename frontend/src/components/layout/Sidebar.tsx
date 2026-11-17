@@ -80,7 +80,7 @@ export function Sidebar() {
     <Tooltip.Provider delayDuration={200}>
       <aside 
         className={cn(
-          "bg-editorial-bg flex flex-col h-full border-r border-black/10 text-[#111111] shrink-0 font-sans transition-all duration-200 ease-out relative z-20",
+          "bg-editorial-bg flex flex-col h-full border-r border-black/10 text-[#0B0C0A] shrink-0 font-sans transition-all duration-200 ease-out relative z-20",
           isCollapsed ? "w-[76px]" : "w-[260px]"
         )}
       >
@@ -95,7 +95,7 @@ export function Sidebar() {
               <div className="bg-editorial-cobalt p-1.5 rounded-md text-white shadow-sm flex items-center justify-center">
                 <Command size={20} strokeWidth={2.5} />
               </div>
-              {!isCollapsed && <span className="font-display font-black text-2xl tracking-tight text-[#111111]">Loopin.</span>}
+              {!isCollapsed && <span className="font-display font-black text-2xl tracking-tight text-[#0B0C0A]">Loopin.</span>}
             </div>
           </div>
           
@@ -163,7 +163,7 @@ export function Sidebar() {
                 <button 
                   onClick={() => setIsCollapsed(!isCollapsed)} 
                   aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                  className="flex items-center justify-center text-black/40 hover:text-[#111111] bg-transparent hover:bg-black/5 active:bg-black/10 rounded-lg transition-colors p-2 h-9 w-9 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#111111]"
+                  className="flex items-center justify-center text-black/40 hover:text-[#0B0C0A] bg-transparent hover:bg-black/5 active:bg-black/10 rounded-lg transition-colors p-2 h-9 w-9 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0B0C0A]"
                 >
                   {isCollapsed ? (
                     <PanelLeftOpen size={20} strokeWidth={2} />
@@ -176,10 +176,10 @@ export function Sidebar() {
                 <Tooltip.Content 
                   side="right" 
                   sideOffset={12} 
-                  className="px-2.5 py-1.5 bg-[#111111] text-xs font-bold text-white rounded-md shadow-lg animate-in fade-in zoom-in-95 z-50"
+                  className="px-2.5 py-1.5 bg-[#0B0C0A] text-xs font-bold text-white rounded-md shadow-lg animate-in fade-in zoom-in-95 z-50"
                 >
                   {isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                  <Tooltip.Arrow className="fill-[#111111]" />
+                  <Tooltip.Arrow className="fill-[#0B0C0A]" />
                 </Tooltip.Content>
               </Tooltip.Portal>
             </Tooltip.Root>

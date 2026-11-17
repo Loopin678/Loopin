@@ -3,6 +3,8 @@
 #include <QObject>
 #include <QString>
 #include <QJsonArray>
+#include <QStringList>
+#include <QVariantMap>
 #include <QNetworkAccessManager>
 #include <QQmlEngine>
 
@@ -70,6 +72,17 @@ public:
     // based on the user's preference. Emits mergeResolutionReady.
     Q_INVOKABLE void requestMergeResolution(const QString& filePath, const QString& fileContent, const QString& preference);
 
+    // Asks the backend which open tasks a just-made commit most likely completes.
+    // `commit` is GitRepo::commitDetails(). Read-only on the server: nothing moves.
+    // Emits taskSuggestionsReady, or backendError. Does nothing (returns false) when
+    // Project ID / User ID aren't set, since there is no board to suggest against.
+    Q_INVOKABLE bool requestTaskSuggestions(const QVariantMap& commit);
+
+    // Called only after the user approved: moves the tasks to the project's Done
+    // list and links them to the commit. Emits tasksCompleted, or backendError.
+    Q_INVOKABLE void completeTasks(const QString& commitSha, const QString& message,
+                                   const QStringList& taskIds);
+
 signals:
     void backendUrlChanged();
     void aiProviderChanged();
@@ -90,6 +103,12 @@ signals:
     // A Loopin backend call (tasks, commits, task links) failed. Separate from
     // requestFailed, which is for AI requests (and aborts AI merge resolution).
     void backendError(const QString& errorString);
+
+    // result: { sha, engine: "claude"|"heuristic", engineNote?, doneList: {id,name}|null,
+    //           suggestions: [{ taskId, title, listName, confidence (0..1), reason }] }
+    void taskSuggestionsReady(const QString& sha, const QVariantMap& result);
+    // moved: the tasks that actually changed list (already-done tasks are skipped)
+    void tasksCompleted(const QString& sha, const QVariantList& moved, const QString& doneListName);
 
 private:
     QJsonArray mockGroups(const QJsonArray& changes) const;

@@ -20,7 +20,7 @@ app.use(cookieParser());
 
 app.use(cors({
   // FRONTEND_URL in production; reflect the request origin in local dev
-  origin: process.env.FRONTEND_URL || true,
+  origin: process.env.FRONTEND_URL || "http://localhost:5173",
   credentials: true,
 }));
 

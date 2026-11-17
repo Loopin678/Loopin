@@ -97,7 +97,7 @@ export function KanbanColumn({ list, projectId, onTaskAdded, index = 0 }: Kanban
           {isEditingList ? (
             <input
               autoFocus
-              className="text-[15px] font-display font-bold text-[#111111] bg-white border border-editorial-cobalt rounded px-1.5 py-0.5 w-full outline-none"
+              className="text-[15px] font-display font-bold text-[#0B0C0A] bg-white border border-editorial-cobalt rounded px-1.5 py-0.5 w-full outline-none"
               value={listNameInput}
               onChange={(e) => setListNameInput(e.target.value)}
               onBlur={handleRenameList}
@@ -112,7 +112,7 @@ export function KanbanColumn({ list, projectId, onTaskAdded, index = 0 }: Kanban
           ) : (
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <h3 
-                className="text-[15px] font-display font-black tracking-wide text-[#111111] truncate cursor-pointer hover:text-editorial-cobalt transition-colors uppercase"
+                className="text-[15px] font-display font-black tracking-wide text-[#0B0C0A] truncate cursor-pointer hover:text-editorial-cobalt transition-colors uppercase"
                 onClick={() => setIsEditingList(true)}
               >
                 {listNameInput}
@@ -130,15 +130,15 @@ export function KanbanColumn({ list, projectId, onTaskAdded, index = 0 }: Kanban
               <Tooltip.Trigger asChild>
                 <button 
                   onClick={() => setIsAdding(true)}
-                  className="p-1 text-black/40 hover:text-[#111111] hover:bg-black/5 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-[#111111]"
+                  className="p-1 text-black/40 hover:text-[#0B0C0A] hover:bg-black/5 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-[#0B0C0A]"
                 >
                   <Plus size={18} strokeWidth={2} />
                 </button>
               </Tooltip.Trigger>
               <Tooltip.Portal>
-                <Tooltip.Content side="top" sideOffset={5} className="px-2.5 py-1.5 bg-[#111111] text-xs font-bold text-white rounded-md shadow-lg z-50">
+                <Tooltip.Content side="top" sideOffset={5} className="px-2.5 py-1.5 bg-[#0B0C0A] text-xs font-bold text-white rounded-md shadow-lg z-50">
                   Add task
-                  <Tooltip.Arrow className="fill-[#111111]" />
+                  <Tooltip.Arrow className="fill-[#0B0C0A]" />
                 </Tooltip.Content>
               </Tooltip.Portal>
             </Tooltip.Root>
@@ -149,15 +149,15 @@ export function KanbanColumn({ list, projectId, onTaskAdded, index = 0 }: Kanban
               <Tooltip.Root>
                 <Tooltip.Trigger asChild>
                   <DropdownMenu.Trigger asChild>
-                    <button className="p-1 text-black/40 hover:text-[#111111] hover:bg-black/5 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-[#111111] data-[state=open]:bg-black/5 data-[state=open]:text-[#111111]">
+                    <button className="p-1 text-black/40 hover:text-[#0B0C0A] hover:bg-black/5 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-[#0B0C0A] data-[state=open]:bg-black/5 data-[state=open]:text-[#0B0C0A]">
                       <MoreHorizontal size={18} strokeWidth={2} />
                     </button>
                   </DropdownMenu.Trigger>
                 </Tooltip.Trigger>
                 <Tooltip.Portal>
-                  <Tooltip.Content side="top" sideOffset={5} className="px-2.5 py-1.5 bg-[#111111] text-xs font-bold text-white rounded-md shadow-lg z-50">
+                  <Tooltip.Content side="top" sideOffset={5} className="px-2.5 py-1.5 bg-[#0B0C0A] text-xs font-bold text-white rounded-md shadow-lg z-50">
                     More actions
-                    <Tooltip.Arrow className="fill-[#111111]" />
+                    <Tooltip.Arrow className="fill-[#0B0C0A]" />
                   </Tooltip.Content>
                 </Tooltip.Portal>
               </Tooltip.Root>
@@ -165,7 +165,7 @@ export function KanbanColumn({ list, projectId, onTaskAdded, index = 0 }: Kanban
 
             <DropdownMenu.Portal>
               <DropdownMenu.Content align="end" sideOffset={5} className="w-48 bg-white border border-black/10 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 p-1 z-50 font-sans">
-                <DropdownMenu.Item onSelect={() => setIsEditingList(true)} className="flex items-center justify-between text-sm font-semibold text-[#111111] px-3 py-2 rounded-lg hover:bg-black/5 focus:bg-black/5 focus:outline-none cursor-pointer outline-none">
+                <DropdownMenu.Item onSelect={() => setIsEditingList(true)} className="flex items-center justify-between text-sm font-semibold text-[#0B0C0A] px-3 py-2 rounded-lg hover:bg-black/5 focus:bg-black/5 focus:outline-none cursor-pointer outline-none">
                   Rename list <PenLine size={16} strokeWidth={2} className="text-black/40" /> 
                 </DropdownMenu.Item>
                 <DropdownMenu.Separator className="h-px bg-black/5 my-1" />
@@ -198,7 +198,7 @@ export function KanbanColumn({ list, projectId, onTaskAdded, index = 0 }: Kanban
               placeholder="What needs to be done?"
               value={newTaskTitle}
               onChange={(e) => setNewTaskTitle(e.target.value)}
-              className="w-full text-sm font-semibold text-[#111111] bg-transparent resize-none focus:outline-none placeholder:text-black/30 placeholder:font-medium"
+              className="w-full text-sm font-semibold text-[#0B0C0A] bg-transparent resize-none focus:outline-none placeholder:text-black/30 placeholder:font-medium"
               rows={3}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -218,14 +218,14 @@ export function KanbanColumn({ list, projectId, onTaskAdded, index = 0 }: Kanban
                   setIsAdding(false);
                   setNewTaskTitle('');
                 }}
-                className="text-xs font-bold text-black/50 hover:text-[#111111] hover:bg-black/5 px-2 py-1 rounded transition-colors"
+                className="text-xs font-bold text-black/50 hover:text-[#0B0C0A] hover:bg-black/5 px-2 py-1 rounded transition-colors"
               >
                 Cancel
               </button>
               <button 
                 type="submit"
                 disabled={!newTaskTitle.trim() || isCreating}
-                className="flex items-center gap-1.5 bg-[#111111] text-white text-xs font-bold px-3 py-1.5 rounded-md hover:bg-editorial-mustard hover:text-[#111111] disabled:opacity-50 transition-colors shadow-sm"
+                className="flex items-center gap-1.5 bg-[#0B0C0A] text-white text-xs font-bold px-3 py-1.5 rounded-md hover:bg-editorial-mustard hover:text-[#0B0C0A] disabled:opacity-50 transition-colors shadow-sm"
               >
                 {isCreating && <Loader2 size={12} className="animate-spin" />}
                 Save

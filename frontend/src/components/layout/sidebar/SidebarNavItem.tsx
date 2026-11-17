@@ -37,8 +37,8 @@ export function SidebarNavItem({
         "flex items-center w-full text-left text-[14px] font-semibold rounded-lg transition-all duration-200 relative group h-10 overflow-hidden",
         isCollapsed ? "justify-center px-0" : "px-3 gap-3",
         active 
-          ? "bg-[#111111] text-white shadow-sm" 
-          : "text-[#555555] hover:bg-black/5 hover:text-[#111111]",
+          ? "bg-[#0B0C0A] text-white shadow-sm" 
+          : "text-[#555555] hover:bg-black/5 hover:text-[#0B0C0A]",
         disabled && "cursor-default hover:bg-transparent hover:text-black/40 opacity-90"
       )}
     >
@@ -57,12 +57,12 @@ export function SidebarNavItem({
           
           <div className="flex items-center shrink-0 h-full">
             {statusBadge === 'BETA' && (
-              <span className="font-display text-[9px] font-bold bg-editorial-mint text-[#111111] px-1.5 py-[2px] rounded-sm uppercase tracking-wider ml-2 leading-none flex items-center justify-center border border-black/10">
+              <span className="font-display text-[9px] font-bold bg-editorial-mint text-[#0B0C0A] px-1.5 py-[2px] rounded-sm uppercase tracking-wider ml-2 leading-none flex items-center justify-center border border-black/10">
                 {statusBadge}
               </span>
             )}
             {statusBadge === 'Soon' && (
-              <span className="font-display text-[9px] font-bold bg-editorial-mustard text-[#111111] px-1.5 py-[2px] rounded-sm uppercase tracking-wider ml-2 leading-none flex items-center justify-center border border-black/10">
+              <span className="font-display text-[9px] font-bold bg-editorial-mustard text-[#0B0C0A] px-1.5 py-[2px] rounded-sm uppercase tracking-wider ml-2 leading-none flex items-center justify-center border border-black/10">
                 {statusBadge}
               </span>
             )}
@@ -90,10 +90,10 @@ export function SidebarNavItem({
           <Tooltip.Content 
             side="right" 
             sideOffset={12} 
-            className="px-2.5 py-1.5 bg-[#111111] text-xs font-bold text-white rounded-md shadow-lg animate-in fade-in zoom-in-95 z-50 font-sans"
+            className="px-2.5 py-1.5 bg-[#0B0C0A] text-xs font-bold text-white rounded-md shadow-lg animate-in fade-in zoom-in-95 z-50 font-sans"
           >
             {label} {statusBadge && `(${statusBadge})`}
-            <Tooltip.Arrow className="fill-[#111111]" />
+            <Tooltip.Arrow className="fill-[#0B0C0A]" />
           </Tooltip.Content>
         </Tooltip.Portal>
       </Tooltip.Root>

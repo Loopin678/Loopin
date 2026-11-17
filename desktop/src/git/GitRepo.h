@@ -125,6 +125,12 @@ public:
     // Lists ALL files in the repository (tracked + untracked) for gitignore generation
     Q_INVOKABLE QStringList listAllFiles() const;
 
+    // Everything the backend needs to judge which task a commit completes:
+    // { sha, shortSha, message (full), author, email, files: [paths], diff (patch
+    // against the first parent, cut at maxDiffChars), diffTruncated }
+    // Returns an empty map if the commit can't be read.
+    Q_INVOKABLE QVariantMap commitDetails(const QString& sha, int maxDiffChars = 60000) const;
+
 signals:
     void repoChanged();
     void remotesChanged();
@@ -138,10 +144,19 @@ signals:
     // Emitted when a merge fails due to conflicts. The list contains the paths of conflicted files.
     void mergeConflictDetected(const QStringList& conflictedFiles);
 
+    // New commits of YOUR OWN appeared on the current branch since the last
+    // refresh (oldest first, full SHAs). Fired for commits made in this app, the
+    // terminal or an IDE alike. Not fired for branch switches, resets, rebases,
+    // amends, merge commits, or other people's commits arriving through a pull.
+    void newCommitsDetected(const QStringList& shas);
+
 private:
     git_repository* m_repo = nullptr;
     QString m_repoPath;
     QString m_lastHeadSha;
+    // HEAD commit and branch seen by the previous refreshDiff(), for new-commit detection
+    QString m_lastHeadOid;
+    QString m_lastHeadBranch;
     DiffModel* m_diffModel;
 
     // Returns the tree HEAD points at, or nullptr for an unborn branch
@@ -151,4 +166,9 @@ private:
     git_tree* headTree() const;
 
     QString lastErrorMessage() const;
+
+    // Own, non-merge commits reachable from newOid but not from oldOid (oldest
+    // first). Empty if newOid doesn't descend from oldOid, or the jump is too big
+    // to be "I just committed" (e.g. a large pull).
+    QStringList newOwnCommits(const QString& oldOid, const QString& newOid) const;
 };

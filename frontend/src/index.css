@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter Tight", system-ui, -apple-system, sans-serif;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-display: "General Sans", "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   --color-background: var(--background);
@@ -36,80 +37,55 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
-  --color-bg: #0B0D10;
-  --color-surface-1: #111418;
-  --color-surface-2: #161A1F;
-  --color-surface-3: #1C2127;
+  /* Movlo-inspired palette: near-black canvas, deep navy surfaces, lime accent */
+  --color-bg: #0B0C0A;
+  --color-surface-1: #151713;
+  --color-surface-2: #1B1E19;
+  --color-surface-3: #23271F;
   --color-border-strong: rgba(255, 255, 255, 0.10);
-  --color-text-main: #ECEAE4;
-  --color-text-muted: #8A9099;
-  --color-text-faint: #5B616A;
-  --color-accent-soft: rgba(94, 230, 176, 0.12);
+  --color-text-main: #F4F5EF;
+  --color-text-muted: rgba(255, 255, 255, 0.6);
+  --color-text-faint: #6E7268;
+  --color-white: #F4F5EF;
+  --color-lime: #D0E36A;
+  --color-chartreuse: #D0E36A;
+  --color-sage: #A9B97A;
+  --color-accent-soft: rgba(208,227,106, 0.12);
   --color-accent-2: #7C7FE8;
 }
 
-:root {
-  color-scheme: light;
-  --background: #f8fafc;
-  --foreground: #09090b;
-  --card: #ffffff;
-  --card-foreground: #09090b;
-  --popover: #ffffff;
-  --popover-foreground: #09090b;
-  --primary: #2563eb;
-  --primary-foreground: #ffffff;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --accent: #f1f5f9;
-  --accent-foreground: #0f172a;
-  --destructive: #ef4444;
-  --destructive-foreground: #991b1b;
-  --warning: #f59e0b;
-  --warning-foreground: #854d0e;
-  --success: #10b981;
-  --success-foreground: #065f46;
-  --info: #3b82f6;
-  --info-foreground: #1e40af;
-  --invert: #09090b;
-  --invert-foreground: #f8fafc;
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: #2563eb;
-  --radius: 0.5rem;
-}
-
+/* The app is dark-only; .dark is kept so older theme toggles still resolve */
+:root,
 .dark {
   color-scheme: dark;
-  --background: #09090b;
-  --foreground: #f8fafc;
-  --card: #121215;
-  --card-foreground: #f8fafc;
-  --popover: #121215;
-  --popover-foreground: #f8fafc;
-  --primary: #3b82f6;
-  --primary-foreground: #ffffff;
-  --secondary: #18181b;
-  --secondary-foreground: #f8fafc;
-  --muted: #18181b;
-  --muted-foreground: #94a3b8;
-  --accent: #18181b;
-  --accent-foreground: #f8fafc;
+  --background: #0B0C0A;
+  --foreground: #F4F5EF;
+  --card: #151713;
+  --card-foreground: #F4F5EF;
+  --popover: #151713;
+  --popover-foreground: #F4F5EF;
+  --primary: #D0E36A;
+  --primary-foreground: #0B0C0A;
+  --secondary: #1B1E19;
+  --secondary-foreground: #F4F5EF;
+  --muted: #1B1E19;
+  --muted-foreground: rgba(255, 255, 255, 0.6);
+  --accent: #23271F;
+  --accent-foreground: #F4F5EF;
   --destructive: #ef4444;
   --destructive-foreground: #f87171;
   --warning: #f59e0b;
   --warning-foreground: #fbbf24;
-  --success: #10b981;
-  --success-foreground: #34d399;
+  --success: #D0E36A;
+  --success-foreground: #D0E36A;
   --info: #60a5fa;
   --info-foreground: #93c5fd;
-  --invert: #27272a;
-  --invert-foreground: #f8fafc;
-  --border: #27272a;
-  --input: #27272a;
-  --ring: #3b82f6;
-  --radius: 0.5rem;
+  --invert: #F4F5EF;
+  --invert-foreground: #0B0C0A;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #D0E36A;
+  --radius: 0.875rem;
 }
 
 body {
@@ -120,6 +96,16 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+::selection {
+  background: #D0E36A;
+  color: #0B0C0A;
 }
 
 /* Custom scrollbars */
@@ -133,21 +119,118 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--muted-foreground);
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Olive-to-chartreuse sky behind the landing hero, CTA and auth screens.
+   A soft glow layer drifts slowly on top so the backdrop never feels static. */
+.dusk-sky {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(70% 45% at 50% 100%, rgba(226, 240, 140, 0.55), transparent 70%),
+    radial-gradient(110% 70% at 50% 110%, rgba(208, 227, 106, 0.45), transparent 70%),
+    linear-gradient(180deg, #0B0C0A 0%, #12170A 18%, #1F2A0E 38%, #3A4D14 58%, #6F8A22 76%, #A9C440 88%, #2A3410 100%);
+}
+
+.dusk-sky::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(35% 30% at 25% 60%, rgba(208,227,106, 0.28), transparent 70%),
+    radial-gradient(30% 28% at 78% 45%, rgba(169,185,122, 0.18), transparent 70%),
+    radial-gradient(25% 22% at 55% 25%, rgba(230,226,150, 0.10), transparent 70%);
+  animation: sky-drift 18s ease-in-out infinite alternate;
+}
+
+@keyframes sky-drift {
+  0%   { transform: translate3d(-4%, 0, 0) scale(1); }
+  50%  { transform: translate3d(3%, -3%, 0) scale(1.08); }
+  100% { transform: translate3d(5%, 2%, 0) scale(1.02); }
+}
+
+/* Layered rolling hills silhouette at the bottom of the hero */
+.hills {
+  background:
+    radial-gradient(60% 70% at 18% 100%, #252D15 0 58%, transparent 59%),
+    radial-gradient(70% 60% at 86% 100%, #1C2210 0 58%, transparent 59%),
+    radial-gradient(120% 45% at 50% 100%, #0B0C0A 0 70%, transparent 71%);
+}
+
+/* Gently glowing lime dot / accent */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(208,227,106, 0.45); }
+  50%      { box-shadow: 0 0 0 6px rgba(208,227,106, 0); }
+}
+
+@keyframes fill {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+
+.animate-fill {
+  animation: fill linear both;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2.4s ease-in-out infinite;
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+.animate-rise {
+  animation: rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.animate-marquee {
+  animation: marquee 30s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise,
+  .animate-marquee,
+  .animate-pulse-glow,
+  .animate-fill,
+  .dusk-sky::before { animation: none; }
+  .animate-fill { width: 100%; }
 }
 
 @layer utilities {
   .shadow-mint-glow {
-    box-shadow: 0 0 16px rgba(94, 230, 176, 0.15);
+    box-shadow: 0 0 20px rgba(208,227,106, 0.18);
   }
-  
+
   .glass-overlay {
     backdrop-filter: blur(16px);
-    background-color: rgba(11, 13, 16, 0.6);
+    background-color: rgba(3, 4, 4, 0.6);
+  }
+
+  /* Frosted glass surface used for the floating nav, chips and hero cards */
+  .glass {
+    background-color: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+  }
+
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
   }
 }

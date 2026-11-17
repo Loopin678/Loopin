@@ -20,8 +20,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#0B0D10] text-[#ECEAE4]">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#5EE6B0]"></div>
+      <div className="flex items-center justify-center min-h-screen bg-[#0B0C0A] text-[#F4F5EF]">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#D0E36A]"></div>
       </div>
     );
   }
@@ -38,8 +38,8 @@ function GuestRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#0B0D10] text-[#ECEAE4]">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#5EE6B0]"></div>
+      <div className="flex items-center justify-center min-h-screen bg-[#0B0C0A] text-[#F4F5EF]">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#D0E36A]"></div>
       </div>
     );
   }

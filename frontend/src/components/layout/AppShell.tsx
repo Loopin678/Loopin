@@ -17,10 +17,10 @@ function NavItem({ to, icon: Icon, label }: { to: string; icon: React.ElementTyp
       end
       className={({ isActive }) =>
         cn(
-          'flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all',
+          'flex items-center gap-2.5 px-3.5 py-2.5 rounded-full text-sm font-medium transition-all',
           isActive
-            ? 'bg-[rgba(94,230,176,0.10)] text-[#5EE6B0] border-l-2 border-[#5EE6B0] pl-2.5'
-            : 'text-[#8A9099] hover:text-[#ECEAE4] hover:bg-[rgba(255,255,255,0.04)]'
+            ? 'bg-[#D0E36A] text-[#0B0C0A] shadow-mint-glow'
+            : 'text-white/60 hover:text-white hover:bg-white/5'
         )
       }
     >
@@ -171,7 +171,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="flex h-screen bg-[#0B0D10] text-[#ECEAE4] font-sans overflow-hidden">
+    <div className="flex h-screen bg-[#0B0C0A] text-[#F4F5EF] font-sans overflow-hidden md:p-2 md:gap-2">
 
       {/* Mobile overlay */}
       {sidebarOpen && (
@@ -184,21 +184,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed md:static inset-y-0 left-0 z-50 w-60 bg-[#111418] border-r border-[rgba(255,255,255,0.06)] flex flex-col transition-transform duration-300 ease-out',
+          'fixed md:static inset-y-0 left-0 z-50 w-64 bg-[#151713] border-r md:border border-white/5 md:rounded-[24px] flex flex-col transition-transform duration-300 ease-out',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         )}
       >
         {/* Logo */}
-        <div className="h-14 flex items-center px-4 border-b border-[rgba(255,255,255,0.06)] shrink-0">
-          <div className="flex items-center gap-2 flex-1">
-            <div className="w-5 h-5 rounded bg-[#5EE6B0] flex items-center justify-center shrink-0">
-              <div className="w-2 h-2 bg-[#0B0D10] rounded-full" />
+        <div className="h-16 flex items-center px-5 shrink-0">
+          <Link to="/home" className="flex items-center gap-2 flex-1">
+            <div className="w-6 h-6 rounded-lg bg-[#D0E36A] flex items-center justify-center shrink-0">
+              <div className="w-2.5 h-2.5 rounded-full border-2 border-[#0B0C0A]" />
             </div>
-            <span className="font-bold text-[#ECEAE4] tracking-tight">Loopin</span>
-          </div>
+            <span className="font-display font-semibold text-lg text-white">Loopin</span>
+          </Link>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="md:hidden text-[#5B616A] hover:text-[#ECEAE4] p-1"
+            className="md:hidden text-[#6E7268] hover:text-[#F4F5EF] p-1"
           >
             <X size={16} />
           </button>
@@ -212,7 +212,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {projectId && (
             <>
               <div className="pt-4 pb-1 px-3">
-                <span className="text-[10px] font-bold text-[#5B616A] uppercase tracking-widest truncate block">
+                <span className="text-[11px] font-medium text-white/40 truncate block">
                   {project?.name || 'Current Project'}
                 </span>
               </div>
@@ -224,24 +224,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* User Profile */}
-        <div className="p-3 border-t border-[rgba(255,255,255,0.06)] shrink-0 space-y-2">
-          <div className="flex items-center gap-1 rounded-lg group">
+        <div className="p-3 shrink-0 space-y-2">
+          <div className="flex items-center gap-1 rounded-full bg-white/5 border border-white/5 p-1 group">
             <Link
               to="/profile"
               title="View your profile"
-              className="flex-1 min-w-0 flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-[rgba(255,255,255,0.04)] transition-colors"
+              className="flex-1 min-w-0 flex items-center gap-2.5 px-1.5 py-1 rounded-full hover:bg-white/5 transition-colors"
             >
               {user && <Avatar userId={user.id} name={user.name} size="sm" />}
               <div className="flex-1 min-w-0">
-                <div className="text-xs font-semibold truncate text-[#ECEAE4]">{user?.name}</div>
-                <div className="text-[10px] text-[#5B616A] truncate">
+                <div className="text-xs font-semibold truncate text-[#F4F5EF]">{user?.name}</div>
+                <div className="text-[10px] text-[#6E7268] truncate">
                   {user?.username ? `@${user.username}` : user?.email}
                 </div>
               </div>
             </Link>
             <button
               onClick={handleLogout}
-              className="p-1.5 text-[#5B616A] hover:text-red-400 hover:bg-red-950/30 rounded-lg transition-all shrink-0"
+              className="p-2 mr-0.5 text-white/40 hover:text-red-400 hover:bg-red-950/30 rounded-full transition-all shrink-0"
               title="Sign out"
             >
               <LogOut size={13} />
@@ -251,39 +251,39 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden md:rounded-[24px] md:border md:border-white/5 bg-[#0B0C0A]">
         {/* Topbar */}
-        <header className="h-14 flex items-center justify-between px-4 border-b border-[rgba(255,255,255,0.06)] bg-[#111418] shrink-0">
+        <header className="h-16 flex items-center justify-between px-3 md:px-4 shrink-0">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="md:hidden p-1.5 text-[#5B616A] hover:text-[#ECEAE4] rounded-lg"
+              className="md:hidden p-1.5 text-[#6E7268] hover:text-[#F4F5EF] rounded-lg"
             >
               <Menu size={18} />
             </button>
-            <div className="font-mono text-sm text-[#5B616A] flex items-center gap-1">
-              <span className="text-[#5EE6B0]">~/</span>
+            <div className="bg-gradient-to-b from-[#1C2018] to-[#10120E] border border-[rgba(208,227,106,0.15)] rounded-full px-4 py-2 font-mono text-[13px] text-[#6E7268] flex items-center gap-1 min-w-0">
+              <span className="text-[#D0E36A]">~/</span>
               <span>loopin</span>
-              <span className="text-[#2A3040]">/</span>
-              <span className="text-[#8A9099]">{isHome ? 'home' : isProfile ? 'profile' : 'projects'}</span>            
+              <span className="text-[#34392C]">/</span>
+              <span className="text-[#A1A69B]">{isHome ? 'home' : isProfile ? 'profile' : 'projects'}</span>            
               {project && (
                 <>
-                  <span className="text-[#2A3040]">/</span>
-                  <span className="text-[#ECEAE4] font-medium max-w-[160px] truncate">
+                  <span className="text-[#34392C]">/</span>
+                  <span className="text-[#F4F5EF] font-medium max-w-[160px] truncate">
                     {project.name}
                   </span>
                 </>
               )}
               {isMembers && (
                 <>
-                  <span className="text-[#2A3040]">/</span>
-                  <span className="text-[#5EE6B0]">members</span>
+                  <span className="text-[#34392C]">/</span>
+                  <span className="text-[#D0E36A]">members</span>
                 </>
               )}
               {location.pathname.includes('/chat') && (
                 <>
-                  <span className="text-[#2A3040]">/</span>
-                  <span className="text-[#5EE6B0]">chat</span>
+                  <span className="text-[#34392C]">/</span>
+                  <span className="text-[#D0E36A]">chat</span>
                 </>
               )}
             </div>
@@ -307,7 +307,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page content — pass refreshKey as prop so Projects can re-fetch after accept */}
-        <main className="flex-1 overflow-hidden bg-[#0B0D10]">
+        <main className="flex-1 overflow-hidden bg-[#0B0C0A]">
           {React.isValidElement(children)
             ? React.cloneElement(children as React.ReactElement<any>, {
                 _invitationsRefreshKey: projectsRefreshKey,

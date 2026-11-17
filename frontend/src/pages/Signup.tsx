@@ -57,7 +57,7 @@ export function Signup() {
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-4 py-2.5 bg-[var(--color-bg-canvas)] border border-[var(--color-border-subtle)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/10 focus:border-[var(--color-border-focus)] transition-all sm:text-sm placeholder:text-[var(--color-text-muted)]"
+            className="w-full px-4 py-2.5 bg-[var(--color-bg-canvas)] border border-[var(--color-border-subtle)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/10 focus:border-[var(--color-border-focus)] transition-all sm:text-sm placeholder:text-[var(--color-text-muted)]"
             placeholder="Jane Doe"
           />
         </div>
@@ -69,7 +69,7 @@ export function Signup() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2.5 bg-[var(--color-bg-canvas)] border border-[var(--color-border-subtle)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/10 focus:border-[var(--color-border-focus)] transition-all sm:text-sm placeholder:text-[var(--color-text-muted)]"
+            className="w-full px-4 py-2.5 bg-[var(--color-bg-canvas)] border border-[var(--color-border-subtle)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/10 focus:border-[var(--color-border-focus)] transition-all sm:text-sm placeholder:text-[var(--color-text-muted)]"
             placeholder="name@example.com"
           />
         </div>
@@ -83,7 +83,7 @@ export function Signup() {
               minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2.5 bg-[var(--color-bg-canvas)] border border-[var(--color-border-subtle)] rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/10 focus:border-[var(--color-border-focus)] transition-all sm:text-sm placeholder:text-[var(--color-text-muted)]"
+              className="w-full px-4 py-2.5 bg-[var(--color-bg-canvas)] border border-[var(--color-border-subtle)] rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--color-border-focus)]/10 focus:border-[var(--color-border-focus)] transition-all sm:text-sm placeholder:text-[var(--color-text-muted)]"
               placeholder="••••••••"
             />
             <button

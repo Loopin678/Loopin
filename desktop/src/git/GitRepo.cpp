@@ -93,6 +93,10 @@ bool GitRepo::openRepository(const QString& path) {
     }
 
     m_repoPath = path;
+    // A different repo: nothing seen yet, so the first refresh only records HEAD
+    m_lastHeadSha.clear();
+    m_lastHeadOid.clear();
+    m_lastHeadBranch.clear();
     emit repoChanged();
     emit remotesChanged();
     return true;
@@ -127,14 +131,27 @@ void GitRepo::refreshDiff() {
         git_reference_free(headRef);
     }
     
+    // New commits on the same branch since the last refresh? Only compare once a
+    // HEAD has been recorded, so opening a repo never triggers suggestions.
+    const QString headOid = currentHeadSha;
+    const QString branch = currentBranchName();
+    QStringList freshCommits;
+    if (!m_lastHeadOid.isEmpty() && !headOid.isEmpty() && headOid != m_lastHeadOid
+        && branch == m_lastHeadBranch) {
+        freshCommits = newOwnCommits(m_lastHeadOid, headOid);
+    }
+    m_lastHeadOid = headOid;
+    m_lastHeadBranch = branch;
+
     // Include the branch name so switching to a branch at the same commit
     // still refreshes the branch label and history
-    currentHeadSha += "@" + currentBranchName();
+    currentHeadSha += "@" + branch;
     if (m_lastHeadSha != currentHeadSha) {
         m_lastHeadSha = currentHeadSha;
         // The repo has moved to a new commit!
         emit repoChanged();
     }
+    if (!freshCommits.isEmpty()) emit newCommitsDetected(freshCommits);
 
     git_tree* tree = headTree();
     git_diff_options opts = GIT_DIFF_OPTIONS_INIT;
@@ -868,4 +885,143 @@ bool GitRepo::commitResolvedMerge() {
     refreshDiff();
     emit repoChanged();
     return true;
+}
+
+// ── New-commit detection & commit details (task-completion suggestions) ───
+
+QStringList GitRepo::newOwnCommits(const QString& oldOid, const QString& newOid) const {
+    // A real "I committed" jump is a handful of commits. Anything larger is a
+    // pull or a branch reset: don't flood the user with suggestions.
+    static constexpr int kMaxNewCommits = 20;
+    QStringList result;
+    if (!m_repo) return result;
+
+    git_oid oldId, newId;
+    if (git_oid_fromstr(&oldId, oldOid.toUtf8().constData()) != 0
+        || git_oid_fromstr(&newId, newOid.toUtf8().constData()) != 0) {
+        return result;
+    }
+    // Reset, rebase and amend move HEAD to something that doesn't contain the
+    // old HEAD: those are rewrites, not new work.
+    if (git_graph_descendant_of(m_repo, &newId, &oldId) != 1) return result;
+
+    // Only the user's own commits ("code I've written"): compare with user.email.
+    // If no email is configured we can't tell, so every new commit counts.
+    QString myEmail;
+    git_config* cfg = nullptr;
+    if (git_repository_config_snapshot(&cfg, m_repo) == 0) {
+        const char* email = nullptr;
+        if (git_config_get_string(&email, cfg, "user.email") == 0 && email)
+            myEmail = QString::fromUtf8(email).trimmed();
+        git_config_free(cfg);
+    }
+
+    git_revwalk* walker = nullptr;
+    if (git_revwalk_new(&walker, m_repo) != 0) return result;
+    git_revwalk_sorting(walker, GIT_SORT_TOPOLOGICAL | GIT_SORT_REVERSE);  // oldest first
+    git_revwalk_push(walker, &newId);
+    git_revwalk_hide(walker, &oldId);
+
+    git_oid oid;
+    int seen = 0;
+    while (git_revwalk_next(&oid, walker) == 0) {
+        if (++seen > kMaxNewCommits) {
+            result.clear();
+            break;
+        }
+        git_commit* commit = nullptr;
+        if (git_commit_lookup(&commit, m_repo, &oid) != 0) continue;
+        const bool isMerge = git_commit_parentcount(commit) > 1;
+        const git_signature* author = git_commit_author(commit);
+        const QString authorEmail = author && author->email ? QString::fromUtf8(author->email) : QString();
+        git_commit_free(commit);
+
+        // A merge commit's diff is everyone else's work being brought in
+        if (isMerge) continue;
+        if (!myEmail.isEmpty() && authorEmail.compare(myEmail, Qt::CaseInsensitive) != 0) continue;
+
+        char sha[GIT_OID_HEXSZ + 1] = {};
+        git_oid_tostr(sha, sizeof(sha), &oid);
+        result.append(QString::fromUtf8(sha));
+    }
+    git_revwalk_free(walker);
+    return result;
+}
+
+namespace {
+// Rebuilds the textual patch; libgit2 hands over the +/-/space marker separately
+int collectPatchLine(const git_diff_delta* /*delta*/, const git_diff_hunk* /*hunk*/,
+                     const git_diff_line* line, void* payload) {
+    auto* out = static_cast<QByteArray*>(payload);
+    if (line->origin == GIT_DIFF_LINE_CONTEXT || line->origin == GIT_DIFF_LINE_ADDITION
+        || line->origin == GIT_DIFF_LINE_DELETION) {
+        out->append(line->origin);
+    }
+    out->append(line->content, static_cast<qsizetype>(line->content_len));
+    return 0;
+}
+}  // namespace
+
+QVariantMap GitRepo::commitDetails(const QString& sha, int maxDiffChars) const {
+    QVariantMap result;
+    if (!m_repo || sha.isEmpty()) return result;
+
+    git_object* obj = nullptr;
+    if (git_revparse_single(&obj, m_repo, sha.toUtf8().constData()) != 0) return result;
+    git_oid oid;
+    git_oid_cpy(&oid, git_object_id(obj));
+    git_object_free(obj);
+
+    git_commit* commit = nullptr;
+    if (git_commit_lookup(&commit, m_repo, &oid) != 0) return result;
+
+    git_tree* tree = nullptr;
+    git_tree* parentTree = nullptr;
+    git_commit_tree(&tree, commit);
+    if (git_commit_parentcount(commit) > 0) {
+        git_commit* parent = nullptr;
+        if (git_commit_parent(&parent, commit, 0) == 0) {
+            git_commit_tree(&parentTree, parent);
+            git_commit_free(parent);
+        }
+    }
+
+    // Read in-process with libgit2 (no "git show" subprocess on the UI thread)
+    git_diff_options opts = GIT_DIFF_OPTIONS_INIT;
+    opts.max_size = 1024 * 1024;  // huge generated files are treated as binary
+    git_diff* diff = nullptr;
+    QStringList files;
+    QByteArray patch;
+    if (git_diff_tree_to_tree(&diff, m_repo, parentTree, tree, &opts) == 0) {
+        const size_t n = git_diff_num_deltas(diff);
+        for (size_t i = 0; i < n; ++i) {
+            const git_diff_delta* d = git_diff_get_delta(diff, i);
+            const char* path = d->new_file.path ? d->new_file.path : d->old_file.path;
+            if (path) files.append(QString::fromUtf8(path));
+        }
+        git_diff_print(diff, GIT_DIFF_FORMAT_PATCH, collectPatchLine, &patch);
+        git_diff_free(diff);
+    }
+    if (tree) git_tree_free(tree);
+    if (parentTree) git_tree_free(parentTree);
+
+    QString diffText = QString::fromUtf8(patch);
+    const bool truncated = maxDiffChars > 0 && diffText.size() > maxDiffChars;
+    if (truncated) diffText.truncate(maxDiffChars);
+
+    char full[GIT_OID_HEXSZ + 1] = {};
+    git_oid_tostr(full, sizeof(full), &oid);
+    const git_signature* author = git_commit_author(commit);
+    const char* msg = git_commit_message(commit);
+
+    result["sha"] = QString::fromUtf8(full);
+    result["shortSha"] = QString::fromUtf8(full).left(7);
+    result["message"] = QString::fromUtf8(msg ? msg : "").trimmed();
+    result["author"] = author && author->name ? QString::fromUtf8(author->name) : QString();
+    result["email"] = author && author->email ? QString::fromUtf8(author->email) : QString();
+    result["files"] = files;
+    result["diff"] = diffText;
+    result["diffTruncated"] = truncated;
+    git_commit_free(commit);
+    return result;
 }

@@ -65,7 +65,7 @@ export function TaskCard({ task, isOverlay, index = 0 }: TaskCardProps) {
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group relative bg-white p-3 rounded-xl border transition-all duration-200 flex flex-col gap-2 text-left w-full outline-none focus-visible:ring-2 focus-visible:ring-[#111111] overflow-hidden",
+        "group relative bg-white p-3 rounded-xl border transition-all duration-200 flex flex-col gap-2 text-left w-full outline-none focus-visible:ring-2 focus-visible:ring-[#0B0C0A] overflow-hidden",
         isOverlay 
           ? "border-black/20 shadow-xl shadow-black/10 rotate-2 cursor-grabbing scale-[1.02]" 
           : "border-black/10 shadow-sm hover:shadow-md hover:shadow-black/5 hover:border-black/20 hover:-translate-y-0.5 cursor-pointer"
@@ -81,7 +81,7 @@ export function TaskCard({ task, isOverlay, index = 0 }: TaskCardProps) {
 
       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity z-10 bg-white/80 backdrop-blur-sm rounded-md px-0.5 py-0.5 shadow-sm border border-black/5">
         <button 
-          className="p-1 text-black/40 hover:bg-black/5 hover:text-[#111111] rounded transition-colors cursor-grab active:cursor-grabbing"
+          className="p-1 text-black/40 hover:bg-black/5 hover:text-[#0B0C0A] rounded transition-colors cursor-grab active:cursor-grabbing"
           {...attributes}
           {...listeners}
           onClick={(e) => e.stopPropagation()}
@@ -92,7 +92,7 @@ export function TaskCard({ task, isOverlay, index = 0 }: TaskCardProps) {
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
             <button 
-              className="p-1 text-black/40 hover:bg-black/5 hover:text-[#111111] rounded transition-colors focus:outline-none"
+              className="p-1 text-black/40 hover:bg-black/5 hover:text-[#0B0C0A] rounded transition-colors focus:outline-none"
               onClick={(e) => e.stopPropagation()}
             >
               <MoreHorizontal size={14} strokeWidth={2} />
@@ -100,7 +100,7 @@ export function TaskCard({ task, isOverlay, index = 0 }: TaskCardProps) {
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Content align="end" sideOffset={5} className="w-40 bg-white border border-black/10 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 p-1 z-50 font-sans">
-              <DropdownMenu.Item className="text-xs font-bold text-[#111111] px-2 py-1.5 rounded-lg hover:bg-black/5 focus:bg-black/5 outline-none cursor-pointer">
+              <DropdownMenu.Item className="text-xs font-bold text-[#0B0C0A] px-2 py-1.5 rounded-lg hover:bg-black/5 focus:bg-black/5 outline-none cursor-pointer">
                 Edit Task
               </DropdownMenu.Item>
               <DropdownMenu.Separator className="h-px bg-black/5 my-1" />
@@ -123,7 +123,7 @@ export function TaskCard({ task, isOverlay, index = 0 }: TaskCardProps) {
 
       {/* MIDDLE - Title and Description */}
       <div className={cn("flex flex-col pl-2", task.stack ? "mt-0.5" : "pr-12")}>
-        <p className="text-[14px] font-display font-bold text-[#111111] leading-snug line-clamp-2">
+        <p className="text-[14px] font-display font-bold text-[#0B0C0A] leading-snug line-clamp-2">
           {task.title}
         </p>
         {task.description && (
@@ -145,14 +145,14 @@ export function TaskCard({ task, isOverlay, index = 0 }: TaskCardProps) {
               <Tooltip.Provider delayDuration={200}>
                 <Tooltip.Root>
                   <Tooltip.Trigger asChild>
-                    <div className="w-[22px] h-[22px] rounded-full bg-editorial-mustard border-2 border-white flex items-center justify-center text-[#111111] text-[10px] font-bold shadow-sm">
+                    <div className="w-[22px] h-[22px] rounded-full bg-editorial-mustard border-2 border-white flex items-center justify-center text-[#0B0C0A] text-[10px] font-bold shadow-sm">
                       {task.assigneeId.charAt(0).toUpperCase()}
                     </div>
                   </Tooltip.Trigger>
                   <Tooltip.Portal>
-                    <Tooltip.Content side="top" sideOffset={4} className="px-2 py-1 bg-[#111111] text-[10px] font-bold text-white rounded shadow-lg z-50">
+                    <Tooltip.Content side="top" sideOffset={4} className="px-2 py-1 bg-[#0B0C0A] text-[10px] font-bold text-white rounded shadow-lg z-50">
                       Assigned to {task.assigneeId}
-                      <Tooltip.Arrow className="fill-[#111111]" />
+                      <Tooltip.Arrow className="fill-[#0B0C0A]" />
                     </Tooltip.Content>
                   </Tooltip.Portal>
                 </Tooltip.Root>

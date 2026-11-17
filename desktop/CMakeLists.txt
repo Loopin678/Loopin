@@ -63,7 +63,7 @@ set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 # subfolder: a subfolder gets its own implicit directory import in which Theme is
 # a plain type, and Qt 6.8 then fails with "Theme was a singleton at compile
 # time, but is not a singleton anymore" (every Theme colour becomes undefined).
-foreach(qml_file main LoginView ChangeInboxView CommitReviewView Theme)
+foreach(qml_file main LoginView ChangeInboxView CommitReviewView TaskSuggestionDialog Theme)
     set_source_files_properties(qml/${qml_file}.qml PROPERTIES QT_RESOURCE_ALIAS ${qml_file}.qml)
 endforeach()
 
@@ -75,6 +75,7 @@ qt_add_qml_module(loopin_desktop
         qml/LoginView.qml
         qml/ChangeInboxView.qml
         qml/CommitReviewView.qml
+        qml/TaskSuggestionDialog.qml
         qml/Theme.qml
 )
 

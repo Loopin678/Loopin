@@ -186,11 +186,11 @@ export function KanbanBoard({ projectId, lists, setLists }: KanbanBoardProps) {
                 placeholder="List name..."
                 value={newListName}
                 onChange={(e) => setNewListName(e.target.value)}
-                className="w-full px-3 py-2 bg-editorial-surface border border-black/10 rounded-lg text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-[#111111] transition-all font-semibold text-[#111111] placeholder:text-black/40"
+                className="w-full px-3 py-2 bg-editorial-surface border border-black/10 rounded-lg text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-[#0B0C0A] transition-all font-semibold text-[#0B0C0A] placeholder:text-black/40"
               />
               <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setIsAddingList(false)} className="text-sm px-3 py-1.5 font-bold text-black/50 hover:bg-black/5 hover:text-[#111111] rounded-lg transition-colors">Cancel</button>
-                <button type="submit" disabled={isCreatingList} className="flex items-center gap-2 text-sm px-4 py-1.5 bg-[#111111] text-white font-bold rounded-lg shadow-sm hover:bg-editorial-mint hover:text-[#111111] transition-colors disabled:opacity-70">
+                <button type="button" onClick={() => setIsAddingList(false)} className="text-sm px-3 py-1.5 font-bold text-black/50 hover:bg-black/5 hover:text-[#0B0C0A] rounded-lg transition-colors">Cancel</button>
+                <button type="submit" disabled={isCreatingList} className="flex items-center gap-2 text-sm px-4 py-1.5 bg-[#0B0C0A] text-white font-bold rounded-lg shadow-sm hover:bg-editorial-mint hover:text-[#0B0C0A] transition-colors disabled:opacity-70">
                   {isCreatingList ? <Loader2 size={14} className="animate-spin" /> : 'Create List'}
                 </button>
               </div>
@@ -198,7 +198,7 @@ export function KanbanBoard({ projectId, lists, setLists }: KanbanBoardProps) {
           ) : (
             <button 
               onClick={() => setIsAddingList(true)}
-              className="flex items-center justify-center gap-2 w-full h-[100px] rounded-xl border-2 border-dashed border-black/15 text-black/50 hover:text-[#111111] hover:border-editorial-cobalt hover:bg-editorial-cobalt/5 transition-all duration-200 bg-transparent group"
+              className="flex items-center justify-center gap-2 w-full h-[100px] rounded-xl border-2 border-dashed border-black/15 text-black/50 hover:text-[#0B0C0A] hover:border-editorial-cobalt hover:bg-editorial-cobalt/5 transition-all duration-200 bg-transparent group"
             >
               <Plus size={20} strokeWidth={2} className="group-hover:scale-110 transition-transform" />
               <span className="font-display font-bold text-sm tracking-wide">Add another list</span>

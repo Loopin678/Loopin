@@ -28,6 +28,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '../utils/cn';
+import { projectCover, projectMonogram } from '../utils/projectStyle';
 import { TaskModal } from '../components/board/TaskModal';
 
 // ─── Task Card ───────────────────────────────────────────────────────────────
@@ -67,9 +68,9 @@ function TaskCard({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'bg-[#161A1F] border border-[rgba(255,255,255,0.06)] rounded-xl p-3.5 mb-2.5 group',
-        'hover:border-[rgba(255,255,255,0.12)] hover:shadow-lg transition-all',
-        isDragging && 'opacity-30 border-dashed border-[#5EE6B0]/40'
+        'bg-[#1B1E19] border border-white/[0.06] rounded-2xl p-3.5 mb-2.5 group',
+        'hover:border-[#D0E36A]/30 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-16px_rgba(0,0,0,0.9)] transition-all duration-200',
+        isDragging && 'opacity-30 border-dashed border-[#D0E36A]/40'
       )}
     >
       {/* Header row */}
@@ -78,7 +79,7 @@ function TaskCard({
         <button
           {...attributes}
           {...listeners}
-          className="mt-0.5 text-[#5B616A] hover:text-[#8A9099] cursor-grab active:cursor-grabbing shrink-0 touch-none"
+          className="mt-0.5 text-[#6E7268] hover:text-[#A1A69B] cursor-grab active:cursor-grabbing shrink-0 touch-none"
         >
           <GripVertical size={14} />
         </button>
@@ -103,7 +104,7 @@ function TaskCard({
         {/* Open task button */}
         <button
           onClick={() => onOpen(task.id)}
-          className="p-1 opacity-0 group-hover:opacity-100 text-[#5B616A] hover:text-[#ECEAE4] hover:bg-[#1C2127] rounded transition-all"
+          className="p-1 opacity-0 group-hover:opacity-100 text-[#6E7268] hover:text-[#F4F5EF] hover:bg-[#23271F] rounded transition-all"
           title="Open task"
         >
           <MoreHorizontal size={14} />
@@ -113,7 +114,7 @@ function TaskCard({
       {/* Title — clickable */}
       <p
         onClick={() => onOpen(task.id)}
-        className="text-sm font-medium text-[#ECEAE4] leading-snug cursor-pointer hover:text-[#5EE6B0] transition-colors"
+        className="text-sm font-medium text-[#F4F5EF] leading-snug cursor-pointer hover:text-[#D0E36A] transition-colors"
       >
         {task.title}
       </p>
@@ -125,18 +126,18 @@ function TaskCard({
             <Avatar userId={task.assigneeId} name={assigneeName ?? '?'} size="xs" />
             <span
               className={cn(
-                "absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#161A1F]",
+                "absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#1B1E19]",
                 isAssigneeOnline
-                  ? "bg-[#5EE6B0] shadow-[0_0_6px_rgba(94,230,176,0.6)]"
-                  : "bg-[#5B616A]"
+                  ? "bg-[#D0E36A] shadow-[0_0_6px_rgba(208,227,106,0.6)]"
+                  : "bg-[#6E7268]"
               )}
             />
 
             {/* Hover pop-up, placed to the left of the avatar */}
             {assigneeLabel && (
-              <span className="pointer-events-none absolute right-full top-1/2 -translate-y-1/2 mr-2 z-20 max-w-[200px] truncate whitespace-nowrap rounded-md border border-[rgba(255,255,255,0.10)] bg-[#0B0D10] px-2 py-1 text-[11px] text-[#ECEAE4] shadow-lg opacity-0 transition-opacity group-hover/assignee:opacity-100">
+              <span className="pointer-events-none absolute right-full top-1/2 -translate-y-1/2 mr-2 z-20 max-w-[200px] truncate whitespace-nowrap rounded-md border border-[rgba(255,255,255,0.10)] bg-[#0B0C0A] px-2 py-1 text-[11px] text-[#F4F5EF] shadow-lg opacity-0 transition-opacity group-hover/assignee:opacity-100">
                 {assigneeLabel}
-                <span className={isAssigneeOnline ? 'text-[#5EE6B0]' : 'text-[#5B616A]'}>
+                <span className={isAssigneeOnline ? 'text-[#D0E36A]' : 'text-[#6E7268]'}>
                   {' · '}{isAssigneeOnline ? 'online' : 'offline'}
                 </span>
               </span>
@@ -227,17 +228,18 @@ function Column({
     }
   };
 
-  const statusColors = ['#8A9099', '#7C7FE8', '#5EE6B0', '#F59E0B', '#EF4444', '#06B6D4'];
-  const color = statusColors[list?.position % statusColors.length] ?? '#8A9099';
+  const kindColors: Record<string, string> = { TODO: '#A1A69B', IN_PROGRESS: '#F59E0B', DONE: '#D0E36A' };
+  const customColors = ['#A9B97A', '#7C7FE8', '#06B6D4', '#EF4444'];
+  const color = (list && kindColors[list.kind]) ?? customColors[(list?.position ?? 0) % customColors.length];
 
   if (!list) return null;
 
   return (
-    <div className="w-72 shrink-0 flex flex-col max-h-full">
+    <div className="w-[300px] shrink-0 flex flex-col max-h-full rounded-[24px] bg-[#151713] border border-white/5 p-2.5">
       {/* Column header */}
-      <div className="flex items-center justify-between mb-3 px-1 group/header">
+      <div className="flex items-center justify-between px-2 pt-1.5 pb-3 group/header">
         <div className="flex items-center gap-2 flex-1 min-w-0 mr-1">
-          <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color, boxShadow: `0 0 10px ${color}66` }} />
           
           {isRenaming ? (
             <div className="flex items-center gap-1 flex-1">
@@ -251,21 +253,21 @@ function Column({
                   if (e.key === 'Escape') setIsRenaming(false);
                 }}
                 disabled={renameLoading}
-                className="w-full bg-[#161A1F] border border-[#5EE6B0] rounded px-2 py-0.5 text-xs font-bold text-[#ECEAE4] focus:outline-none"
+                className="w-full bg-[#1B1E19] border border-[#D0E36A] rounded px-2 py-0.5 text-xs font-bold text-[#F4F5EF] focus:outline-none"
               />
             </div>
           ) : (
             <div className="flex items-center gap-1.5 flex-1 min-w-0">
               <span
                 onDoubleClick={handleStartRename}
-                className="text-xs font-bold text-[#ECEAE4] uppercase tracking-wider truncate cursor-pointer hover:text-[#5EE6B0] transition-colors"
+                className="font-display text-sm font-semibold text-[#F4F5EF] truncate cursor-pointer hover:text-[#D0E36A] transition-colors"
                 title="Double click to rename list"
               >
                 {list.name}
               </span>
               <button
                 onClick={handleStartRename}
-                className="opacity-0 group-hover/header:opacity-100 p-0.5 text-[#5B616A] hover:text-[#ECEAE4] transition-all"
+                className="opacity-0 group-hover/header:opacity-100 p-0.5 text-[#6E7268] hover:text-[#F4F5EF] transition-all"
                 title="Rename list"
               >
                 <Edit2 size={11} />
@@ -273,14 +275,14 @@ function Column({
             </div>
           )}
 
-          <span className="text-xs font-mono text-[#5B616A] bg-[#161A1F] px-1.5 py-0.5 rounded shrink-0">
+          <span className="text-[11px] font-semibold text-[#A1A69B] bg-white/5 px-2 py-0.5 rounded-full shrink-0">
             {taskIds.length}
           </span>
         </div>
 
         <button
           onClick={() => setAddingTask(true)}
-          className="p-1 text-[#5B616A] hover:text-[#ECEAE4] hover:bg-[#161A1F] rounded-lg transition-all shrink-0"
+          className="w-7 h-7 flex items-center justify-center text-[#A1A69B] hover:text-[#0B0C0A] hover:bg-[#D0E36A] rounded-full transition-all shrink-0"
           title="Add task"
         >
           <Plus size={15} />
@@ -290,7 +292,7 @@ function Column({
       {/* Cards container */}
       <div
         ref={setNodeRef}
-        className="flex-1 overflow-y-auto custom-scrollbar bg-[#111418] border border-[rgba(255,255,255,0.06)] rounded-2xl p-3 min-h-[80px]"
+        className="flex-1 overflow-y-auto custom-scrollbar rounded-[18px] px-0.5 min-h-[80px]"
       >
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {taskIds.map(id => {
@@ -312,33 +314,38 @@ function Column({
               }}
               disabled={adding}
               placeholder="Task title..."
-              className="w-full bg-[#161A1F] border border-[#5EE6B0] rounded-xl px-3 py-2 text-sm text-[#ECEAE4] placeholder:text-[#5B616A] focus:outline-none"
+              className="w-full bg-[#1B1E19] border border-[#D0E36A] rounded-xl px-3 py-2 text-sm text-[#F4F5EF] placeholder:text-[#6E7268] focus:outline-none"
             />
             <div className="flex gap-2 mt-2">
               <button
                 onClick={handleAddTask}
                 disabled={!taskTitle.trim() || adding}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#5EE6B0] text-black text-xs font-bold rounded-lg hover:bg-[#4CD59F] disabled:opacity-50 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#D0E36A] text-black text-xs font-bold rounded-full hover:bg-[#BED158] disabled:opacity-50 transition-colors"
               >
                 {adding ? <Loader2 size={12} className="animate-spin" /> : null}
                 Add
               </button>
               <button
                 onClick={() => { setAddingTask(false); setTaskTitle(''); }}
-                className="p-1.5 text-[#5B616A] hover:text-[#ECEAE4] rounded-lg transition-colors"
+                className="p-1.5 text-[#6E7268] hover:text-[#F4F5EF] rounded-lg transition-colors"
               >
                 <X size={14} />
               </button>
             </div>
           </div>
-        ) : taskIds.length === 0 ? (
+        ) : (
           <button
             onClick={() => setAddingTask(true)}
-            className="w-full h-16 border-2 border-dashed border-[rgba(255,255,255,0.05)] rounded-xl text-xs text-[#5B616A] hover:text-[#8A9099] hover:border-[rgba(255,255,255,0.10)] transition-all flex items-center justify-center gap-1.5"
+            className={cn(
+              'w-full rounded-2xl text-xs text-[#6E7268] hover:text-[#D0E36A] transition-all flex items-center gap-1.5',
+              taskIds.length === 0
+                ? 'h-16 border-2 border-dashed border-white/5 hover:border-[#D0E36A]/30 justify-center'
+                : 'px-3 py-2 hover:bg-white/[0.03]'
+            )}
           >
-            <Plus size={14} /> Add first task
+            <Plus size={14} /> {taskIds.length === 0 ? 'Add first task' : 'Add task'}
           </button>
-        ) : null}
+        )}
       </div>
     </div>
   );
@@ -602,7 +609,7 @@ export function Board() {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <Loader2 className="animate-spin text-[#5EE6B0]" size={32} />
+        <Loader2 className="animate-spin text-[#D0E36A]" size={32} />
       </div>
     );
   }
@@ -613,7 +620,7 @@ export function Board() {
         <p className="text-red-400 text-sm">{error}</p>
         <button
           onClick={() => window.location.reload()}
-          className="px-4 py-2 bg-[#161A1F] text-[#ECEAE4] rounded-lg text-sm border border-[rgba(255,255,255,0.08)] hover:bg-[#1C2127]"
+          className="px-4 py-2 bg-[#1B1E19] text-[#F4F5EF] rounded-lg text-sm border border-[rgba(255,255,255,0.08)] hover:bg-[#23271F]"
         >
           Retry
         </button>
@@ -624,44 +631,57 @@ export function Board() {
   return (
     <div className="h-full flex flex-col relative overflow-hidden">
       {/* Top project sub-bar */}
-      <div className="h-12 border-b border-[rgba(255,255,255,0.06)] bg-[#111418]/60 px-6 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-4">
-          <h2 className="text-sm font-bold text-[#ECEAE4] truncate flex items-center gap-2">
-            {project?.name || 'Board'}
-            {projectId && (
-              <button
-                onClick={() => navigator.clipboard.writeText(projectId)}
-                className="text-[10px] bg-[rgba(255,255,255,0.08)] hover:bg-[rgba(255,255,255,0.15)] text-[#8A9099] px-2 py-0.5 rounded transition-colors"
-                title="Copy Project ID"
-              >
-                Copy ID
-              </button>
-            )}
-          </h2>
-          <span className="text-xs text-[#5B616A] font-mono">
-            {totalTasks} task{totalTasks !== 1 ? 's' : ''}
-          </span>
+      <div className="px-4 md:px-6 pt-2 pb-4 flex flex-wrap items-center justify-between gap-3 shrink-0 animate-rise">
+        <div className="flex items-center gap-3 min-w-0">
+          {projectId && (
+            <span className={cn('w-11 h-11 rounded-2xl bg-gradient-to-br flex items-center justify-center font-display text-sm font-semibold text-white shrink-0', projectCover(projectId))}>
+              {projectMonogram(project?.name || 'Board')}
+            </span>
+          )}
+          <div className="min-w-0">
+            <h2 className="font-display text-xl md:text-2xl font-semibold text-[#F4F5EF] truncate">
+              {project?.name || 'Board'}
+            </h2>
+            <div className="flex items-center gap-2 text-xs text-[#6E7268]">
+              <span>{totalTasks} task{totalTasks !== 1 ? 's' : ''}</span>
+              {projectId && (
+                <>
+                  <span className="text-white/15">•</span>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(projectId)}
+                    className="hover:text-[#D0E36A] transition-colors"
+                    title="Copy Project ID"
+                  >
+                    Copy ID
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center gap-4 text-xs">
+        <div className="flex items-center gap-2 text-xs">
           {/* Socket live status */}
-          <div className="flex items-center gap-1.5 text-[#5B616A]">
-            <div className={cn("w-1.5 h-1.5 rounded-full", socketConnected ? "bg-[#5EE6B0] shadow-[0_0_8px_#5EE6B0]" : "bg-yellow-500")} />
-            <span className="text-[11px] font-mono">{socketConnected ? 'Live' : 'Connecting...'}</span>
+          <div className={cn(
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-full border',
+            socketConnected ? 'text-[#D0E36A] bg-[#D0E36A]/10 border-[#D0E36A]/25' : 'text-yellow-400 bg-yellow-500/10 border-yellow-500/25'
+          )}>
+            <div className={cn("w-1.5 h-1.5 rounded-full", socketConnected ? "bg-[#D0E36A] animate-pulse-glow" : "bg-yellow-500 animate-pulse")} />
+            <span className="text-[11px] font-semibold">{socketConnected ? 'Live' : 'Connecting…'}</span>
           </div>
 
           <Link
             to={`/projects/${projectId}/members`}
-            className="flex items-center gap-1.5 text-[#8A9099] hover:text-[#ECEAE4] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#151713] border border-white/10 text-[#A1A69B] hover:text-[#F4F5EF] hover:border-white/20 transition-colors"
           >
             <Users size={13} />
             <span>Members</span>
             {onlineUserIds.size > 0 && (
               <span
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-mono text-[#5EE6B0] bg-[#5EE6B0]/10 border border-[#5EE6B0]/20"
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-mono text-[#D0E36A] bg-[#D0E36A]/10 border border-[#D0E36A]/20"
                 title={`${onlineUserIds.size} member${onlineUserIds.size > 1 ? 's' : ''} online`}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-[#5EE6B0] animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#D0E36A] animate-pulse" />
                 {onlineUserIds.size}
               </span>
             )}
@@ -669,7 +689,7 @@ export function Board() {
 
           <Link
             to={`/projects/${projectId}/chat`}
-            className="flex items-center gap-1.5 text-[#8A9099] hover:text-[#5EE6B0] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#D0E36A] text-[#0B0C0A] font-semibold hover:bg-[#BED158] transition-colors"
           >
             <MessageSquare size={13} />
             <span>Chat</span>
@@ -678,7 +698,7 @@ export function Board() {
       </div>
 
       {/* Faint decorative glow */}
-      <div className="absolute top-12 left-0 right-0 h-24 bg-[#5EE6B0] opacity-[0.015] blur-3xl pointer-events-none" />
+      <div className="absolute top-10 left-1/4 right-1/4 h-40 rounded-full bg-[#D0E36A] opacity-[0.05] blur-3xl pointer-events-none" />
 
       <DndContext
         sensors={sensors}
@@ -687,30 +707,30 @@ export function Board() {
         onDragEnd={handleDragEnd}
       >
         <div className="flex-1 overflow-x-auto custom-scrollbar">
-          <div className="flex items-start gap-5 p-6 h-full min-w-max">
+          <div className="flex items-start gap-4 px-4 md:px-6 pb-6 h-full min-w-max">
             {listOrder.map(listId => (
               <Column key={listId} listId={listId} onOpenTask={handleOpenTask} />
             ))}
 
             {/* Add list column */}
-            <div className="w-72 shrink-0">
+            <div className="w-[300px] shrink-0">
               {newListMode ? (
                 <form onSubmit={handleCreateList}>
-                  <div className="bg-[#111418] border border-[#5EE6B0] rounded-2xl p-3 shadow-[0_0_20px_rgba(94,230,176,0.08)]">
+                  <div className="bg-[#151713] border border-[#D0E36A] rounded-[24px] p-3 shadow-[0_0_20px_rgba(208,227,106,0.08)]">
                     <input
                       autoFocus
                       value={newListName}
                       onChange={e => { setNewListName(e.target.value); setListError(''); }}
                       onKeyDown={e => { if (e.key === 'Escape') { setNewListMode(false); setNewListName(''); } }}
                       placeholder="List name..."
-                      className="w-full bg-[#161A1F] border-none rounded-xl px-3 py-2 text-sm text-[#ECEAE4] placeholder:text-[#5B616A] focus:outline-none"
+                      className="w-full bg-[#1B1E19] border-none rounded-xl px-3 py-2 text-sm text-[#F4F5EF] placeholder:text-[#6E7268] focus:outline-none"
                     />
                     {listError && <p className="text-xs text-red-400 mt-1.5 px-1">{listError}</p>}
                     <div className="flex gap-2 mt-2">
                       <button
                         type="submit"
                         disabled={creatingList || !newListName.trim()}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#5EE6B0] text-black text-xs font-bold rounded-lg hover:bg-[#4CD59F] disabled:opacity-50 transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-[#D0E36A] text-black text-xs font-bold rounded-full hover:bg-[#BED158] disabled:opacity-50 transition-colors"
                       >
                         {creatingList && <Loader2 size={12} className="animate-spin" />}
                         Add List
@@ -718,7 +738,7 @@ export function Board() {
                       <button
                         type="button"
                         onClick={() => { setNewListMode(false); setNewListName(''); setListError(''); }}
-                        className="p-1.5 text-[#5B616A] hover:text-[#ECEAE4] rounded-lg transition-colors"
+                        className="p-1.5 text-[#6E7268] hover:text-[#F4F5EF] rounded-lg transition-colors"
                       >
                         <X size={14} />
                       </button>
@@ -728,7 +748,7 @@ export function Board() {
               ) : (
                 <button
                   onClick={() => setNewListMode(true)}
-                  className="w-full flex items-center gap-2 p-4 border-2 border-dashed border-[rgba(255,255,255,0.06)] rounded-2xl text-[#5B616A] hover:text-[#8A9099] hover:border-[rgba(255,255,255,0.10)] text-sm font-medium transition-all"
+                  className="group w-full flex items-center gap-2 p-4 border-2 border-dashed border-white/[0.07] rounded-[24px] text-[#6E7268] hover:text-[#D0E36A] hover:border-[#D0E36A]/35 hover:bg-[#D0E36A]/[0.03] text-sm font-medium transition-all"
                 >
                   <Plus size={16} /> Add List
                 </button>
@@ -743,7 +763,7 @@ export function Board() {
           }}
         >
           {activeTask ? (
-            <div className="opacity-90 rotate-1 scale-105 shadow-2xl w-72">
+            <div className="opacity-95 rotate-2 scale-105 shadow-2xl shadow-black/70 w-[280px]">
               <TaskCard task={activeTask} onOpen={() => {}} />
             </div>
           ) : null}

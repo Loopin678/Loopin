@@ -200,7 +200,7 @@ export function Chat() {
         return (
           <span
             key={index}
-            className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-[#5EE6B0]/15 text-[#5EE6B0] border border-[#5EE6B0]/25 mx-0.5"
+            className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-[#D0E36A]/15 text-[#D0E36A] border border-[#D0E36A]/25 mx-0.5"
           >
             {part}
           </span>
@@ -213,7 +213,7 @@ export function Chat() {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <Loader2 className="animate-spin text-[#5EE6B0]" size={32} />
+        <Loader2 className="animate-spin text-[#D0E36A]" size={32} />
       </div>
     );
   }
@@ -224,7 +224,7 @@ export function Chat() {
         <p className="text-red-400 text-sm">{error}</p>
         <button
           onClick={() => window.location.reload()}
-          className="px-4 py-2 bg-[#161A1F] text-[#ECEAE4] rounded-lg text-sm border border-[rgba(255,255,255,0.08)] hover:bg-[#1C2127]"
+          className="px-4 py-2 bg-[#1B1E19] text-[#F4F5EF] rounded-lg text-sm border border-[rgba(255,255,255,0.08)] hover:bg-[#23271F]"
         >
           Retry
         </button>
@@ -233,20 +233,20 @@ export function Chat() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-[#0B0D10] text-[#ECEAE4]">
+    <div className="h-full flex flex-col bg-[#0B0C0A] text-[#F4F5EF]">
       {/* Top Header */}
-      <div className="h-14 border-b border-[rgba(255,255,255,0.06)] bg-[#111418] px-6 flex items-center justify-between shrink-0">
+      <div className="mx-3 md:mx-4 mb-2 rounded-[22px] border border-white/5 bg-gradient-to-r from-[#1F2A0E]/70 via-[#151713] to-[#151713] px-3 md:px-4 py-2.5 flex items-center justify-between gap-3 shrink-0 animate-rise">
         <div className="flex items-center gap-3">
           <Link
             to={`/projects/${projectId}`}
-            className="p-1.5 text-[#5B616A] hover:text-[#ECEAE4] hover:bg-[#161A1F] rounded-lg transition-colors"
+            className="w-9 h-9 flex items-center justify-center text-[#A1A69B] hover:text-[#0B0C0A] hover:bg-[#D0E36A] bg-white/5 rounded-full transition-colors"
             title="Back to board"
           >
             <ArrowLeft size={16} />
           </Link>
           <div className="flex items-center gap-2">
-            <MessageSquare size={16} className="text-[#5EE6B0]" />
-            <h2 className="text-sm font-bold text-[#ECEAE4]">
+            <span className="w-9 h-9 rounded-xl bg-[#D0E36A] text-[#0B0C0A] flex items-center justify-center"><MessageSquare size={16} /></span>
+            <h2 className="font-display text-base md:text-lg font-semibold text-[#F4F5EF] truncate">
               {project?.name ? `${project.name} • Chat` : 'Project Chat'}
             </h2>
           </div>
@@ -254,30 +254,33 @@ export function Chat() {
 
         <div className="flex items-center gap-4 text-xs">
           {/* Socket live status */}
-          <div className="flex items-center gap-1.5 text-[#5B616A]">
+          <div className={cn(
+            'hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border',
+            socketConnected ? 'text-[#D0E36A] bg-[#D0E36A]/10 border-[#D0E36A]/25' : 'text-yellow-400 bg-yellow-500/10 border-yellow-500/25'
+          )}>
             <div
               className={cn(
                 "w-1.5 h-1.5 rounded-full",
-                socketConnected ? "bg-[#5EE6B0] shadow-[0_0_8px_#5EE6B0]" : "bg-yellow-500"
+                socketConnected ? "bg-[#D0E36A] animate-pulse-glow" : "bg-yellow-500 animate-pulse"
               )}
             />
-            <span className="text-[11px] font-mono">
+            <span className="text-[11px] font-semibold">
               {socketConnected ? 'Live' : 'Connecting...'}
             </span>
           </div>
 
           <Link
             to={`/projects/${projectId}/members`}
-            className="flex items-center gap-1.5 text-[#8A9099] hover:text-[#ECEAE4] transition-colors"
+            className="flex items-center gap-1.5 text-[#A1A69B] hover:text-[#F4F5EF] transition-colors"
           >
             <Users size={13} />
             <span>Members</span>
             {onlineUserIds.size > 0 && (
               <span
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-mono text-[#5EE6B0] bg-[#5EE6B0]/10 border border-[#5EE6B0]/20"
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-mono text-[#D0E36A] bg-[#D0E36A]/10 border border-[#D0E36A]/20"
                 title={`${onlineUserIds.size} member${onlineUserIds.size > 1 ? 's' : ''} online`}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-[#5EE6B0] animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#D0E36A] animate-pulse" />
                 {onlineUserIds.size}
               </span>
             )}
@@ -289,11 +292,11 @@ export function Chat() {
       <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-4">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center py-12">
-            <div className="w-14 h-14 rounded-2xl bg-[#111418] border border-[rgba(255,255,255,0.06)] flex items-center justify-center mb-3">
-              <Bot size={28} className="text-[#5EE6B0]" />
+            <div className="w-14 h-14 rounded-[24px] bg-[#151713] border border-[rgba(255,255,255,0.06)] flex items-center justify-center mb-3">
+              <Bot size={28} className="text-[#D0E36A]" />
             </div>
-            <h3 className="text-base font-bold text-[#ECEAE4]">No messages yet</h3>
-            <p className="text-xs text-[#8A9099] mt-1 max-w-sm">
+            <h3 className="text-base font-bold text-[#F4F5EF]">No messages yet</h3>
+            <p className="text-xs text-[#A1A69B] mt-1 max-w-sm">
               Start the conversation with your team, or mention <span className="text-[#A78BFA] font-mono font-semibold">@ai</span> to trigger an AI response.
             </p>
             <button
@@ -328,10 +331,10 @@ export function Chat() {
                   {!isAi && (
                     <span
                       className={cn(
-                        "absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#0B0D10]",
+                        "absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#0B0C0A]",
                         (onlineUserIds.has(msg.senderId) || (msg.sender?.id ? onlineUserIds.has(msg.sender.id) : false))
-                          ? "bg-[#5EE6B0]"
-                          : "bg-[#5B616A]"
+                          ? "bg-[#D0E36A]"
+                          : "bg-[#6E7268]"
                       )}
                       title={(onlineUserIds.has(msg.senderId) || (msg.sender?.id ? onlineUserIds.has(msg.sender.id) : false)) ? "Online" : "Offline"}
                     />
@@ -341,13 +344,13 @@ export function Chat() {
                 {/* Message Content */}
                 <div className={cn('flex flex-col', isMe ? 'items-end' : 'items-start')}>
                   <div className="flex items-center gap-2 mb-1 px-1">
-                    <span className="text-xs font-semibold text-[#8A9099]">
+                    <span className="text-xs font-semibold text-[#A1A69B]">
                       {isAi ? 'Loopin AI' : isMe ? 'You' : msg.sender?.name || 'Member'}
                     </span>
                     {!isAi && !isMe && msg.sender?.username && (
-                      <span className="text-[10px] text-[#5B616A] font-mono">@{msg.sender.username}</span>
+                      <span className="text-[10px] text-[#6E7268] font-mono">@{msg.sender.username}</span>
                     )}
-                    <span className="text-[10px] text-[#5B616A] font-mono">
+                    <span className="text-[10px] text-[#6E7268] font-mono">
                       {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
@@ -356,10 +359,10 @@ export function Chat() {
                     className={cn(
                       'rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words border',
                       isAi
-                        ? 'bg-[#16172A] border-[#7C7FE8]/30 text-[#ECEAE4] shadow-[0_0_20px_rgba(124,127,232,0.08)]'
+                        ? 'bg-[#1D2119] border-[#7C7FE8]/30 text-[#F4F5EF] shadow-[0_0_20px_rgba(124,127,232,0.08)]'
                         : isMe
-                        ? 'bg-[#122B22] border-[#5EE6B0]/30 text-[#ECEAE4]'
-                        : 'bg-[#161A1F] border-[rgba(255,255,255,0.06)] text-[#ECEAE4]'
+                        ? 'bg-[#262C14] border-[#D0E36A]/30 text-[#F4F5EF]'
+                        : 'bg-[#1B1E19] border-[rgba(255,255,255,0.06)] text-[#F4F5EF]'
                     )}
                   >
                     {formatContent(msg.content)}
@@ -376,7 +379,7 @@ export function Chat() {
             <div className="w-8 h-8 rounded-full bg-[#7C7FE8]/20 border border-[#7C7FE8]/40 flex items-center justify-center text-[#A78BFA]">
               <Bot size={14} />
             </div>
-            <div className="bg-[#16172A] border border-[#7C7FE8]/30 rounded-2xl px-4 py-2.5 flex items-center gap-2 text-xs text-[#A78BFA]">
+            <div className="bg-[#1D2119] border border-[#7C7FE8]/30 rounded-2xl px-4 py-2.5 flex items-center gap-2 text-xs text-[#A78BFA]">
               <Sparkles size={13} className="animate-pulse" />
               <span>AI is thinking...</span>
               <div className="flex gap-1 ml-1">
@@ -392,7 +395,7 @@ export function Chat() {
       </div>
 
       {/* Input Form Bar */}
-      <div className="p-4 border-t border-[rgba(255,255,255,0.06)] bg-[#111418] shrink-0">
+      <div className="p-4 border-t border-[rgba(255,255,255,0.06)] bg-[#151713] shrink-0">
         {sendError && (
           <div className="mb-2 flex items-center gap-2 text-xs text-red-400 bg-red-950/40 border border-red-900/50 rounded-lg px-3 py-1.5">
             <AlertCircle size={13} />
@@ -405,7 +408,7 @@ export function Chat() {
           <button
             type="button"
             onClick={handleInsertAiMention}
-            className="flex items-center gap-1 px-3 py-2.5 rounded-xl bg-[#161A1F] border border-[rgba(255,255,255,0.08)] text-[#8A9099] hover:text-[#A78BFA] hover:border-[#7C7FE8]/40 text-xs font-medium transition-colors shrink-0"
+            className="flex items-center gap-1 px-3 py-2.5 rounded-xl bg-[#1B1E19] border border-[rgba(255,255,255,0.08)] text-[#A1A69B] hover:text-[#A78BFA] hover:border-[#7C7FE8]/40 text-xs font-medium transition-colors shrink-0"
             title="Mention AI"
           >
             <AtSign size={13} />
@@ -417,13 +420,13 @@ export function Chat() {
             value={inputText}
             onChange={e => setInputText(e.target.value)}
             placeholder="Message your team... (@username to mention, @ai for the assistant)"
-            className="flex-1 bg-[#161A1F] border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-2.5 text-sm text-[#ECEAE4] placeholder:text-[#5B616A] focus:outline-none focus:border-[#5EE6B0] transition-colors"
+            className="flex-1 bg-[#1B1E19] border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-2.5 text-sm text-[#F4F5EF] placeholder:text-[#6E7268] focus:outline-none focus:border-[#D0E36A] transition-colors"
           />
 
           <button
             type="submit"
             disabled={!inputText.trim()}
-            className="p-2.5 bg-[#5EE6B0] text-black font-bold rounded-xl hover:bg-[#4CD59F] disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0"
+            className="p-2.5 bg-[#D0E36A] text-black font-bold rounded-xl hover:bg-[#BED158] disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0"
             title="Send message"
           >
             <Send size={16} />

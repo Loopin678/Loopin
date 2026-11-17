@@ -56,7 +56,7 @@ export function Login() {
           </div>
         )}
         <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-[#8A9099] uppercase tracking-wider">
+          <label className="block text-xs font-semibold text-[#A1A69B] uppercase tracking-wider">
             Email
           </label>
           <input
@@ -65,12 +65,12 @@ export function Login() {
             autoComplete="email"
             value={email}
             onChange={e => setEmail(e.target.value)}
-            className="w-full px-3 py-2.5 bg-[#161A1F] border border-[rgba(255,255,255,0.08)] rounded-lg focus:outline-none focus:border-[#5EE6B0] text-sm text-[#ECEAE4] transition-colors placeholder:text-[#5B616A]"
+            className="w-full px-3 py-2.5 bg-[#1B1E19] border border-[rgba(255,255,255,0.08)] rounded-xl focus:outline-none focus:border-[#D0E36A] text-sm text-[#F4F5EF] transition-colors placeholder:text-[#6E7268]"
             placeholder="you@example.com"
           />
         </div>
         <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-[#8A9099] uppercase tracking-wider">
+          <label className="block text-xs font-semibold text-[#A1A69B] uppercase tracking-wider">
             Password
           </label>
           <input
@@ -79,14 +79,14 @@ export function Login() {
             autoComplete="current-password"
             value={password}
             onChange={e => setPassword(e.target.value)}
-            className="w-full px-3 py-2.5 bg-[#161A1F] border border-[rgba(255,255,255,0.08)] rounded-lg focus:outline-none focus:border-[#5EE6B0] text-sm text-[#ECEAE4] transition-colors placeholder:text-[#5B616A]"
+            className="w-full px-3 py-2.5 bg-[#1B1E19] border border-[rgba(255,255,255,0.08)] rounded-xl focus:outline-none focus:border-[#D0E36A] text-sm text-[#F4F5EF] transition-colors placeholder:text-[#6E7268]"
             placeholder="••••••••"
           />
         </div>
         <button
           type="submit"
           disabled={loading}
-          className="w-full mt-2 flex justify-center items-center gap-2 py-2.5 px-4 bg-[#5EE6B0] text-black font-bold rounded-lg hover:bg-[#4CD59F] transition-colors disabled:opacity-50 text-sm"
+          className="w-full mt-2 flex justify-center items-center gap-2 py-2.5 px-4 bg-[#D0E36A] text-black font-bold rounded-full hover:bg-[#BED158] transition-colors disabled:opacity-50 text-sm"
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : 'Sign in'}
         </button>

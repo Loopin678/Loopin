@@ -1251,6 +1251,27 @@ Item {
                                         onEditingFinished: root.api.userId = text.trim()
                                     }
                                 }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    CheckBox {
+                                        id: suggestDoneBox
+                                        checked: window.suggestDoneTasks
+                                        onToggled: window.suggestDoneTasks = checked
+                                        contentItem: Text {
+                                            text: "Suggest moving finished tasks to Done after each commit"
+                                            color: Theme.textPrimary
+                                            verticalAlignment: Text.AlignVCenter
+                                            leftPadding: suggestDoneBox.indicator.width + suggestDoneBox.spacing
+                                        }
+                                    }
+                                    Text {
+                                        text: "When you commit, Loopin checks the commit against this project's open tasks and asks before moving anything. Needs Project ID and User ID."
+                                        wrapMode: Text.WordWrap; Layout.fillWidth: true
+                                        color: Theme.textSecondary; font.pixelSize: 12
+                                    }
+                                }
                             }
                         }
                     }

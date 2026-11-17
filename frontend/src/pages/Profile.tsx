@@ -16,8 +16,8 @@ const SKILLS_MAX = 10;
 const SKILL_MAX_LENGTH = 24;
 
 const inputClass =
-  'w-full px-3 py-2.5 bg-[#161A1F] border border-[rgba(255,255,255,0.08)] rounded-lg focus:outline-none focus:border-[#5EE6B0] text-sm text-[#ECEAE4] transition-colors placeholder:text-[#5B616A]';
-const labelClass = 'block text-xs font-semibold text-[#8A9099] uppercase tracking-wider mb-1.5';
+  'w-full px-3 py-2.5 bg-[#1B1E19] border border-[rgba(255,255,255,0.08)] rounded-lg focus:outline-none focus:border-[#D0E36A] text-sm text-[#F4F5EF] transition-colors placeholder:text-[#6E7268]';
+const labelClass = 'block text-xs font-semibold text-[#A1A69B] uppercase tracking-wider mb-1.5';
 
 // Instant feedback only. Reserved words are checked by the server and come back as a message.
 function usernameProblem(username: string): string | null {
@@ -172,7 +172,7 @@ export function Profile() {
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <Loader2 className="animate-spin text-[#5EE6B0]" size={32} />
+        <Loader2 className="animate-spin text-[#D0E36A]" size={32} />
       </div>
     );
   }
@@ -183,7 +183,7 @@ export function Profile() {
         <p className="text-red-400 text-sm">{loadError || 'Profile not available'}</p>
         <button
           onClick={load}
-          className="px-4 py-2 bg-[#161A1F] text-[#ECEAE4] rounded-lg text-sm border border-[rgba(255,255,255,0.08)] hover:bg-[#1C2127]"
+          className="px-4 py-2 bg-[#1B1E19] text-[#F4F5EF] rounded-lg text-sm border border-[rgba(255,255,255,0.08)] hover:bg-[#23271F]"
         >
           Retry
         </button>
@@ -193,23 +193,28 @@ export function Profile() {
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar">
-      <div className="p-8 max-w-2xl mx-auto">
+      <div className="p-4 md:p-6 lg:p-8 max-w-3xl mx-auto">
         {/* Header */}
-        <div className="flex items-center gap-5 mb-8">
-          <Avatar userId={profile.id} name={profile.name} size="xl" />
-          <div className="min-w-0">
-            <h1 className="text-3xl font-bold tracking-tight text-[#ECEAE4] truncate">{profile.name}</h1>
-            <p className="text-sm text-[#5EE6B0] font-mono mt-1">
-              {profile.username ? `@${profile.username}` : 'No username yet'}
-            </p>
+        <div className="relative overflow-hidden rounded-[28px] dusk-sky mb-6 animate-rise">
+          <div className="absolute inset-x-0 bottom-0 h-[38%] hills opacity-70" aria-hidden />
+          <div className="relative px-6 md:px-8 pt-16 pb-7 flex items-end gap-5">
+            <div className="rounded-full p-1 bg-[#0B0C0A]/60 ring-2 ring-[#D0E36A]/60 shadow-[0_0_30px_rgba(208,227,106,0.3)] shrink-0">
+              <Avatar userId={profile.id} name={profile.name} size="xl" />
+            </div>
+            <div className="min-w-0 pb-1">
+              <h1 className="text-3xl md:text-4xl font-semibold text-[#F4F5EF] truncate">{profile.name}</h1>
+              <p className="text-sm text-[#E2EE9C] mt-1">
+                {profile.username ? `@${profile.username}` : 'No username yet'}
+              </p>
+            </div>
           </div>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="bg-[#111418] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 space-y-5 mb-6"
+          className="bg-[#151713] border border-white/5 rounded-[24px] p-6 animate-rise [animation-delay:120ms] space-y-5 mb-6"
         >
-          <h2 className="text-sm font-bold text-[#ECEAE4] uppercase tracking-wider">Profile</h2>
+          <h2 className="text-lg font-semibold text-[#F4F5EF]">Profile</h2>
 
           {/* Name */}
           <div>
@@ -230,7 +235,7 @@ export function Profile() {
           <div>
             <label className={labelClass} htmlFor="profile-username">Username</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5B616A] text-sm pointer-events-none">@</span>
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#6E7268] text-sm pointer-events-none">@</span>
               <input
                 id="profile-username"
                 type="text"
@@ -247,7 +252,7 @@ export function Profile() {
             {handleProblem ? (
               <p className="text-xs text-red-400 mt-1.5">{handleProblem}</p>
             ) : (
-              <p className="text-xs text-[#5B616A] mt-1.5">
+              <p className="text-xs text-[#6E7268] mt-1.5">
                 Teammates mention you in chat with @{username}
               </p>
             )}
@@ -265,7 +270,7 @@ export function Profile() {
               placeholder="What do you work on?"
               className={cn(inputClass, 'resize-none')}
             />
-            <p className="text-xs text-[#5B616A] mt-1.5 text-right font-mono">
+            <p className="text-xs text-[#6E7268] mt-1.5 text-right font-mono">
               {bio.length}/{BIO_MAX}
             </p>
           </div>
@@ -273,18 +278,18 @@ export function Profile() {
           {/* Skills */}
           <div>
             <label className={labelClass} htmlFor="profile-skills">Skills</label>
-            <div className="flex flex-wrap items-center gap-2 p-2 bg-[#161A1F] border border-[rgba(255,255,255,0.08)] rounded-lg focus-within:border-[#5EE6B0] transition-colors">
+            <div className="flex flex-wrap items-center gap-2 p-2 bg-[#1B1E19] border border-[rgba(255,255,255,0.08)] rounded-lg focus-within:border-[#D0E36A] transition-colors">
               {skills.map((skill) => (
                 <span
                   key={skill}
-                  className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-md text-xs font-medium bg-[#5EE6B0]/10 text-[#5EE6B0] border border-[#5EE6B0]/25"
+                  className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-md text-xs font-medium bg-[#D0E36A]/10 text-[#D0E36A] border border-[#D0E36A]/25"
                 >
                   {skill}
                   <button
                     type="button"
                     onClick={() => removeSkill(skill)}
                     aria-label={`Remove ${skill}`}
-                    className="p-0.5 rounded hover:bg-[#5EE6B0]/20 transition-colors"
+                    className="p-0.5 rounded hover:bg-[#D0E36A]/20 transition-colors"
                   >
                     <X size={11} />
                   </button>
@@ -305,13 +310,13 @@ export function Profile() {
                 }}
                 onBlur={() => addSkill(skillInput)}
                 placeholder={skills.length === 0 ? 'React, Node, Figma…' : ''}
-                className="flex-1 min-w-[120px] bg-transparent px-1 py-1 text-sm text-[#ECEAE4] placeholder:text-[#5B616A] focus:outline-none"
+                className="flex-1 min-w-[120px] bg-transparent px-1 py-1 text-sm text-[#F4F5EF] placeholder:text-[#6E7268] focus:outline-none"
               />
             </div>
             {skillError ? (
               <p className="text-xs text-red-400 mt-1.5">{skillError}</p>
             ) : (
-              <p className="text-xs text-[#5B616A] mt-1.5">
+              <p className="text-xs text-[#6E7268] mt-1.5">
                 Press Enter or comma to add. Up to {SKILLS_MAX} skills ({skills.length}/{SKILLS_MAX}).
               </p>
             )}
@@ -326,7 +331,7 @@ export function Profile() {
 
           <div className="flex items-center justify-end gap-3 pt-1">
             {saved && (
-              <span className="flex items-center gap-1.5 text-xs text-[#5EE6B0] mr-auto">
+              <span className="flex items-center gap-1.5 text-xs text-[#D0E36A] mr-auto">
                 <CheckCircle2 size={14} /> Saved
               </span>
             )}
@@ -335,7 +340,7 @@ export function Profile() {
                 type="button"
                 onClick={handleDiscard}
                 disabled={saving}
-                className="px-4 py-2 text-sm font-medium text-[#8A9099] hover:text-[#ECEAE4] transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-[#A1A69B] hover:text-[#F4F5EF] transition-colors disabled:opacity-50"
               >
                 Discard
               </button>
@@ -343,7 +348,7 @@ export function Profile() {
             <button
               type="submit"
               disabled={!canSave}
-              className="flex items-center gap-2 px-5 py-2 bg-[#5EE6B0] text-black text-sm font-bold rounded-lg hover:bg-[#4CD59F] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-2 px-5 py-2 bg-[#D0E36A] text-black text-sm font-bold rounded-full hover:bg-[#BED158] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               {saving && <Loader2 size={14} className="animate-spin" />}
               {saving ? 'Saving…' : 'Save changes'}
@@ -352,26 +357,26 @@ export function Profile() {
         </form>
 
         {/* Account (read-only) */}
-        <div className="bg-[#111418] border border-[rgba(255,255,255,0.06)] rounded-2xl p-6 space-y-4">
-          <h2 className="text-sm font-bold text-[#ECEAE4] uppercase tracking-wider">Account</h2>
+        <div className="bg-[#151713] border border-white/5 rounded-[24px] p-6 animate-rise [animation-delay:120ms] space-y-4">
+          <h2 className="text-lg font-semibold text-[#F4F5EF]">Account</h2>
 
           <div className="flex items-center gap-3 text-sm">
-            <Mail size={15} className="text-[#5B616A] shrink-0" />
-            <span className="text-[#ECEAE4] truncate">{profile.email}</span>
-            <span className="text-[10px] font-mono text-[#5B616A] ml-auto shrink-0">only you see this</span>
+            <Mail size={15} className="text-[#6E7268] shrink-0" />
+            <span className="text-[#F4F5EF] truncate">{profile.email}</span>
+            <span className="text-[10px] font-mono text-[#6E7268] ml-auto shrink-0">only you see this</span>
           </div>
 
           <div className="flex items-center gap-3 text-sm">
-            <Lock size={15} className="text-[#5B616A] shrink-0" />
-            <span className="text-[#8A9099]">Sign-in:</span>
+            <Lock size={15} className="text-[#6E7268] shrink-0" />
+            <span className="text-[#A1A69B]">Sign-in:</span>
             <div className="flex items-center gap-2 flex-wrap">
               {profile.hasPassword && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border text-[#8A9099] bg-[rgba(255,255,255,0.05)] border-[rgba(255,255,255,0.08)]">
+                <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border text-[#A1A69B] bg-[rgba(255,255,255,0.05)] border-[rgba(255,255,255,0.08)]">
                   <Lock size={9} /> Email &amp; password
                 </span>
               )}
               {profile.googleLinked && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border text-[#8A9099] bg-[rgba(255,255,255,0.05)] border-[rgba(255,255,255,0.08)]">
+                <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border text-[#A1A69B] bg-[rgba(255,255,255,0.05)] border-[rgba(255,255,255,0.08)]">
                   <Globe size={9} /> Google
                 </span>
               )}
@@ -379,8 +384,8 @@ export function Profile() {
           </div>
 
           <div className="flex items-center gap-3 text-sm">
-            <Calendar size={15} className="text-[#5B616A] shrink-0" />
-            <span className="text-[#8A9099]">
+            <Calendar size={15} className="text-[#6E7268] shrink-0" />
+            <span className="text-[#A1A69B]">
               Member since{' '}
               {new Date(profile.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
             </span>

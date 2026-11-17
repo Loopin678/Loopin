@@ -108,12 +108,12 @@ export function TaskModal({ taskId, projectId, onClose }: TaskModalProps) {
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
-      <div className="relative w-full max-w-2xl max-h-[90vh] bg-[#111418] border border-[rgba(255,255,255,0.10)] rounded-2xl shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-2xl max-h-[90vh] bg-[#151713] border border-[rgba(255,255,255,0.10)] rounded-[24px] shadow-2xl flex flex-col animate-in fade-in zoom-in-95 duration-200">
 
         {/* Loading state */}
         {loading && (
           <div className="flex items-center justify-center p-16">
-            <Loader2 className="animate-spin text-[#5EE6B0]" size={32} />
+            <Loader2 className="animate-spin text-[#D0E36A]" size={32} />
           </div>
         )}
 
@@ -123,7 +123,7 @@ export function TaskModal({ taskId, projectId, onClose }: TaskModalProps) {
             <p className="text-red-400 text-sm mb-4">{error}</p>
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-[#161A1F] text-[#ECEAE4] rounded-lg text-sm border border-[rgba(255,255,255,0.08)]"
+              className="px-4 py-2 bg-[#1B1E19] text-[#F4F5EF] rounded-lg text-sm border border-[rgba(255,255,255,0.08)]"
             >
               Close
             </button>
@@ -139,13 +139,13 @@ export function TaskModal({ taskId, projectId, onClose }: TaskModalProps) {
                 <input
                   value={title}
                   onChange={e => setTitle(e.target.value)}
-                  className="w-full bg-transparent text-lg font-bold text-[#ECEAE4] border border-transparent hover:border-[rgba(255,255,255,0.08)] focus:border-[#5EE6B0] rounded-lg px-2 py-1 focus:outline-none transition-colors"
+                  className="w-full bg-transparent text-lg font-bold text-[#F4F5EF] border border-transparent hover:border-[rgba(255,255,255,0.08)] focus:border-[#D0E36A] rounded-lg px-2 py-1 focus:outline-none transition-colors"
                   placeholder="Task title"
                 />
               </div>
               <button
                 onClick={onClose}
-                className="p-2 text-[#5B616A] hover:text-[#ECEAE4] hover:bg-[#161A1F] rounded-lg transition-all shrink-0"
+                className="p-2 text-[#6E7268] hover:text-[#F4F5EF] hover:bg-[#1B1E19] rounded-lg transition-all shrink-0"
               >
                 <X size={18} />
               </button>
@@ -162,14 +162,14 @@ export function TaskModal({ taskId, projectId, onClose }: TaskModalProps) {
               {/* Assignee + Stack */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="flex items-center justify-between text-xs font-semibold text-[#5B616A] uppercase tracking-wider mb-1.5">
+                  <label className="flex items-center justify-between text-xs font-semibold text-[#6E7268] uppercase tracking-wider mb-1.5">
                     <span className="flex items-center gap-1.5"><User size={12} /> Assignee</span>
                     {assigneeId && (
                       <span className={cn(
                         "inline-flex items-center gap-1 text-[10px] font-mono normal-case",
-                        onlineUserIds.has(assigneeId) ? "text-[#5EE6B0]" : "text-[#5B616A]"
+                        onlineUserIds.has(assigneeId) ? "text-[#D0E36A]" : "text-[#6E7268]"
                       )}>
-                        <span className={cn("w-1.5 h-1.5 rounded-full", onlineUserIds.has(assigneeId) ? "bg-[#5EE6B0] animate-pulse" : "bg-[#5B616A]")} />
+                        <span className={cn("w-1.5 h-1.5 rounded-full", onlineUserIds.has(assigneeId) ? "bg-[#D0E36A] animate-pulse" : "bg-[#6E7268]")} />
                         {onlineUserIds.has(assigneeId) ? "Online" : "Offline"}
                       </span>
                     )}
@@ -177,7 +177,7 @@ export function TaskModal({ taskId, projectId, onClose }: TaskModalProps) {
                   <select
                     value={assigneeId}
                     onChange={e => setAssigneeId(e.target.value)}
-                    className="w-full bg-[#161A1F] border border-[rgba(255,255,255,0.08)] rounded-lg px-3 py-2 text-sm text-[#ECEAE4] focus:outline-none focus:border-[#5EE6B0] transition-colors"
+                    className="w-full bg-[#1B1E19] border border-[rgba(255,255,255,0.08)] rounded-lg px-3 py-2 text-sm text-[#F4F5EF] focus:outline-none focus:border-[#D0E36A] transition-colors"
                   >
                     <option value="">Unassigned</option>
                     {members.map(m => {
@@ -193,13 +193,13 @@ export function TaskModal({ taskId, projectId, onClose }: TaskModalProps) {
                 </div>
 
                 <div>
-                  <label className="flex items-center gap-1.5 text-xs font-semibold text-[#5B616A] uppercase tracking-wider mb-1.5">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-[#6E7268] uppercase tracking-wider mb-1.5">
                     <Tag size={12} /> Stack / Area
                   </label>
                   <input
                     value={stack}
                     onChange={e => setStack(e.target.value)}
-                    className="w-full bg-[#161A1F] border border-[rgba(255,255,255,0.08)] rounded-lg px-3 py-2 text-sm text-[#ECEAE4] focus:outline-none focus:border-[#5EE6B0] transition-colors placeholder:text-[#5B616A]"
+                    className="w-full bg-[#1B1E19] border border-[rgba(255,255,255,0.08)] rounded-lg px-3 py-2 text-sm text-[#F4F5EF] focus:outline-none focus:border-[#D0E36A] transition-colors placeholder:text-[#6E7268]"
                     placeholder="e.g. Frontend, Backend..."
                   />
                 </div>
@@ -207,43 +207,43 @@ export function TaskModal({ taskId, projectId, onClose }: TaskModalProps) {
 
               {/* Description */}
               <div>
-                <label className="block text-xs font-semibold text-[#5B616A] uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-semibold text-[#6E7268] uppercase tracking-wider mb-1.5">
                   Description
                 </label>
                 <textarea
                   value={description}
                   onChange={e => setDescription(e.target.value)}
                   rows={5}
-                  className="w-full bg-[#161A1F] border border-[rgba(255,255,255,0.08)] rounded-xl p-3 text-sm text-[#ECEAE4] focus:outline-none focus:border-[#5EE6B0] transition-colors placeholder:text-[#5B616A] resize-y custom-scrollbar"
+                  className="w-full bg-[#1B1E19] border border-[rgba(255,255,255,0.08)] rounded-xl p-3 text-sm text-[#F4F5EF] focus:outline-none focus:border-[#D0E36A] transition-colors placeholder:text-[#6E7268] resize-y custom-scrollbar"
                   placeholder="Add details, context, or acceptance criteria..."
                 />
               </div>
 
               {/* Metadata */}
-              <div className="bg-[#161A1F] border border-[rgba(255,255,255,0.06)] rounded-xl p-4 space-y-2.5 font-mono text-xs text-[#5B616A]">
+              <div className="bg-[#1B1E19] border border-[rgba(255,255,255,0.06)] rounded-xl p-4 space-y-2.5 font-mono text-xs text-[#6E7268]">
                 <div className="flex justify-between">
                   <span className="flex items-center gap-1.5"><Calendar size={11} /> Created</span>
-                  <span className="text-[#8A9099]">{new Date(task.createdAt).toLocaleString()}</span>
+                  <span className="text-[#A1A69B]">{new Date(task.createdAt).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between border-t border-[rgba(255,255,255,0.05)] pt-2.5">
                   <span className="flex items-center gap-1.5"><Calendar size={11} /> Updated</span>
-                  <span className="text-[#8A9099]">{new Date(task.updatedAt).toLocaleString()}</span>
+                  <span className="text-[#A1A69B]">{new Date(task.updatedAt).toLocaleString()}</span>
                 </div>
                 {task.commitId && (
                   <div className="flex justify-between border-t border-[rgba(255,255,255,0.05)] pt-2.5">
                     <span className="flex items-center gap-1.5"><Code2 size={11} /> Commit</span>
-                    <span className="text-[#5EE6B0]">{task.commitId.slice(0, 8)}</span>
+                    <span className="text-[#D0E36A]">{task.commitId.slice(0, 8)}</span>
                   </div>
                 )}
                 <div className="flex justify-between border-t border-[rgba(255,255,255,0.05)] pt-2.5">
                   <span>Task ID</span>
-                  <span className="text-[#5B616A]">{task.id.slice(0, 8)}...</span>
+                  <span className="text-[#6E7268]">{task.id.slice(0, 8)}...</span>
                 </div>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-between gap-3 p-4 border-t border-[rgba(255,255,255,0.06)] bg-[#0B0D10] rounded-b-2xl shrink-0">
+            <div className="flex items-center justify-between gap-3 p-4 border-t border-[rgba(255,255,255,0.06)] bg-[#0B0C0A] rounded-b-2xl shrink-0">
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleDelete}
@@ -256,7 +256,7 @@ export function TaskModal({ taskId, projectId, onClose }: TaskModalProps) {
 
                 <button
                   onClick={handleFocusMode}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#5EE6B0] border border-[#5EE6B0]/30 bg-[#5EE6B0]/08 hover:bg-[#5EE6B0]/15 rounded-lg transition-all"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#D0E36A] border border-[#D0E36A]/30 bg-[#D0E36A]/08 hover:bg-[#D0E36A]/15 rounded-full transition-all"
                 >
                   <ExternalLink size={13} /> Focus Mode
                 </button>
@@ -265,14 +265,14 @@ export function TaskModal({ taskId, projectId, onClose }: TaskModalProps) {
               <div className="flex items-center gap-2">
                 <button
                   onClick={onClose}
-                  className="px-4 py-1.5 text-sm text-[#8A9099] hover:text-[#ECEAE4] transition-colors"
+                  className="px-4 py-1.5 text-sm text-[#A1A69B] hover:text-[#F4F5EF] transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex items-center gap-1.5 px-5 py-1.5 bg-[#5EE6B0] text-black text-sm font-bold rounded-lg hover:bg-[#4CD59F] disabled:opacity-50 transition-colors"
+                  className="flex items-center gap-1.5 px-5 py-1.5 bg-[#D0E36A] text-black text-sm font-bold rounded-full hover:bg-[#BED158] disabled:opacity-50 transition-colors"
                 >
                   {saving && <Loader2 size={14} className="animate-spin" />}
                   {saving ? 'Saving...' : 'Save'}

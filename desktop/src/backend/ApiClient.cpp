@@ -143,6 +143,63 @@ void ApiClient::reportCommit(const QString& commitSha, const QString& message, c
     });
 }
 
+bool ApiClient::requestTaskSuggestions(const QVariantMap& commit) {
+    if (m_projectId.trimmed().isEmpty() || m_userId.trimmed().isEmpty()) return false;
+    const QString sha = commit.value("sha").toString();
+    if (sha.isEmpty()) return false;
+
+    QNetworkRequest req(QUrl(m_backendUrl + "/api/commits/suggest-tasks"));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    QJsonObject body;
+    body["sha"] = sha;
+    body["message"] = commit.value("message").toString();
+    body["projectId"] = m_projectId.trimmed();
+    body["authorId"] = m_userId.trimmed();
+    body["files"] = QJsonArray::fromStringList(commit.value("files").toStringList());
+    body["diff"] = commit.value("diff").toString();
+
+    QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
+    connect(reply, &QNetworkReply::finished, this, [this, reply, sha]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit backendError(backendErrorText(reply, "Checking commit " + sha.left(7) + " against your tasks failed"));
+            return;
+        }
+        emit taskSuggestionsReady(sha, QJsonDocument::fromJson(reply->readAll()).object().toVariantMap());
+    });
+    return true;
+}
+
+void ApiClient::completeTasks(const QString& commitSha, const QString& message, const QStringList& taskIds) {
+    if (m_projectId.trimmed().isEmpty() || m_userId.trimmed().isEmpty()) {
+        emit backendError("Set your Loopin Project ID and User ID in Settings to move tasks.");
+        return;
+    }
+    if (taskIds.isEmpty()) return;
+
+    QNetworkRequest req(QUrl(m_backendUrl + "/api/commits/" + commitSha + "/complete-tasks"));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    QJsonObject body;
+    body["message"] = message;
+    body["projectId"] = m_projectId.trimmed();
+    body["authorId"] = m_userId.trimmed();
+    body["taskIds"] = QJsonArray::fromStringList(taskIds);
+
+    QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
+    connect(reply, &QNetworkReply::finished, this, [this, reply, commitSha]() {
+        reply->deleteLater();
+        if (reply->error() != QNetworkReply::NoError) {
+            emit backendError(backendErrorText(reply, "Moving tasks to Done failed"));
+            return;
+        }
+        const QJsonObject obj = QJsonDocument::fromJson(reply->readAll()).object();
+        emit tasksCompleted(commitSha, obj.value("moved").toArray().toVariantList(),
+                            obj.value("doneList").toObject().value("name").toString());
+    });
+}
+
 void ApiClient::requestCommitGroups(const QJsonArray& allChanges, const QString& taskId) {
     // Only files the user left selected may end up in a proposed commit
     QJsonArray changes;
