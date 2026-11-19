@@ -1,0 +1,53 @@
+name: Deploy backend to Azure
+
+# Builds only the backend/ folder and deploys it to the Azure Web App.
+# Runs on every push to main that touches backend/, or by hand from the Actions tab.
+# Needs the repository secret AZURE_WEBAPP_PUBLISH_PROFILE (the Web App's publish profile).
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-azure.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  AZURE_WEBAPP_NAME: loopin-api # the Web App's name in the Azure portal
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # prisma generate + tsc -> dist/. Prisma's query engine is built here on Linux
+      # (OpenSSL 3), the same family as Azure's Node 22 Linux image.
+      - name: Build
+        run: npm run build
+
+      # Ship only what the server needs at runtime (keeps the generated Prisma client)
+      - name: Remove dev dependencies
+        run: npm prune --omit=dev
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: backend
