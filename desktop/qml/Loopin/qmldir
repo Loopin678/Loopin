@@ -1,0 +1,14 @@
+module Loopin
+Button 2.0 Button.qml
+CheckBox 2.0 CheckBox.qml
+ComboBox 2.0 ComboBox.qml
+Dialog 2.0 Dialog.qml
+DialogButtonBox 2.0 DialogButtonBox.qml
+ItemDelegate 2.0 ItemDelegate.qml
+ScrollBar 2.0 ScrollBar.qml
+ScrollView 2.0 ScrollView.qml
+TabBar 2.0 TabBar.qml
+TabButton 2.0 TabButton.qml
+TextArea 2.0 TextArea.qml
+TextField 2.0 TextField.qml
+ToolTip 2.0 ToolTip.qml

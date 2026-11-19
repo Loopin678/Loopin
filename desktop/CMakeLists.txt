@@ -58,12 +58,43 @@ qt_add_resources(loopin_desktop "app_icon"
     FILES packaging/loopin.png
 )
 
+# The Loopin Qt Quick Controls style (website look): plain QML files plus a qmldir,
+# served from :/Loopin and selected in main.cpp with QQuickStyle::setStyle("Loopin")
+qt_add_resources(loopin_desktop "loopin_style"
+    PREFIX "/Loopin"
+    BASE qml/Loopin
+    FILES
+        qml/Loopin/qmldir
+        qml/Loopin/Button.qml
+        qml/Loopin/CheckBox.qml
+        qml/Loopin/ComboBox.qml
+        qml/Loopin/Dialog.qml
+        qml/Loopin/DialogButtonBox.qml
+        qml/Loopin/ItemDelegate.qml
+        qml/Loopin/ScrollBar.qml
+        qml/Loopin/ScrollView.qml
+        qml/Loopin/TabBar.qml
+        qml/Loopin/TabButton.qml
+        qml/Loopin/TextArea.qml
+        qml/Loopin/TextField.qml
+        qml/Loopin/ToolTip.qml
+)
+
+# Fonts used by the website: Inter (text) and JetBrains Mono (code / SHAs)
+qt_add_resources(loopin_desktop "loopin_fonts"
+    PREFIX "/fonts"
+    BASE packaging/fonts
+    FILES
+        packaging/fonts/Inter.ttf
+        packaging/fonts/JetBrainsMono-Regular.ttf
+)
+
 set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 # Serve the QML files from the module root (qrc:/.../App/main.qml), not a qml/
 # subfolder: a subfolder gets its own implicit directory import in which Theme is
 # a plain type, and Qt 6.8 then fails with "Theme was a singleton at compile
 # time, but is not a singleton anymore" (every Theme colour becomes undefined).
-foreach(qml_file main LoginView ChangeInboxView CommitReviewView TaskSuggestionDialog Theme)
+foreach(qml_file main LoginView LoopinMark ChangeInboxView CommitReviewView TaskSuggestionDialog Theme)
     set_source_files_properties(qml/${qml_file}.qml PROPERTIES QT_RESOURCE_ALIAS ${qml_file}.qml)
 endforeach()
 
@@ -73,6 +104,7 @@ qt_add_qml_module(loopin_desktop
     QML_FILES
         qml/main.qml
         qml/LoginView.qml
+        qml/LoopinMark.qml
         qml/ChangeInboxView.qml
         qml/CommitReviewView.qml
         qml/TaskSuggestionDialog.qml

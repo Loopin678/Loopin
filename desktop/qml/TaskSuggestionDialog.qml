@@ -157,7 +157,7 @@ Dialog {
                                     id: confText
                                     anchors.centerIn: parent
                                     text: Math.round(row.modelData.confidence * 100) + "% sure"
-                                    color: "white"
+                                    color: Theme.accentText
                                     font.pixelSize: 11
                                     font.bold: true
                                 }

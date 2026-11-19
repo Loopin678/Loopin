@@ -9,6 +9,27 @@
 #include <QUrl>
 #include <qglobal.h>
 
+namespace {
+
+// Google retires Gemini models regularly (gemini-2.5-flash now answers 404 for new
+// users), so the model can be overridden with LOOPIN_GEMINI_MODEL without a rebuild.
+QString geminiModel() {
+    const QString fromEnv = qEnvironmentVariable("LOOPIN_GEMINI_MODEL").trimmed();
+    return fromEnv.isEmpty() ? QStringLiteral("gemini-3.8-flash") : fromEnv;
+}
+
+// The API key travels in a header, not the URL: Qt copies the URL into its error
+// strings, which were shown to the user (and pasted into bug reports) with the key in them.
+QNetworkRequest geminiRequest(const QString& apiKey) {
+    QNetworkRequest req(QUrl(QStringLiteral("https://generativelanguage.googleapis.com/v1beta/models/")
+                             + geminiModel() + QStringLiteral(":generateContent")));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    req.setRawHeader("x-goog-api-key", apiKey.toUtf8());
+    return req;
+}
+
+}  // namespace
+
 ApiClient::ApiClient(QObject* parent) : QObject(parent), m_backendUrl(QStringLiteral("http://localhost:3000")) {
     QString envKey = qEnvironmentVariable("GEMINI_API_KEY");
     if (!envKey.isEmpty()) {
@@ -252,7 +273,7 @@ void ApiClient::requestCommitGroups(const QJsonArray& allChanges, const QString&
         body["contents"] = contentsArr;
         body["generationConfig"] = generationConfig;
 
-        QNetworkRequest req(QUrl(QStringLiteral("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=") + m_geminiApiKey));
+        QNetworkRequest req = geminiRequest(m_geminiApiKey);
         req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
         QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson());
@@ -490,7 +511,7 @@ void ApiClient::generateGitignore(const QStringList& files) {
         body["contents"] = contentsArr;
         body["generationConfig"] = generationConfig;
 
-        QNetworkRequest req(QUrl(QStringLiteral("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=") + m_geminiApiKey));
+        QNetworkRequest req = geminiRequest(m_geminiApiKey);
         req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
         QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson());
@@ -606,7 +627,7 @@ void ApiClient::requestMergeResolution(const QString& filePath, const QString& f
         body["contents"] = contentsArr;
         body["generationConfig"] = generationConfig;
 
-        QNetworkRequest req(QUrl(QStringLiteral("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=") + m_geminiApiKey));
+        QNetworkRequest req = geminiRequest(m_geminiApiKey);
         req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
 
         QNetworkReply* reply = m_nam.post(req, QJsonDocument(body).toJson());

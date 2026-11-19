@@ -1,19 +1,41 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import QtCore
 import App
 
 ApplicationWindow {
     id: window
-    width: 950
-    height: 700
+    width: 1040
+    height: 720
+    minimumWidth: 960
+    minimumHeight: 600
     visible: true
     title: "Loopin " + Qt.application.version
     color: Theme.bg
 
-    // Global application typography
-    font.family: "Segoe UI, Inter, Roboto, sans-serif"
+    // Global application typography (same as the website)
+    font.family: Theme.fontFamily
     font.pixelSize: 13
+
+    // Qt's own popups, menus and text selection follow the website palette too
+    palette.window: Theme.bg
+    palette.windowText: Theme.textPrimary
+    palette.base: Theme.surface
+    palette.alternateBase: Theme.surface2
+    palette.text: Theme.textPrimary
+    palette.button: Theme.surface2
+    palette.buttonText: Theme.textPrimary
+    palette.highlight: Theme.accent
+    palette.highlightedText: Theme.accentText
+    palette.placeholderText: Theme.textMuted
+    palette.light: Theme.surface3
+    palette.midlight: Theme.surface3
+    palette.mid: Theme.border
+    palette.dark: Theme.bg
+    palette.toolTipBase: Theme.surface3
+    palette.toolTipText: Theme.textPrimary
+    palette.link: Theme.accent
 
     Settings {
         id: settings
@@ -140,9 +162,57 @@ ApplicationWindow {
     // sha -> { shortSha, message } for commits whose task suggestions are still loading
     property var pendingSuggestionCommits: ({})
 
+    // ── Brand bar: the website's mark + wordmark ────────────────────────
+    Rectangle {
+        id: brandBar
+        anchors { left: parent.left; right: parent.right; top: parent.top }
+        height: 46
+        color: Theme.bg
+        z: 1
+
+        Rectangle {
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+            height: 1
+            color: Theme.border
+        }
+
+        RowLayout {
+            anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
+            spacing: 10
+
+            LoopinMark { }
+
+            Rectangle {
+                implicitHeight: 22
+                implicitWidth: eyebrow.implicitWidth + 20
+                radius: 11
+                color: Theme.accentSoft
+                border.width: 1
+                border.color: Theme.accentLine
+                Text {
+                    id: eyebrow
+                    anchors.centerIn: parent
+                    text: "Desktop"
+                    color: Theme.sage
+                    font.pixelSize: 11
+                    font.weight: Font.Medium
+                }
+            }
+
+            Item { Layout.fillWidth: true }
+
+            Text {
+                text: "v" + Qt.application.version
+                color: Theme.textMuted
+                font.family: Theme.monoFamily
+                font.pixelSize: 11
+            }
+        }
+    }
+
     StackView {
         id: stack
-        anchors.fill: parent
+        anchors { left: parent.left; right: parent.right; top: brandBar.bottom; bottom: parent.bottom }
         initialItem: loginViewComponent
     }
 

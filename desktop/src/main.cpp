@@ -1,4 +1,6 @@
 #include <QFile>
+#include <QFont>
+#include <QFontDatabase>
 #include <QGuiApplication>
 #include <QIcon>
 #include <QQmlApplicationEngine>
@@ -37,9 +39,17 @@ int main(int argc, char* argv[]) {
     // Initialize libgit2 once for the whole process lifetime.
     git_libgit2_init();
 
-    QQuickStyle::setStyle("Fusion");
-
+    // Website look: Inter + JetBrains Mono, and our own control style (qml/Loopin)
+    // on top of Basic, which draws anything the style doesn't override.
+    QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/Inter.ttf"));
+    QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/JetBrainsMono-Regular.ttf"));
+    QFont appFont(QStringLiteral("Inter"));
+    appFont.setPixelSize(13);
+    QGuiApplication::setFont(appFont);
+    QQuickStyle::setStyle(QStringLiteral("Loopin"));
+    QQuickStyle::setFallbackStyle(QStringLiteral("Basic"));
     QQmlApplicationEngine engine;
+    engine.addImportPath(QStringLiteral(":/"));  // finds the Loopin style
     // qt_add_qml_module puts the module under /qt/qml/ with policy QTP0001 NEW
     // (Qt 6.5+), or at the resource root with the older default
     const QString mainQml = QFile::exists(QStringLiteral(":/qt/qml/App/main.qml"))

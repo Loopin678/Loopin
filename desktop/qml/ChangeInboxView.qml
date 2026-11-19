@@ -199,6 +199,7 @@ Item {
                 Button { text: "Browse"; onClicked: folderDialog.open() }
                 Button {
                     text: "Open"
+                    highlighted: true
                     onClicked: {
                         if (root.repo.openRepository(pathField.text)) {
                             root.repo.refreshDiff()
@@ -298,7 +299,7 @@ Item {
                                 anchors.margins: 4
                                 ListView {
                                     model: mergeConflictDialog.conflictedFiles
-                                    delegate: Label { text: modelData; font.family: "monospace" }
+                                    delegate: Label { text: modelData; font.family: Theme.monoFamily }
                                 }
                             }
                         }
@@ -441,7 +442,7 @@ Item {
                     Text {
                         id: unpushedLabel; anchors.centerIn: parent
                         text: root.unpushedShas.length + " unpushed"
-                        color: "white"; font.pixelSize: 11; font.bold: true
+                        color: Theme.accentText; font.pixelSize: 11; font.bold: true
                     }
                 }
 
@@ -600,7 +601,7 @@ Item {
                                              : model.changeType === "deleted" ? Theme.danger : Theme.warning
                                         Text {
                                             anchors.centerIn: parent
-                                            text: model.changeType; color: "white"
+                                            text: model.changeType; color: Theme.accentText
                                             font.pixelSize: 11; font.bold: true
                                         }
                                     }
@@ -672,6 +673,7 @@ Item {
                         }
                         Button {
                             text: root.commitBusy ? "Committing..." : "Commit Selected"
+                            highlighted: true
                             enabled: root.repo.isOpen && root.repo.diffModel.count > 0 && !root.commitBusy
                             onClicked: {
                                 var files = root.repo.diffModel.selectedFilePaths()
@@ -837,13 +839,13 @@ Item {
 
                                     Rectangle {
                                         width: 58; height: 22; radius: 4; color: Theme.shaBg
-                                        Text { anchors.centerIn: parent; text: modelData.sha; color: Theme.shaText; font.family: "Courier New"; font.pixelSize: 11 }
+                                        Text { anchors.centerIn: parent; text: modelData.sha; color: Theme.shaText; font.family: Theme.monoFamily; font.pixelSize: 11 }
                                     }
 
                                     Rectangle {
                                         width: statusLabel.implicitWidth + 12; height: 18; radius: 3
                                         color: historyRow.isUnpushed ? Theme.danger : Theme.success
-                                        Text { id: statusLabel; anchors.centerIn: parent; text: historyRow.isUnpushed ? "local" : "pushed"; color: "white"; font.pixelSize: 9; font.bold: true }
+                                        Text { id: statusLabel; anchors.centerIn: parent; text: historyRow.isUnpushed ? "local" : "pushed"; color: Theme.accentText; font.pixelSize: 9; font.bold: true }
                                     }
 
                                     ColumnLayout {
@@ -973,7 +975,7 @@ Item {
 
                                     Rectangle {
                                         width: stashIdxText.implicitWidth + 14; height: 22; radius: 4; color: Theme.accent
-                                        Text { id: stashIdxText; anchors.centerIn: parent; text: modelData.index; color: "white"; font.family: "Courier New"; font.pixelSize: 11 }
+                                        Text { id: stashIdxText; anchors.centerIn: parent; text: modelData.index; color: Theme.accentText; font.family: Theme.monoFamily; font.pixelSize: 11 }
                                     }
 
                                     Text { text: modelData.message; color: Theme.textPrimary; Layout.fillWidth: true; elide: Text.ElideRight; font.pixelSize: 13 }
@@ -1338,7 +1340,7 @@ Item {
             anchors.fill: parent
             TextArea {
                 id: gitignorePreview
-                font.family: "Courier New"
+                font.family: Theme.monoFamily
                 font.pixelSize: 12
                 color: Theme.textPrimary
                 readOnly: false
@@ -1444,7 +1446,7 @@ Item {
         function formatDiff(patch) {
             if (!patch) return "No diff available."
             var lines = patch.split('\n')
-            var html = "<pre style='font-family: Consolas, \"Courier New\", monospace; font-size: 12px;'>"
+            var html = "<pre style='font-family: \"JetBrains Mono\", Consolas, monospace; font-size: 12px;'>"
             for (var i = 0; i < lines.length; i++) {
                 var line = lines[i]
                 // Escape HTML
@@ -1477,7 +1479,7 @@ Item {
 
             Text {
                 text: "Commit: " + commitDetailsDialog.currentSha
-                font.family: "Consolas, Courier New"
+                font.family: Theme.monoFamily
                 font.pixelSize: 14; font.bold: true
                 color: Theme.textPrimary
             }
@@ -1717,7 +1719,7 @@ Item {
                 readOnly: true
                 wrapMode: TextEdit.Wrap
                 selectByMouse: true
-                font.family: "monospace"
+                font.family: Theme.monoFamily
                 color: Theme.textPrimary
             }
         }
