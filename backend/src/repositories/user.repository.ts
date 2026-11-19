@@ -3,7 +3,7 @@ import {prisma } from "../library/prisma"
 // import { User } from "../types/user";
 // const users = new Map<string, User>();
 
-export async function createUser(data:{
+export async function createUser(data: {
     name: string;
     email: string;
     password?: string;
@@ -11,12 +11,12 @@ export async function createUser(data:{
     githubId?: string;
     githubUsername?: string;
     githubUrl?: string;
-})
-{
-    
+    githubAccessToken?: string;
+}) {
     const user = await prisma.user.create({
         data,
     });
+
     return user;
 }
 
@@ -58,6 +58,17 @@ export async function updateGithubRepositoryPreference(userId: string, enabled: 
         select:{
             id: true,
             fetchGithubRepositories: true,
+        },
+    });
+}
+export async function updateGithubAccessToken(
+    githubId: string,
+    encryptedToken: string
+) {
+    return await prisma.user.update({
+        where: { githubId },
+        data: {
+            githubAccessToken: encryptedToken,
         },
     });
 }

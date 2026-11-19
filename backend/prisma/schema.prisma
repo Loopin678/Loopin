@@ -24,6 +24,7 @@ model User {
   githubUrl     String?
   fetchGithubRepositories Boolean @default(false)
   githubAccessToken String?
+  linkedRepositories ProjectRepository[]
 }
 
 model Project {
@@ -35,6 +36,8 @@ model Project {
   messages  Message[]
   members   ProjectMember[]
   tasks     Task[]
+  repositories ProjectRepository[]
+  
 }
 
 model ProjectMember {
@@ -112,6 +115,34 @@ model Commit {
   User    User    @relation(fields: [authorId], references: [id])
   Project Project @relation(fields: [projectId], references: [id])
   Task    Task[]
+}
+model ProjectRepository {
+  id              String   @id @default(uuid())
+
+  projectId       String
+  userId          String
+
+  githubRepoId    String
+  name            String
+  fullName        String
+  url             String
+
+  description     String?
+  language        String?
+  isPrivate       Boolean  @default(false)
+
+  stars           Int      @default(0)
+  forks           Int      @default(0)
+
+  githubUpdatedAt DateTime?
+  syncedAt        DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([projectId, githubRepoId])
+  @@index([projectId])
+  @@index([userId])
 }
 
 enum MemberRole{

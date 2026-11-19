@@ -21,6 +21,10 @@ router.get("/google", googleLogin);
 
 router.get("/github", githubLogin);
 
+router.get("/github/preferences",requireAuth,getGitHubPreference);
+
+router.patch("/github/preferences",requireAuth,updateGitHubPreference)
+
 router.get("/google/callback",googleCallback);
 
 router.get("/github/callback",githubCallback);

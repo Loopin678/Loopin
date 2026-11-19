@@ -1,14 +1,19 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
-import { 
-    createUser, 
-    findUserByEmail, 
-    findUserByGoogleId, 
+import {
+    createUser,
+    findUserByEmail,
+    findUserByGoogleId,
     findUserById,
-    findUserByGithubId , updateGithubRepositoryPreference
+    findUserByGithubId,
+    updateGithubRepositoryPreference,
+    updateGithubAccessToken,
 } from "../repositories/user.repository";
+
 import { JWT_SECRET, JWT_EXPIRES_IN } from "../library/auth";
+import { encryptGitHubToken, decryptGitHubToken } from "../library/github-token";
+import { fetchGitHubRepositories } from "./github.service";
 
 export type PublicUser = {
     id: string;
@@ -127,45 +132,53 @@ export async function loginWithGoogle(googleId: string, name: string, email: str
     };
 }
 
-export async function loginWithGithub(data:{
+export async function loginWithGithub(data: {
     githubId: string;
     githubUsername: string;
-    githubUrl: string;  
-    name: string; 
+    githubUrl: string;
+    name: string;
     email: string;
-}): Promise<{ user: PublicUser; token: string }>{
+    accessToken: string;
+}): Promise<{ user: PublicUser; token: string }> {
 
     const normalizedEmail = data.email.toLowerCase().trim();
 
-    // existing github acc
+    const encryptedToken = encryptGitHubToken(data.accessToken);
+
     const existingGithubUser = await findUserByGithubId(data.githubId);
 
-    if(existingGithubUser){
+    if (existingGithubUser) {
+        await updateGithubAccessToken(data.githubId, encryptedToken);
+
         const token = generateToken(existingGithubUser.id);
 
-        return{
+        return {
             user: toPublicUser(existingGithubUser),
-            token
-        }
+            token,
+        };
     }
-// we are not gonna merge an existing account by email
+
     const existingEmailUser = await findUserByEmail(normalizedEmail);
-    if(existingEmailUser){
+
+    if (existingEmailUser) {
         throw new Error("EMAIL_ALREADY_REGISTERED");
     }
+
     const user = await createUser({
         name: data.name.trim(),
         email: normalizedEmail,
         githubId: data.githubId,
         githubUsername: data.githubUsername,
-        githubUrl: data.githubUrl
+        githubUrl: data.githubUrl,
+        githubAccessToken: encryptedToken,
     });
-    const token = generateToken(user.id);
-    return{
-        user: toPublicUser(user),
-        token
-    };
 
+    const token = generateToken(user.id);
+
+    return {
+        user: toPublicUser(user),
+        token,
+    };
 }
 export async function getUserById(id: string): Promise<PublicUser | null>{
     const user = await findUserById(id);
@@ -176,21 +189,40 @@ export async function getUserById(id: string): Promise<PublicUser | null>{
     return toPublicUser(user);
 }
 
-
-export async function getGithubRepositoryPreference(userId: string){
+export async function getGithubRepositoryPreference(userId: string) {
     const user = await findUserById(userId);
-    if(!user){
+
+    if (!user) {
         throw new Error("USER_NOT_FOUND");
     }
-    return{
-        fetchGithubRepositories: user.fetchGithubRepositories
+
+    return {
+        fetchGithubRepositories: user.fetchGithubRepositories,
     };
 }
-export async function setGithubRepositoryPreference(userId: string, enabled: boolean){
-try {
+
+export async function setGithubRepositoryPreference(
+    userId: string,
+    enabled: boolean
+) {
     return await updateGithubRepositoryPreference(userId, enabled);
-} catch (err) {
-    throw err;
 }
+export async function getUserGithubRepositories(userId: string) {
+    const user = await findUserById(userId);
+
+    if (!user) {
+        throw new Error("USER_NOT_FOUND");
+    }
+
+    if (!user.fetchGithubRepositories) {
+        throw new Error("GITHUB_REPOSITORY_FETCH_DISABLED");
+    }
+
+    if (!user.githubId || !user.githubAccessToken) {
+        throw new Error("GITHUB_ACCOUNT_NOT_CONNECTED");
+    }
+
+    const accessToken = decryptGitHubToken(user.githubAccessToken);
+
+    return await fetchGitHubRepositories(accessToken);
 }
-// export const authService = new authService();

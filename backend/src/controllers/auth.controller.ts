@@ -3,7 +3,7 @@ import { getUserById,loginUser ,registerUser, loginWithGoogle
     ,loginWithGithub} from "../services/auth.service";
 import { getGoogleUser, getGoogleAuthUrl } from "../services/google.service";
 import { getGitHubAuthUrl, getGitHubUser } from "../services/github.service";
-import { getGitHubRepositoryPreference, setGitHubRepositoryPreference} from "../services/auth.service"
+import { getGithubRepositoryPreference, setGithubRepositoryPreference} from "../services/auth.service"
 import { randomBytes } from "crypto";
 
 function setAuthCookie(res: Response, token: string): void{
@@ -273,7 +273,7 @@ export async function getGitHubPreference(req: Request,res: Response): Promise<v
             });
             return;
         }
-        const preference = await getGitHubRepositoryPreference(userId);
+        const preference = await getGithubRepositoryPreference(userId);
 
         res.status(200).json({preference});
 
@@ -307,13 +307,42 @@ export async function updateGitHubPreference(req: Request,res: Response): Promis
             return;
         }
 
-        const preference = await setGitHubRepositoryPreference(userId, enabled);
+        const preference = await setGithubRepositoryPreference(userId, enabled);
 
         res.status(200).json({message: "GitHub repository preference updated",preference,});
 
     } catch(error){
         console.error("UPDATE GITHUB PREFERENCE ERROR:", error);
+        if (error instanceof Error) {
+    if (error.message.startsWith("GITHUB_RATE_LIMIT_EXCEEDED:")) {
+        const resetTimestamp = error.message.split(":")[1];
 
+        res.status(429).json({
+            message: "GitHub API rate limit exceeded",
+            retryAfter: resetTimestamp,
+        });
+        return;
+    }
+
+    if (error.message === "GITHUB_PAGINATION_LIMIT_REACHED") {
+        res.status(502).json({
+            message: "Repository list is too large to retrieve in one request",
+        });
+        return;
+    }
+
+    if (error.message === "GITHUB_REPOSITORY_FETCH_FAILED") {
+        res.status(502).json({
+            message: "GitHub repository service is currently unavailable",
+        });
+        return;
+    }
+
+    // Keep your existing USER_NOT_FOUND,
+    // GITHUB_REPOSITORY_FETCH_DISABLED,
+    // GITHUB_ACCOUNT_NOT_CONNECTED,
+    // GITHUB_TOKEN_INVALID and GITHUB_API_FORBIDDEN checks.
+}
         res.status(500).json({message: "Internal Server Error"});
     }
 }

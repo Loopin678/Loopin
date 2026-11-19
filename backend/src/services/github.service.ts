@@ -113,5 +113,91 @@ export async function getGitHubUser(code: string) {
           githubUrl: profile.html_url,
           name: profile.name?.trim() || profile.login,
           email: verifiedEmail.email.toLowerCase().trim(),
+          accessToken: tokenData.access_token,
+
      };
+}
+
+export async function fetchGitHubRepositories(accessToken: string) {
+    const repositories: Array<{
+        id: number;
+        name: string;
+        full_name: string;
+        private: boolean;
+        html_url: string;
+        description: string | null;
+        language: string | null;
+        stargazers_count: number;
+        forks_count: number;
+        updated_at: string;
+    }> = [];
+
+    const perPage = 100;
+    let page = 1;
+    const maxPages = 50;
+
+    while (page <= maxPages) {
+        const response = await fetch(
+            `https://api.github.com/user/repos?visibility=public&sort=updated&per_page=${perPage}&page=${page}`,
+            {
+                method: "GET",
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    Accept: "application/vnd.github+json",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                },
+            }
+        );
+
+        if (response.status === 401) {
+            throw new Error("GITHUB_TOKEN_INVALID");
+        }
+
+        if (response.status === 403 || response.status === 429) {
+            const remaining = response.headers.get("x-ratelimit-remaining");
+            const reset = response.headers.get("x-ratelimit-reset");
+
+            if (
+                response.status === 429 ||
+                remaining === "0"
+            ) {
+                throw new Error(
+                    `GITHUB_RATE_LIMIT_EXCEEDED:${reset ?? "unknown"}`
+                );
+            }
+
+            throw new Error("GITHUB_API_FORBIDDEN");
+        }
+
+        if (!response.ok) {
+            throw new Error("GITHUB_REPOSITORY_FETCH_FAILED");
+        }
+
+        const currentPage = await response.json() as typeof repositories;
+
+        repositories.push(...currentPage);
+
+        if (currentPage.length < perPage) {
+            break;
+        }
+
+        page++;
+    }
+
+    if (page > maxPages && repositories.length === maxPages * perPage) {
+        throw new Error("GITHUB_PAGINATION_LIMIT_REACHED");
+    }
+
+    return repositories.map((repo) => ({
+        id: repo.id,
+        name: repo.name,
+        fullName: repo.full_name,
+        isPrivate: repo.private,
+        url: repo.html_url,
+        description: repo.description,
+        language: repo.language,
+        stars: repo.stargazers_count,
+        forks: repo.forks_count,
+        updatedAt: repo.updated_at,
+    }));
 }
