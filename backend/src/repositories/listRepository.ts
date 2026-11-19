@@ -1,5 +1,5 @@
 import { prisma } from "../library/prisma";
-import { CreateListInput, ListWithoutTasks, ListWithTasks, RenameListInput} from "../types/list";
+import { CreateListInput, DeletedListResult, ListWithoutTasks, ListWithTasks, RenameListInput} from "../types/list";
 
 async function createList(data: CreateListInput): Promise<ListWithoutTasks> {
     const lastList = await prisma.list.findFirst({
@@ -32,7 +32,11 @@ async function getListsByProject(projectId: string): Promise<ListWithTasks[]> {
                     title: true,
                     position: true,
                     stack: true,
-                    assigneeId: true
+                    priority: true,
+                    dueDate: true,
+                    assigneeId: true,
+                    createdAt: true,
+                    updatedAt: true
                 }
             }
         }
@@ -60,6 +64,44 @@ async function getListById(listId: string): Promise<ListWithoutTasks>{
     return list;
 }
 
-export const listRepository = { createList, getListsByProject, renameList, getListById };
+// Deletes a list and moves its tasks to the end of another list, in one transaction
+// so a crash can never leave tasks pointing at a list that no longer exists.
+async function deleteListMovingTasks(listId: string, targetListId: string | null): Promise<DeletedListResult> {
+    return prisma.$transaction(async (tx) => {
+        const list = await tx.list.findUnique({ where: { id: listId } });
+        if (!list) throw new Error('List not found!');
+
+        const tasks = await tx.task.findMany({
+            where: { listId },
+            orderBy: { position: 'asc' },
+            select: { id: true, assigneeId: true },
+        });
+
+        if (tasks.length > 0) {
+            if (!targetListId) throw new Error('NO_TARGET_LIST');
+            const last = await tx.task.findFirst({
+                where: { listId: targetListId },
+                orderBy: { position: 'desc' },
+                select: { position: true },
+            });
+            let next = last ? last.position + 1 : 0;
+            for (const t of tasks) {
+                await tx.task.update({ where: { id: t.id }, data: { listId: targetListId, position: next++ } });
+            }
+        }
+
+        await tx.list.delete({ where: { id: listId } });
+
+        return {
+            listId,
+            projectId: list.projectId,
+            movedToListId: tasks.length > 0 ? targetListId : null,
+            movedTaskIds: tasks.map(t => t.id),
+            assigneeIds: Array.from(new Set(tasks.map(t => t.assigneeId).filter((id): id is string => !!id))),
+        };
+    });
+}
+
+export const listRepository = { createList, getListsByProject, renameList, getListById, deleteListMovingTasks };
 
 

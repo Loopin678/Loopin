@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { messagesApi, projectsApi, Message, Project } from '../api/client';
+import { messagesApi, projectsApi, membersApi, Message, Project, ProjectMember } from '../api/client';
 import { useBoardStore } from '../store/boardStore';
 import { connectSocket } from '../api/socket';
 import { 
@@ -35,6 +35,69 @@ export function Chat() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // ── @ mentions ─────────────────────────────────────────────────────────────
+  // Active project members, so typing "@" can suggest who to mention
+  const [members, setMembers] = useState<ProjectMember[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+  // The "@word" being typed right before the caret, or null when not mentioning
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionIndex, setMentionIndex] = useState(0);
+
+  type MentionOption = { key: string; username: string; name: string; isAi?: boolean; userId?: string };
+
+  const mentionOptions: MentionOption[] = (() => {
+    if (mentionQuery === null) return [];
+    const q = mentionQuery.toLowerCase();
+    const people: MentionOption[] = members
+      .filter(m => m.user?.username && m.userId !== user?.id)
+      .map(m => ({ key: m.userId, username: m.user!.username!, name: m.user!.name, userId: m.userId }));
+    const all: MentionOption[] = [{ key: 'ai', username: 'ai', name: 'Loopin AI assistant', isAi: true }, ...people];
+    return all.filter(o => !q || o.username.toLowerCase().includes(q) || o.name.toLowerCase().includes(q));
+  })();
+
+  // Finds an "@word" that ends at the caret (start of text or after a space)
+  const updateMentionQuery = (value: string, caret: number) => {
+    const before = value.slice(0, caret);
+    const match = /(^|\s)@(\w*)$/.exec(before);
+    setMentionQuery(match ? match[2] : null);
+    setMentionIndex(0);
+  };
+
+  const pickMention = (option: MentionOption) => {
+    const el = inputRef.current;
+    const caret = el?.selectionStart ?? inputText.length;
+    const before = inputText.slice(0, caret);
+    const after = inputText.slice(caret);
+    const start = before.lastIndexOf('@');
+    const insert = `@${option.username} `;
+    const next = before.slice(0, start) + insert + after.replace(/^\s+/, '');
+    setInputText(next);
+    setMentionQuery(null);
+    // Put the caret right after the inserted mention
+    requestAnimationFrame(() => {
+      const pos = start + insert.length;
+      el?.focus();
+      el?.setSelectionRange(pos, pos);
+    });
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (mentionQuery === null || mentionOptions.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setMentionIndex(i => (i + 1) % mentionOptions.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setMentionIndex(i => (i - 1 + mentionOptions.length) % mentionOptions.length);
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault(); // choose the person instead of sending the message
+      pickMention(mentionOptions[Math.min(mentionIndex, mentionOptions.length - 1)]);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setMentionQuery(null);
+    }
+  };
+
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior });
   };
@@ -46,6 +109,8 @@ export function Chat() {
 
     // 1. Fetch project details
     projectsApi.get(projectId).then(setProject).catch(() => {});
+    // Members for the @ mention list (a failure just means no suggestions)
+    membersApi.list(projectId).then(setMembers).catch(() => setMembers([]));
 
     // 2. Fetch message history
     messagesApi.list(projectId)
@@ -415,13 +480,71 @@ export function Chat() {
             <span>ai</span>
           </button>
 
+          <div className="relative flex-1">
+          {mentionQuery !== null && mentionOptions.length > 0 && (
+            <div
+              role="listbox"
+              aria-label="Mention someone"
+              className="absolute bottom-full left-0 mb-2 w-full sm:w-80 max-h-72 overflow-y-auto custom-scrollbar rounded-2xl bg-[#151713] border border-[#D0E36A]/20 shadow-2xl shadow-black/60 p-1.5 z-30 animate-rise [animation-duration:200ms]"
+            >
+              <p className="px-2.5 pt-1 pb-1.5 text-[11px] font-medium text-[#6E7268]">Mention</p>
+              {mentionOptions.map((o, i) => {
+                const active = i === Math.min(mentionIndex, mentionOptions.length - 1);
+                return (
+                  <button
+                    key={o.key}
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    // mousedown keeps focus in the input
+                    onMouseDown={e => { e.preventDefault(); pickMention(o); }}
+                    onMouseEnter={() => setMentionIndex(i)}
+                    className={cn(
+                      'w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-left transition-colors',
+                      active ? 'bg-[#D0E36A]/10' : 'hover:bg-white/5'
+                    )}
+                  >
+                    {o.isAi ? (
+                      <span className="w-8 h-8 rounded-full bg-gradient-to-br from-[#7C7FE8] to-[#A78BFA] flex items-center justify-center text-white shrink-0">
+                        <Sparkles size={14} />
+                      </span>
+                    ) : (
+                      <span className="relative shrink-0">
+                        <Avatar userId={o.userId!} name={o.name} size="sm" />
+                        {onlineUserIds.has(o.userId!) && (
+                          <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#D0E36A] border-2 border-[#151713]" />
+                        )}
+                      </span>
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className={cn('block text-sm font-medium truncate', active ? 'text-[#D0E36A]' : 'text-[#F4F5EF]')}>
+                        {o.name}
+                      </span>
+                      <span className="block text-xs font-mono text-[#6E7268] truncate">@{o.username}</span>
+                    </span>
+                    {o.isAi && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#7C7FE8]/20 text-[#A78BFA] border border-[#7C7FE8]/30">AI</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           <input
+            ref={inputRef}
             type="text"
             value={inputText}
-            onChange={e => setInputText(e.target.value)}
-            placeholder="Message your team... (@username to mention, @ai for the assistant)"
-            className="flex-1 bg-[#1B1E19] border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-2.5 text-sm text-[#F4F5EF] placeholder:text-[#6E7268] focus:outline-none focus:border-[#D0E36A] transition-colors"
+            onKeyDown={handleInputKeyDown}
+            onBlur={() => setMentionQuery(null)}
+            onChange={e => {
+              setInputText(e.target.value);
+              updateMentionQuery(e.target.value, e.target.selectionStart ?? e.target.value.length);
+            }}
+            onClick={e => updateMentionQuery(inputText, e.currentTarget.selectionStart ?? inputText.length)}
+            placeholder="Message your team… type @ to mention someone or the AI"
+            className="w-full bg-[#1B1E19] border border-[rgba(255,255,255,0.08)] rounded-full px-5 py-2.5 text-sm text-[#F4F5EF] placeholder:text-[#6E7268] focus:outline-none focus:border-[#D0E36A] transition-colors"
           />
+          </div>
 
           <button
             type="submit"

@@ -3,7 +3,8 @@ import { NavLink, Link, useParams, useLocation, useNavigate } from 'react-router
 import { Avatar } from '../common/Avatar';import { connectSocket, disconnectSocket } from '../../api/socket';
 import { useAuth } from '../../context/AuthContext';
 import { projectsApi, Project } from '../../api/client';
-import { Menu, X, LogOut, FolderKanban, LayoutGrid, Users, MessageSquare, Home as HomeIcon } from 'lucide-react';
+import { Menu, X, LogOut, FolderKanban, LayoutGrid, Users, MessageSquare, Home as HomeIcon, Download } from 'lucide-react';
+import { DESKTOP_DOWNLOAD_URL } from '../../utils/desktopDownload';
 import { rememberProject } from '../../utils/recentProjects';
 import { cn } from '../../utils/cn';
 import { useInvitations } from '../../hooks/useInvitations';
@@ -288,8 +289,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               )}
             </div>
           </div>
-          {/* Right side of topbar — notification bell */}
+          {/* Right side of topbar — desktop download + notification bell */}
           <div className="flex items-center gap-2">
+            {/* Plain link: GitHub serves the installer as an attachment, so it downloads straight away */}
+            <a
+              href={DESKTOP_DOWNLOAD_URL}
+              download
+              title="Download the Loopin desktop app for Windows (.exe)"
+              className="group inline-flex items-center gap-2 h-9 pl-3 pr-4 rounded-full bg-[#D0E36A] text-[#0B0C0A] text-sm font-semibold hover:bg-[#BED158] hover:shadow-[0_0_24px_rgba(208,227,106,0.35)] transition-all"
+            >
+              <Download size={15} className="transition-transform group-hover:translate-y-0.5" />
+              <span className="hidden sm:inline">Desktop app</span>
+            </a>
             {user && (
               <NotificationBell
                 invitations={invitations}

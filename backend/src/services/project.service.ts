@@ -44,7 +44,7 @@ export async function getProjectsByUserIdService(userId: string){
 
 
 
-export async function updateProjectService(projectId: string, requesterId: string, data: {name?: string;}){
+export async function updateProjectService(projectId: string, requesterId: string, data: {name?: string; cover?: string | null;}){
 
   await assertProjectOwner(projectId, requesterId);
 
@@ -58,7 +58,11 @@ export async function updateProjectService(projectId: string, requesterId: strin
     throw new Error("Project name can't be empty");
   }
 
-  const project = await updateProject(projectId, {name: data.name?.trim(),});
+  const project = await updateProject(projectId, {
+    name: data.name?.trim(),
+    // undefined leaves the cover alone, null resets it to the default
+    cover: data.cover,
+  });
 
   return project;
 }

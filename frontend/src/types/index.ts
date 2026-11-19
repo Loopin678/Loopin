@@ -11,6 +11,8 @@ export interface Project {
   id: string;
   name: string;
   createdAt: string;
+  // "stock:<id>", "color:#rrggbb", an uploaded image data URL, or null for the default
+  cover?: string | null;
   members?: ProjectMember[];
 }
 

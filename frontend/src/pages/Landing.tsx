@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowRight, LayoutGrid, MessageSquare, GitCommitHorizontal, Users, Focus, Command,
+  ArrowRight, LayoutGrid, MessageSquare, GitCommitHorizontal, Users, Focus, Command, Download,
   Sparkles, Menu, X, Plus, Monitor, Bell, Repeat,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { DESKTOP_DOWNLOAD_URL } from '../utils/desktopDownload';
 
 // ── Small building blocks ───────────────────────────────────────────────────
 
@@ -148,6 +149,15 @@ function Nav() {
           })}
         </div>
         <div className="hidden md:flex items-center gap-2">
+          <a
+            href={DESKTOP_DOWNLOAD_URL}
+            download
+            title="Download the Loopin desktop app for Windows (.exe)"
+            className="group inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-[#D0E36A]/25 text-sm font-medium text-white/80 hover:text-[#D0E36A] hover:border-[#D0E36A]/50 transition-colors"
+          >
+            <Download size={14} className="transition-transform group-hover:translate-y-0.5" />
+            Desktop app
+          </a>
           <Link to="/login" className="px-4 py-2 text-sm font-medium text-white/75 hover:text-[#D0E36A] transition-colors">Sign in</Link>
           <Link
             to="/register"
@@ -183,6 +193,13 @@ function Nav() {
               {n.label}
             </a>
           ))}
+          <a
+            href={DESKTOP_DOWNLOAD_URL}
+            download
+            className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-white/80 hover:bg-white/5"
+          >
+            <Download size={15} className="text-[#D0E36A]" /> Download desktop app
+          </a>
           <div className="flex gap-2 pt-2">
             <Link to="/login" className="flex-1 text-center px-4 py-2.5 rounded-full bg-white/10 text-white text-sm font-medium">Sign in</Link>
             <Link to="/register" className="flex-1 text-center px-4 py-2.5 rounded-full bg-[#D0E36A] text-[#0B0C0A] text-sm font-semibold">Get started</Link>
@@ -522,7 +539,19 @@ function Desktop() {
               Loopin for Windows, macOS and Linux watches your working copy, shows the diff, and ties each commit to
               the task it moves forward.
             </p>
-            <div className="mt-8"><PillCta to="/register" variant="lime">Get started</PillCta></div>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <a
+                href={DESKTOP_DOWNLOAD_URL}
+                download
+                className="group inline-flex items-center gap-3 rounded-full pl-5 pr-1.5 py-1.5 text-sm font-semibold bg-[#D0E36A] text-[#0B0C0A] hover:bg-[#BED158] transition-all"
+              >
+                Download for Windows
+                <span className="w-8 h-8 rounded-full bg-[#0B0C0A] text-[#D0E36A] flex items-center justify-center transition-transform group-hover:translate-y-0.5">
+                  <Download size={16} />
+                </span>
+              </a>
+              <PillCta to="/register">Get started</PillCta>
+            </div>
           </div>
           <div className="rounded-[24px] bg-[#0B0C0A]/80 border border-white/10 p-5 font-mono text-xs md:text-sm">
             {[

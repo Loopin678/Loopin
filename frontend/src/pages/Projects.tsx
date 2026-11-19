@@ -3,10 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { projectsApi, Project } from '../api/client';
 import {
-  FolderKanban, Plus, Loader2, Trash2, Clock, Edit2, X, Search, ArrowRight,
+  FolderKanban, Plus, Loader2, Trash2, Clock, Edit2, X, Search, ArrowRight, ImageIcon, Monitor,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
-import { projectCover, projectMonogram, timeAgo } from '../utils/projectStyle';
+import { timeAgo } from '../utils/projectStyle';
+import { ProjectCover } from '../components/projects/ProjectCover';
+import { CoverPickerModal } from '../components/projects/CoverPickerModal';
+import { ConnectDesktopModal } from '../components/projects/ConnectDesktopModal';
+import { markDesktopSetupDismissed } from '../hooks/useDesktopConnection';
 
 // Injected by AppShell via React.cloneElement. The key changes whenever something
 // can change this user's project list: an invitation was accepted, they were
@@ -28,6 +32,10 @@ export function Projects({ _invitationsRefreshKey = 0 }: ProjectsProps) {
   const [createError, setCreateError] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  // Project whose cover picker is open
+  const [coverProject, setCoverProject] = useState<Project | null>(null);
+  // Project whose desktop-app setup steps are open
+  const [desktopProject, setDesktopProject] = useState<Project | null>(null);
 
   // Rename state
   const [renameProject, setRenameProject] = useState<Project | null>(null);
@@ -210,12 +218,28 @@ export function Projects({ _invitationsRefreshKey = 0 }: ProjectsProps) {
                 style={{ animationDelay: `${120 + Math.min(index, 8) * 50}ms` }}
               >
                 {/* Cover */}
-                <div className={cn('relative h-28 rounded-[18px] overflow-hidden bg-gradient-to-br', projectCover(project.id))}>
-                  <div className="absolute inset-x-0 bottom-0 h-2/3 hills opacity-60" aria-hidden />
-                  <span className="absolute left-4 bottom-3 font-display text-3xl font-semibold text-white/90 drop-shadow transition-transform duration-500 group-hover:scale-110 origin-bottom-left">
-                    {projectMonogram(project.name)}
-                  </span>
+                <ProjectCover
+                  projectId={project.id}
+                  name={project.name}
+                  cover={project.cover}
+                  className="h-28 rounded-[18px]"
+                  monogramClassName="left-4 bottom-3 text-3xl transition-transform duration-500 group-hover:scale-110 origin-bottom-left"
+                >
                   <div className="absolute top-2.5 right-2.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={e => { e.stopPropagation(); setDesktopProject(project); }}
+                      className="p-1.5 rounded-full bg-[#0B0C0A]/60 backdrop-blur text-white/80 hover:text-[#D0E36A] hover:bg-[#0B0C0A]/80 transition-all"
+                      title="Connect desktop app"
+                    >
+                      <Monitor size={13} />
+                    </button>
+                    <button
+                      onClick={e => { e.stopPropagation(); setCoverProject(project); }}
+                      className="p-1.5 rounded-full bg-[#0B0C0A]/60 backdrop-blur text-white/80 hover:text-[#D0E36A] hover:bg-[#0B0C0A]/80 transition-all"
+                      title="Change cover"
+                    >
+                      <ImageIcon size={13} />
+                    </button>
                     <button
                       onClick={e => handleStartRename(e, project)}
                       className="p-1.5 rounded-full bg-[#0B0C0A]/60 backdrop-blur text-white/80 hover:text-white hover:bg-[#0B0C0A]/80 transition-all"
@@ -232,7 +256,7 @@ export function Projects({ _invitationsRefreshKey = 0 }: ProjectsProps) {
                       {deleteId === project.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                     </button>
                   </div>
-                </div>
+                </ProjectCover>
 
                 {/* Body */}
                 <div className="px-3 pt-3.5 pb-2.5">
@@ -267,6 +291,29 @@ export function Projects({ _invitationsRefreshKey = 0 }: ProjectsProps) {
           </div>
         )}
       </div>
+
+      {/* Desktop app setup */}
+      {desktopProject && user && (
+        <ConnectDesktopModal
+          projectId={desktopProject.id}
+          projectName={desktopProject.name}
+          userId={user.id}
+          onCancel={() => { markDesktopSetupDismissed(user.id, desktopProject.id); setDesktopProject(null); }}
+          onDone={() => { markDesktopSetupDismissed(user.id, desktopProject.id); setDesktopProject(null); }}
+        />
+      )}
+
+      {/* Cover picker */}
+      {coverProject && (
+        <CoverPickerModal
+          project={coverProject}
+          onClose={() => setCoverProject(null)}
+          onSaved={updated => {
+            setProjects(prev => prev.map(p => (p.id === updated.id ? { ...p, cover: updated.cover } : p)));
+            setCoverProject(null);
+          }}
+        />
+      )}
 
       {/* Create Project Modal */}
       {showCreate && (

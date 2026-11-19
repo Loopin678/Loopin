@@ -21,6 +21,8 @@ export interface BoardState {
 
   addList: (list: ListWithTasks | Omit<ListWithTasks, 'tasks'>) => void;
   updateList: (list: Partial<ListWithTasks> & { id: string }) => void;
+  /** Removes a list; its tasks (if any) go to the end of movedToListId */
+  removeList: (listId: string, movedToListId: string | null, movedTaskIds: string[]) => void;
 
   addTask: (task: AnyTask) => void;
   updateTask: (task: Partial<TaskDetail> & { id: string }) => void;
@@ -119,6 +121,34 @@ export const useBoardStore = create<BoardState>((set) => ({
       if (!existing) return state;
       return {
         listsById: { ...state.listsById, [update.id]: { ...existing, ...update } },
+      };
+    });
+  },
+
+  removeList: (listId, movedToListId, movedTaskIds) => {
+    set(state => {
+      if (!state.listsById[listId]) return state; // idempotent: socket + local call
+      const listsById = { ...state.listsById };
+      delete listsById[listId];
+      const taskIdsByList = { ...state.taskIdsByList };
+      delete taskIdsByList[listId];
+      const tasksById = { ...state.tasksById };
+      if (movedToListId && taskIdsByList[movedToListId]) {
+        const dest = [...taskIdsByList[movedToListId]];
+        for (const id of movedTaskIds) {
+          if (!tasksById[id]) continue;
+          dest.push(id);
+          tasksById[id] = { ...tasksById[id], listId: movedToListId, position: dest.length - 1 } as AnyTask;
+        }
+        taskIdsByList[movedToListId] = dest;
+      } else {
+        for (const id of movedTaskIds) delete tasksById[id];
+      }
+      return {
+        listsById,
+        listOrder: state.listOrder.filter(id => id !== listId),
+        taskIdsByList,
+        tasksById,
       };
     });
   },

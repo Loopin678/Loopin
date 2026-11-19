@@ -18,6 +18,8 @@ export interface TaskSummary { // to show the tasks on the list
     priority?: string | null;
     dueDate?: string | null;
     assigneeId: string | null;
+    createdAt?: Date;
+    updatedAt?: Date;
 }
 
 export interface TaskDetail {

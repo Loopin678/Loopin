@@ -1,5 +1,5 @@
 import { listRepository } from "../repositories/listRepository";
-import { CreateListInput, ListWithoutTasks, ListWithTasks, RenameListInput} from "../types/list";
+import { CreateListInput, DeletedListResult, ListWithoutTasks, ListWithTasks, RenameListInput} from "../types/list";
 import { assertActiveMember } from "./access.service";
 
 async function assertUniqueListName(projectId: string, name: string, excludeListId?: string): Promise<void> {
@@ -32,5 +32,26 @@ async function renameList(data: RenameListInput, requesterId: string): Promise<L
     return updatedList;
 }
 
-export const listService = { createList, getListsByProject, renameList };
+// To Do and Done are what the rest of Loopin relies on (new tasks start in To Do,
+// "Show completed" and the desktop app's commit suggestions use Done), so they are
+// recognised by their kind, not their name: renaming them doesn't make them deletable.
+const PROTECTED_KINDS = new Set(['TODO', 'DONE']);
+
+async function deleteList(listId: string, requesterId: string): Promise<DeletedListResult> {
+    const list = await listRepository.getListById(listId);
+    await assertActiveMember(list.projectId, requesterId);
+
+    if (PROTECTED_KINDS.has(list.kind)) {
+        throw new Error('PROTECTED_LIST');
+    }
+
+    // Tasks are never thrown away with their list: they go back to To Do
+    const lists = await listRepository.getListsByProject(list.projectId);
+    const others = lists.filter(l => l.id !== listId);
+    const target = others.find(l => l.kind === 'TODO') ?? others[0] ?? null;
+
+    return listRepository.deleteListMovingTasks(listId, target?.id ?? null);
+}
+
+export const listService = { createList, getListsByProject, renameList, deleteList };
 

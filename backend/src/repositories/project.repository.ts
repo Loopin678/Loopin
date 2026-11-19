@@ -92,7 +92,7 @@ export async function findProjectsByUserId(userId: string){
   return userProjects;
 }
 
-export async function updateProject(projectId: string,data:{name?: string}){
+export async function updateProject(projectId: string,data:{name?: string; cover?: string | null}){
 
   const project = await prisma.project.update({
     where:{id: projectId},data

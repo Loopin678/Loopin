@@ -25,6 +25,15 @@ export interface ListWithoutTasks { // Used when we need to return a list but th
     createdAt: Date;
 }
 
+// What deleting a list did, so every open board can apply the same change
+export interface DeletedListResult {
+    listId: string;
+    projectId: string;
+    movedToListId: string | null; // null when the list was empty
+    movedTaskIds: string[];
+    assigneeIds: string[]; // whose "My tasks" changed (status of their task changed)
+}
+
 export interface RenameListInput {
     listId: string;
     name: string;

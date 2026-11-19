@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { usersApi, ApiError, OwnProfile } from '../api/client';
 import { Avatar } from '../components/common/Avatar';
 import {
-  Loader2, X, Mail, Lock, Globe, Calendar, CheckCircle2, AlertCircle,
+  Loader2, X, Mail, Lock, Globe, Calendar, CheckCircle2, AlertCircle, Pencil,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 
@@ -16,7 +16,7 @@ const SKILLS_MAX = 10;
 const SKILL_MAX_LENGTH = 24;
 
 const inputClass =
-  'w-full px-3 py-2.5 bg-[#1B1E19] border border-[rgba(255,255,255,0.08)] rounded-lg focus:outline-none focus:border-[#D0E36A] text-sm text-[#F4F5EF] transition-colors placeholder:text-[#6E7268]';
+  'w-full px-3 py-2.5 bg-[#1B1E19] border border-[rgba(255,255,255,0.08)] rounded-xl focus:outline-none focus:border-[#D0E36A] text-sm text-[#F4F5EF] transition-colors placeholder:text-[#6E7268]';
 const labelClass = 'block text-xs font-semibold text-[#A1A69B] uppercase tracking-wider mb-1.5';
 
 // Instant feedback only. Reserved words are checked by the server and come back as a message.
@@ -49,6 +49,8 @@ export function Profile() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [saved, setSaved] = useState(false);
+  // The form only opens after pressing "Edit profile"
+  const [editing, setEditing] = useState(false);
 
   // Copies the server's values into the form
   const fillForm = (p: OwnProfile) => {
@@ -154,6 +156,7 @@ export function Profile() {
       if (user) setUser({ ...user, name: updated.name, username: updated.username });
 
       setSaved(true);
+      setEditing(false); // back to the read-only view once the server has it
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       setSaveError(err instanceof ApiError ? err.message : 'Failed to save your profile');
@@ -162,9 +165,19 @@ export function Profile() {
     }
   };
 
-  const handleDiscard = () => {
+  // Opens the form with the latest saved values
+  const startEditing = () => {
     if (profile) fillForm(profile);
     setSaveError('');
+    setSaved(false);
+    setEditing(true);
+  };
+
+  // Throws away anything typed and closes the form
+  const handleCancel = () => {
+    if (profile) fillForm(profile);
+    setSaveError('');
+    setEditing(false);
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -210,11 +223,75 @@ export function Profile() {
           </div>
         </div>
 
+        {!editing ? (
+          /* ── Read-only view ─────────────────────────────────────────── */
+          <div className="bg-[#151713] border border-white/5 rounded-[24px] p-6 animate-rise [animation-delay:120ms] mb-6">
+            <div className="flex items-center justify-between gap-3 mb-5">
+              <h2 className="text-lg font-semibold text-[#F4F5EF]">Profile</h2>
+              <div className="flex items-center gap-3">
+                {saved && (
+                  <span className="flex items-center gap-1.5 text-xs text-[#D0E36A]">
+                    <CheckCircle2 size={14} /> Saved
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={startEditing}
+                  className="group inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#D0E36A] text-[#0B0C0A] text-sm font-bold hover:bg-[#BED158] hover:shadow-[0_0_24px_rgba(208,227,106,0.35)] transition-all"
+                >
+                  <Pencil size={14} className="transition-transform group-hover:-rotate-12" />
+                  Edit profile
+                </button>
+              </div>
+            </div>
+
+            <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-5">
+              <div>
+                <dt className={labelClass}>Name</dt>
+                <dd className="text-sm text-[#F4F5EF]">{profile.name}</dd>
+              </div>
+              <div>
+                <dt className={labelClass}>Username</dt>
+                <dd className="text-sm font-mono text-[#D0E36A]">
+                  {profile.username ? `@${profile.username}` : <span className="text-[#6E7268] font-sans">Not set</span>}
+                </dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className={labelClass}>Bio</dt>
+                <dd className={cn('text-sm leading-relaxed', profile.bio ? 'text-[#F4F5EF]' : 'text-[#6E7268]')}>
+                  {profile.bio || 'No bio yet. Tell your team what you work on.'}
+                </dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className={labelClass}>Skills</dt>
+                <dd>
+                  {profile.skills.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {profile.skills.map((skill) => (
+                        <span
+                          key={skill}
+                          className="px-3 py-1 rounded-full text-xs font-medium bg-[#D0E36A]/10 text-[#D0E36A] border border-[#D0E36A]/25"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-sm text-[#6E7268]">No skills added yet.</span>
+                  )}
+                </dd>
+              </div>
+            </dl>
+          </div>
+        ) : (
         <form
           onSubmit={handleSubmit}
-          className="bg-[#151713] border border-white/5 rounded-[24px] p-6 animate-rise [animation-delay:120ms] space-y-5 mb-6"
+          className="bg-[#151713] border border-[#D0E36A]/20 rounded-[24px] p-6 animate-rise space-y-5 mb-6 shadow-[0_20px_50px_-30px_rgba(208,227,106,0.35)]"
         >
-          <h2 className="text-lg font-semibold text-[#F4F5EF]">Profile</h2>
+          <div className="flex items-center gap-2">
+            <Pencil size={15} className="text-[#D0E36A]" />
+            <h2 className="text-lg font-semibold text-[#F4F5EF]">Edit profile</h2>
+          </div>
 
           {/* Name */}
           <div>
@@ -226,6 +303,7 @@ export function Profile() {
               onChange={(e) => setName(e.target.value)}
               maxLength={NAME_MAX + 10}
               autoComplete="name"
+              autoFocus
               className={inputClass}
             />
             {nameProblem && <p className="text-xs text-red-400 mt-1.5">{nameProblem}</p>}
@@ -278,18 +356,18 @@ export function Profile() {
           {/* Skills */}
           <div>
             <label className={labelClass} htmlFor="profile-skills">Skills</label>
-            <div className="flex flex-wrap items-center gap-2 p-2 bg-[#1B1E19] border border-[rgba(255,255,255,0.08)] rounded-lg focus-within:border-[#D0E36A] transition-colors">
+            <div className="flex flex-wrap items-center gap-2 p-2 bg-[#1B1E19] border border-[rgba(255,255,255,0.08)] rounded-xl focus-within:border-[#D0E36A] transition-colors">
               {skills.map((skill) => (
                 <span
                   key={skill}
-                  className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-md text-xs font-medium bg-[#D0E36A]/10 text-[#D0E36A] border border-[#D0E36A]/25"
+                  className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-medium bg-[#D0E36A]/10 text-[#D0E36A] border border-[#D0E36A]/25"
                 >
                   {skill}
                   <button
                     type="button"
                     onClick={() => removeSkill(skill)}
                     aria-label={`Remove ${skill}`}
-                    className="p-0.5 rounded hover:bg-[#D0E36A]/20 transition-colors"
+                    className="p-0.5 rounded-full hover:bg-[#D0E36A]/20 transition-colors"
                   >
                     <X size={11} />
                   </button>
@@ -323,38 +401,32 @@ export function Profile() {
           </div>
 
           {saveError && (
-            <div className="flex items-start gap-2 p-3 text-sm text-red-400 bg-red-950/30 border border-red-900/50 rounded-lg">
+            <div className="flex items-start gap-2 p-3 text-sm text-red-400 bg-red-950/30 border border-red-900/50 rounded-xl">
               <AlertCircle size={15} className="shrink-0 mt-0.5" />
               <span>{saveError}</span>
             </div>
           )}
 
           <div className="flex items-center justify-end gap-3 pt-1">
-            {saved && (
-              <span className="flex items-center gap-1.5 text-xs text-[#D0E36A] mr-auto">
-                <CheckCircle2 size={14} /> Saved
-              </span>
-            )}
-            {dirty && (
-              <button
-                type="button"
-                onClick={handleDiscard}
-                disabled={saving}
-                className="px-4 py-2 text-sm font-medium text-[#A1A69B] hover:text-[#F4F5EF] transition-colors disabled:opacity-50"
-              >
-                Discard
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleCancel}
+              disabled={saving}
+              className="px-5 py-2 rounded-full border border-white/10 text-sm font-medium text-[#A1A69B] hover:text-[#F4F5EF] hover:border-white/25 transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
             <button
               type="submit"
               disabled={!canSave}
-              className="flex items-center gap-2 px-5 py-2 bg-[#D0E36A] text-black text-sm font-bold rounded-full hover:bg-[#BED158] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-2 px-5 py-2 bg-[#D0E36A] text-[#0B0C0A] text-sm font-bold rounded-full hover:bg-[#BED158] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               {saving && <Loader2 size={14} className="animate-spin" />}
               {saving ? 'Saving…' : 'Save changes'}
             </button>
           </div>
         </form>
+        )}
 
         {/* Account (read-only) */}
         <div className="bg-[#151713] border border-white/5 rounded-[24px] p-6 animate-rise [animation-delay:120ms] space-y-4">

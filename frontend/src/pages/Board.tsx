@@ -1,12 +1,25 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { BoardTableView } from '../components/board/BoardTableView';
+import { BoardInsightsView } from '../components/board/BoardInsightsView';
 import { useAuth } from '../context/AuthContext';
 import { useBoardStore } from '../store/boardStore';
 import { listsApi, tasksApi, projectsApi, membersApi, Project, ListWithTasks, TaskSummary, TaskDetail } from '../api/client';
 import { useMemberStore } from '../store/memberStore';
 import { Avatar } from '../components/common/Avatar';
 import { connectSocket } from '../api/socket';
-import { Loader2, Plus, X, MoreHorizontal, GripVertical, Edit2, Users, Radio, Check, MessageSquare } from 'lucide-react';
+import { Loader2, Plus, X, MoreHorizontal, GripVertical, Edit2, Users, Radio, Check, MessageSquare, Monitor, Trash2, Columns3, Table2, BarChart3 } from 'lucide-react';
+
+// The board's views. The choice lives in the URL (?view=table) so it survives a refresh.
+type BoardView = 'kanban' | 'table' | 'insights';
+const BOARD_VIEWS: { id: BoardView; label: string; icon: React.ElementType }[] = [
+  { id: 'kanban', label: 'Board', icon: Columns3 },
+  { id: 'table', label: 'Table', icon: Table2 },
+  { id: 'insights', label: 'Insights', icon: BarChart3 },
+];
+import { ConnectDesktopModal } from '../components/projects/ConnectDesktopModal';
+import { useDesktopConnection, wasDesktopSetupDismissed, markDesktopSetupDismissed } from '../hooks/useDesktopConnection';
+import { timeAgo } from '../utils/projectStyle';
 import {
   DndContext,
   DragOverlay,
@@ -28,7 +41,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '../utils/cn';
-import { projectCover, projectMonogram } from '../utils/projectStyle';
+import { ProjectCover } from '../components/projects/ProjectCover';
 import { TaskModal } from '../components/board/TaskModal';
 
 // ─── Task Card ───────────────────────────────────────────────────────────────
@@ -157,7 +170,7 @@ function Column({
   listId: string;
   onOpenTask: (taskId: string) => void;
 }) {
-  const { listsById, taskIdsByList, tasksById, updateList } = useBoardStore();
+  const { listsById, taskIdsByList, tasksById, updateList, removeList } = useBoardStore();
   const { projectId } = useParams<{ projectId: string }>();
 
   const list = listsById[listId];
@@ -175,6 +188,11 @@ function Column({
   const [nameInput, setNameInput] = useState('');
   const [renameLoading, setRenameLoading] = useState(false);
   const renameInputRef = useRef<HTMLInputElement>(null);
+
+  // Delete list (never for To Do / Done: the server refuses those too)
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     if (addingTask) inputRef.current?.focus();
@@ -209,6 +227,22 @@ function Column({
     } finally {
       setRenameLoading(false);
       setIsRenaming(false);
+    }
+  };
+
+  const handleDeleteList = async () => {
+    if (!projectId || !list) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      // DELETE /api/projects/:projectId/lists/:listId → tasks move to To Do
+      const result = await listsApi.remove(projectId, list.id);
+      removeList(list.id, result.movedToListId, result.movedTaskIds); // the socket echo is ignored
+      setConfirmDelete(false);
+    } catch (err: any) {
+      setDeleteError(err?.response?.data?.message || err?.message || 'Failed to delete list');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -272,6 +306,16 @@ function Column({
               >
                 <Edit2 size={11} />
               </button>
+              {list.kind !== 'TODO' && list.kind !== 'DONE' && (
+                <button
+                  onClick={() => { setDeleteError(''); setConfirmDelete(true); }}
+                  className="opacity-0 group-hover/header:opacity-100 p-0.5 text-[#6E7268] hover:text-red-400 transition-all"
+                  title="Delete list"
+                  aria-label={`Delete list ${list.name}`}
+                >
+                  <Trash2 size={11} />
+                </button>
+              )}
             </div>
           )}
 
@@ -347,6 +391,43 @@ function Column({
           </button>
         )}
       </div>
+
+      {confirmDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={() => !deleting && setConfirmDelete(false)} />
+          <div role="alertdialog" aria-modal="true" aria-label="Delete list" className="relative w-full max-w-sm bg-[#151713] border border-red-900/40 rounded-[24px] shadow-2xl shadow-black/60 p-6 animate-rise">
+            <div className="w-11 h-11 rounded-2xl bg-red-950/50 border border-red-900/50 text-red-400 flex items-center justify-center mb-4">
+              <Trash2 size={18} />
+            </div>
+            <h3 className="text-lg font-semibold text-[#F4F5EF]">Delete “{list.name}”?</h3>
+            <p className="mt-1.5 text-sm text-[#A1A69B]">
+              {taskIds.length === 0
+                ? 'This list is empty. It will be removed for everyone on the project.'
+                : `Its ${taskIds.length} task${taskIds.length !== 1 ? 's' : ''} will move to To Do. Nothing is deleted except the list itself.`}
+            </p>
+            {deleteError && (
+              <div className="mt-3 p-3 text-sm text-red-400 bg-red-950/30 border border-red-900/50 rounded-xl">{deleteError}</div>
+            )}
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmDelete(false)}
+                disabled={deleting}
+                className="px-5 py-2 rounded-full border border-white/10 text-sm font-medium text-[#A1A69B] hover:text-[#F4F5EF] hover:border-white/25 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteList}
+                disabled={deleting}
+                className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-red-500 text-white text-sm font-bold hover:bg-red-600 disabled:opacity-50 transition-colors"
+              >
+                {deleting && <Loader2 size={14} className="animate-spin" />}
+                Delete list
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -365,6 +446,7 @@ export function Board() {
     moveTask,
     addList,
     updateList,
+    removeList,
     addTask,
     updateTask,
     removeTask,
@@ -388,6 +470,35 @@ export function Board() {
   const [creatingList, setCreatingList] = useState(false);
   const [listError, setListError] = useState('');
   const [socketConnected, setSocketConnected] = useState(false);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const viewParam = searchParams.get('view');
+  const view: BoardView = viewParam === 'table' || viewParam === 'insights' ? viewParam : 'kanban';
+  const setView = (v: BoardView) => {
+    const next = new URLSearchParams(searchParams);
+    if (v === 'kanban') next.delete('view'); else next.set('view', v);
+    setSearchParams(next, { replace: true });
+  };
+
+  // ── Desktop app connection (per user: has *my* desktop app sent a commit here?) ──
+  const desktop = useDesktopConnection(projectId, user?.id);
+  const [showDesktopSetup, setShowDesktopSetup] = useState(false);
+
+  // The first time someone opens a project they haven't connected, walk them through
+  // it. Creating a project lands here too, so new projects get the same prompt.
+  // Already-connected users never see it pop up; Cancel stops it popping up again.
+  useEffect(() => {
+    if (!projectId || !user) return;
+    if (desktop.state === 'not_connected' && !wasDesktopSetupDismissed(user.id, projectId)) {
+      setShowDesktopSetup(true);
+    }
+  }, [desktop.state, projectId, user?.id]);
+
+  const closeDesktopSetup = () => {
+    if (user && projectId) markDesktopSetupDismissed(user.id, projectId);
+    setShowDesktopSetup(false);
+    desktop.refresh();
+  };
 
   // Active task modal state
   const [modalTaskId, setModalTaskId] = useState<string | null>(taskIdParam ?? null);
@@ -442,6 +553,8 @@ export function Board() {
     // Board events (handlers must stay idempotent, the store handles that)
     const handleListCreated = (list: ListWithTasks) => addList(list);
     const handleListRenamed = (list: ListWithTasks) => updateList(list);
+    const handleListDeleted = (data: { listId: string; movedToListId: string | null; movedTaskIds: string[] }) =>
+      removeList(data.listId, data.movedToListId, data.movedTaskIds);
     const handleTaskCreated = (task: TaskDetail) => addTask(task);
     const handleTaskUpdated = (task: TaskDetail) => updateTask(task);
     const handleTaskMoved = (task: TaskDetail) =>
@@ -484,6 +597,7 @@ export function Board() {
     socket.on('error', handleError);
     socket.on('list:created', handleListCreated);
     socket.on('list:renamed', handleListRenamed);
+    socket.on('list:deleted', handleListDeleted);
     socket.on('task:created', handleTaskCreated);
     socket.on('task:updated', handleTaskUpdated);
     socket.on('task:moved', handleTaskMoved);
@@ -504,6 +618,7 @@ export function Board() {
       socket.off('error', handleError);
       socket.off('list:created', handleListCreated);
       socket.off('list:renamed', handleListRenamed);
+      socket.off('list:deleted', handleListDeleted);
       socket.off('task:created', handleTaskCreated);
       socket.off('task:updated', handleTaskUpdated);
       socket.off('task:moved', handleTaskMoved);
@@ -596,12 +711,15 @@ export function Board() {
     }
   };
 
+  // Keep ?view=… when opening/closing a task, so closing it returns to the same view
+  const viewQuery = view === 'kanban' ? '' : `?view=${view}`;
+
   const handleOpenTask = (taskId: string) => {
-    navigate(`/projects/${projectId}/tasks/${taskId}`);
+    navigate(`/projects/${projectId}/tasks/${taskId}${viewQuery}`);
   };
 
   const handleCloseModal = () => {
-    navigate(`/projects/${projectId}`);
+    navigate(`/projects/${projectId}${viewQuery}`);
   };
 
   const totalTasks = Object.keys(tasksById).length;
@@ -634,9 +752,14 @@ export function Board() {
       <div className="px-4 md:px-6 pt-2 pb-4 flex flex-wrap items-center justify-between gap-3 shrink-0 animate-rise">
         <div className="flex items-center gap-3 min-w-0">
           {projectId && (
-            <span className={cn('w-11 h-11 rounded-2xl bg-gradient-to-br flex items-center justify-center font-display text-sm font-semibold text-white shrink-0', projectCover(projectId))}>
-              {projectMonogram(project?.name || 'Board')}
-            </span>
+            <ProjectCover
+              projectId={projectId}
+              name={project?.name || 'Board'}
+              cover={project?.cover}
+              hills={false}
+              className="w-11 h-11 rounded-2xl shrink-0"
+              monogramClassName="absolute inset-0 flex items-center justify-center text-sm"
+            />
           )}
           <div className="min-w-0">
             <h2 className="font-display text-xl md:text-2xl font-semibold text-[#F4F5EF] truncate">
@@ -661,6 +784,51 @@ export function Board() {
         </div>
 
         <div className="flex items-center gap-2 text-xs">
+          {/* View switcher */}
+          <div role="tablist" aria-label="Board view" className="flex items-center gap-0.5 p-0.5 rounded-full bg-[#151713] border border-white/10">
+            {BOARD_VIEWS.map(v => (
+              <button
+                key={v.id}
+                role="tab"
+                aria-selected={view === v.id}
+                onClick={() => setView(v.id)}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-full font-semibold transition-colors',
+                  view === v.id ? 'bg-[#D0E36A] text-[#0B0C0A]' : 'text-[#A1A69B] hover:text-[#F4F5EF]'
+                )}
+              >
+                <v.icon size={13} />
+                <span className="hidden sm:inline">{v.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Desktop app: opens the setup steps, or shows the connection once linked */}
+          {desktop.state !== 'loading' && (
+            <button
+              type="button"
+              onClick={() => setShowDesktopSetup(true)}
+              title={desktop.state === 'connected' ? 'Desktop app connected. Click for details.' : 'Connect this project to the desktop app'}
+              className={cn(
+                'group flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-colors',
+                desktop.state === 'connected'
+                  ? 'text-[#A1A69B] bg-[#151713] border-white/10 hover:text-[#F4F5EF] hover:border-white/20'
+                  : 'text-[#D0E36A] bg-[#D0E36A]/[0.06] border-[#D0E36A]/35 border-dashed hover:bg-[#D0E36A]/15'
+              )}
+            >
+              <Monitor size={13} />
+              {desktop.state === 'connected' ? (
+                <>
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#D0E36A]" />
+                  <span className="font-semibold">Desktop</span>
+                  {desktop.lastCommitAt && <span className="hidden md:inline text-[#6E7268]">· {timeAgo(desktop.lastCommitAt)}</span>}
+                </>
+              ) : (
+                <span className="font-semibold">Connect desktop</span>
+              )}
+            </button>
+          )}
+
           {/* Socket live status */}
           <div className={cn(
             'flex items-center gap-1.5 px-3 py-1.5 rounded-full border',
@@ -700,6 +868,7 @@ export function Board() {
       {/* Faint decorative glow */}
       <div className="absolute top-10 left-1/4 right-1/4 h-40 rounded-full bg-[#D0E36A] opacity-[0.05] blur-3xl pointer-events-none" />
 
+      {view === 'kanban' && (
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -769,6 +938,30 @@ export function Board() {
           ) : null}
         </DragOverlay>
       </DndContext>
+      )}
+
+      {view === 'table' && (
+        <div className="flex-1 min-h-0">
+          <BoardTableView onOpenTask={handleOpenTask} />
+        </div>
+      )}
+
+      {view === 'insights' && (
+        <div className="flex-1 min-h-0">
+          <BoardInsightsView />
+        </div>
+      )}
+
+      {/* Desktop app setup */}
+      {showDesktopSetup && projectId && user && (
+        <ConnectDesktopModal
+          projectId={projectId}
+          projectName={project?.name || 'this project'}
+          userId={user.id}
+          onCancel={closeDesktopSetup}
+          onDone={closeDesktopSetup}
+        />
+      )}
 
       {/* Task Detail Modal */}
       {modalTaskId && (

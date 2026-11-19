@@ -18,6 +18,7 @@ import {
 import { cn } from '../utils/cn';
 import { connectSocket } from '../api/socket';
 import { projectCover, projectMonogram, timeAgo } from '../utils/projectStyle';
+import { ProjectCover } from '../components/projects/ProjectCover';
 
 // Props injected by AppShell (the same mechanism the Projects page uses)
 interface HomeProps {
@@ -425,9 +426,14 @@ export function Home({
                   onClick={() => navigate(`/projects/${project.id}`)}
                   className="group w-full flex items-center gap-3 p-2.5 rounded-2xl text-left hover:bg-[#1B1E19] transition-colors"
                 >
-                  <span className={cn('w-11 h-11 rounded-xl bg-gradient-to-br flex items-center justify-center font-display text-sm font-semibold text-white shrink-0 transition-transform group-hover:scale-105', projectCover(project.id))}>
-                    {projectMonogram(project.name)}
-                  </span>
+                  <ProjectCover
+                    projectId={project.id}
+                    name={project.name}
+                    cover={project.cover}
+                    hills={false}
+                    className="w-11 h-11 rounded-xl shrink-0 transition-transform group-hover:scale-105"
+                    monogramClassName="absolute inset-0 flex items-center justify-center text-sm"
+                  />
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-semibold text-white truncate group-hover:text-[#D0E36A] transition-colors">
                       {project.name}

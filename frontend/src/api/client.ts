@@ -370,6 +370,10 @@ export interface TaskSummary {
   position: number;
   stack: string | null;
   assigneeId: string | null;
+  priority?: string | null;
+  dueDate?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
   listId: string;
   projectId: string;
 }
@@ -442,7 +446,7 @@ export const authApi = {
 // POST  /api/projects                    { name, userId, stack } → 201 { project }
 // GET   /api/projects/user/:userId                               → 200 { projects: Project[] }
 // GET   /api/projects/:projectId                                 → 200 { project }
-// PATCH /api/projects/:projectId         { name }                → 200 { project }
+// PATCH /api/projects/:projectId         { name?, cover? }       → 200 { project }
 // DELETE /api/projects/:projectId                                → 204
 export const projectsApi = {
   create: async (data: { name: string; userId: string; stack: string }) =>
@@ -454,7 +458,7 @@ export const projectsApi = {
   get: async (projectId: string) =>
     (await apiClient.get<{ project: Project }>(`/projects/${projectId}`)).data.project,
 
-  update: async (projectId: string, data: { name: string }) =>
+  update: async (projectId: string, data: { name?: string; cover?: string | null }) =>
     (await apiClient.patch<{ project: Project }>(`/projects/${projectId}`, data)).data.project,
 
   delete: async (projectId: string) =>
@@ -525,6 +529,7 @@ export const membersApi = {
 // GET   /api/projects/:projectId/lists              → 200 { lists: ListWithTasks[] }
 // POST  /api/projects/:projectId/lists   { name }   → 201 { list }  (409 duplicate name)
 // PATCH /api/projects/:projectId/lists/:listId { name } → 200 { list }
+// DELETE /api/projects/:projectId/lists/:listId         → 200 { deleted, movedToListId, movedTaskIds } (409 for To Do / Done)
 export const listsApi = {
   list: async (projectId: string) =>
     (await apiClient.get<{ lists: ListWithTasks[] }>(`/projects/${projectId}/lists`)).data.lists,
@@ -534,6 +539,9 @@ export const listsApi = {
 
   rename: async (projectId: string, listId: string, data: { name: string }) =>
     (await apiClient.patch<{ list: ListWithTasks }>(`/projects/${projectId}/lists/${listId}`, data)).data.list,
+
+  remove: async (projectId: string, listId: string) =>
+    (await apiClient.delete<{ deleted: string; movedToListId: string | null; movedTaskIds: string[] }>(`/projects/${projectId}/lists/${listId}`)).data,
 };
 
 // ─── Tasks ────────────────────────────────────────────────────────────────────

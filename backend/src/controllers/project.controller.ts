@@ -163,13 +163,29 @@ export async function getProjectsByUserId(
   }
 }
 
+// A project cover is null (default), one of the stock images, a #rrggbb colour,
+// or a small image the browser already resized (kept inline, so it is size-capped)
+const STOCK_COVER_IDS = ["hills", "aurora", "contours", "horizon", "dunes", "loops", "mesh", "peaks"];
+const MAX_COVER_IMAGE_CHARS = 90_000;
+
+function isValidCover(cover: unknown): cover is string | null {
+  if (cover === null) return true;
+  if (typeof cover !== "string") return false;
+  if (cover.startsWith("stock:")) return STOCK_COVER_IDS.includes(cover.slice(6));
+  if (cover.startsWith("color:")) return /^color:#[0-9a-fA-F]{6}$/.test(cover);
+  return (
+    cover.length <= MAX_COVER_IMAGE_CHARS &&
+    /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/.test(cover)
+  );
+}
+
 export async function updateProject(
   req: Request,
   res: Response
 ): Promise<void> {
   try {
     const { projectId } = req.params;
-    const { name } = req.body;
+    const { name, cover } = req.body;
 
     if (typeof projectId !== "string") {
       res.status(400).json({
@@ -185,6 +201,13 @@ export async function updateProject(
       return;
     }
 
+    if (cover !== undefined && !isValidCover(cover)) {
+      res.status(400).json({
+        message: "Invalid cover. Use a stock image, a colour, or an image under 90 KB",
+      });
+      return;
+    }
+
     const requesterId = req.user?.id;
     if (!requesterId) {
       res.status(401).json({ message: "Authentication required" });
@@ -193,6 +216,7 @@ export async function updateProject(
 
     const project = await updateProjectService(projectId, requesterId, {
       name,
+      cover,
     });
 
     res.status(200).json({
@@ -200,7 +224,7 @@ export async function updateProject(
     });
   } catch (error) {
     if (error instanceof Error && (error.message === "FORBIDDEN_NOT_PROJECT_MEMBER" || error.message === "FORBIDDEN_NOT_PROJECT_OWNER")) {
-      res.status(403).json({ message: "Only the project owner can rename this project" });
+      res.status(403).json({ message: "Only the project owner can change this project" });
       return;
     }
     if (
