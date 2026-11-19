@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 export const api = axios.create({
-  baseURL: '/api',
+  // Same rule as api/client.ts: the backend's address in production, the Vite proxy locally
+  baseURL: `${import.meta.env.VITE_API_URL || ''}/api`,
   withCredentials: true,
 });
 

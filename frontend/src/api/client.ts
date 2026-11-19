@@ -1,6 +1,8 @@
 import type { Project, List, Task, Commit, User, ProjectMember, ProjectInvite } from '../types';
 
-const API_BASE = '/api';
+// In production VITE_API_URL is the backend's address (e.g. https://loopin-api…azurewebsites.net).
+// Locally it's empty, so requests go to /api on the Vite dev server, which proxies to :3000.
+const API_BASE = `${import.meta.env.VITE_API_URL || ''}/api`;
 
 function getToken(): string | null {
   return localStorage.getItem('loopin_token');
