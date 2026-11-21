@@ -5,11 +5,21 @@ import { getGoogleUser, getGoogleAuthUrl } from "../services/google.service";
 import { getGitHubAuthUrl, getGitHubUser } from "../services/github.service";
 import { randomBytes } from "crypto";
 
-function setAuthCookie(res: Response, token: string): void{
-    res.cookie("auth_token", token, {
+// The same flags must be used to set AND clear the cookie. In production the site and
+// the API are on different domains, so the browser only accepts cookie changes marked
+// SameSite=None; Secure; a plain clearCookie() is silently ignored there.
+function authCookieOptions() {
+    return {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        sameSite: (process.env.NODE_ENV === "production" ? "none" : "lax") as "none" | "lax",
+        path: "/",
+    };
+}
+
+function setAuthCookie(res: Response, token: string): void{
+    res.cookie("auth_token", token, {
+        ...authCookieOptions(),
         maxAge: 7*24*60*60*1000,
     });
 }
@@ -93,7 +103,7 @@ try {
 }
 }
 export function logout(req: Request, res: Response): void{
-    res.clearCookie("auth_token");
+    res.clearCookie("auth_token", authCookieOptions());
 
     res.status(200).json({
         message:"Logged out successfully"
