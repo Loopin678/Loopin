@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { projectsApi, Project } from '../../api/client';
 import { Menu, X, LogOut, FolderKanban, LayoutGrid, Users, MessageSquare, Home as HomeIcon, Download } from 'lucide-react';
 import { DESKTOP_DOWNLOAD_URL } from '../../utils/desktopDownload';
+import { LoopinLogo } from '../common/LoopinLogo';
 import { rememberProject } from '../../utils/recentProjects';
 import { cn } from '../../utils/cn';
 import { useInvitations } from '../../hooks/useInvitations';
@@ -191,11 +192,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         {/* Logo */}
         <div className="h-16 flex items-center px-5 shrink-0">
-          <Link to="/home" className="flex items-center gap-2 flex-1">
-            <div className="w-6 h-6 rounded-lg bg-[#D0E36A] flex items-center justify-center shrink-0">
-              <div className="w-2.5 h-2.5 rounded-full border-2 border-[#0B0C0A]" />
-            </div>
-            <span className="font-display font-semibold text-lg text-white">Loopin</span>
+          <Link to="/home" className="flex items-center flex-1" aria-label="Loopin home">
+            <LoopinLogo className="text-[26px]" />
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}

@@ -1,11 +1,34 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, authApi } from '../api/client';
-import { Loader2 } from 'lucide-react';
 import { disconnectSocket } from '../api/socket';
+
+// A yes/no hint that this browser was signed in last time (never a token or any
+// user data). It lets a returning user see the logo while the session loads,
+// instead of the landing page flashing before they are sent to Home.
+const SESSION_HINT = 'loopin:had-session';
+
+function readSessionHint(): boolean {
+  try {
+    return localStorage.getItem(SESSION_HINT) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeSessionHint(on: boolean): void {
+  try {
+    if (on) localStorage.setItem(SESSION_HINT, '1');
+    else localStorage.removeItem(SESSION_HINT);
+  } catch {
+    /* storage blocked: we just lose the hint */
+  }
+}
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  /** True while loading if this browser was signed in last time */
+  probablySignedIn: boolean;
   setUser: (user: User | null) => void;
   checkAuth: () => Promise<void>;
   logout: () => Promise<void>;
@@ -16,14 +39,17 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [probablySignedIn] = useState(readSessionHint);
 
   const checkAuth = async () => {
     try {
       // GET /api/auth/me → 200 { user }
       const data = await authApi.me();
       setUser(data.user);
+      writeSessionHint(true);
     } catch {
       setUser(null);
+      writeSessionHint(false);
     } finally {
       setLoading(false);
     }
@@ -33,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await authApi.logout();
     } finally {
+      writeSessionHint(false);
       setUser(null);
       disconnectSocket();
       window.location.href = '/login';
@@ -43,20 +70,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0B0C0A] flex flex-col items-center justify-center">
-        <div className="relative flex items-center justify-center">
-          <div className="absolute w-16 h-16 border border-[#D0E36A]/20 rounded-full animate-ping" />
-          <Loader2 size={32} className="animate-spin text-[#D0E36A] relative z-10" />
-        </div>
-        <p className="mt-4 text-sm font-mono text-[#6E7268]">Resolving session...</p>
-      </div>
-    );
-  }
 
   return (
-    <AuthContext.Provider value={{ user, loading, setUser, checkAuth, logout }}>
+    <AuthContext.Provider value={{ user, loading, probablySignedIn, setUser, checkAuth, logout }}>
       {children}
     </AuthContext.Provider>
   );

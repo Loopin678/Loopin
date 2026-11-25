@@ -5,19 +5,14 @@ import {
   Sparkles, Menu, X, Plus, Monitor, Bell, Repeat,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { LoopinLogo } from '../components/common/LoopinLogo';
 import { DESKTOP_DOWNLOAD_URL } from '../utils/desktopDownload';
 
 // ── Small building blocks ───────────────────────────────────────────────────
 
+// The official wordmark ("l∞pin"); kept under this name so existing imports keep working
 export function LoopinMark({ className }: { className?: string }) {
-  return (
-    <div className={cn('flex items-center gap-2', className)}>
-      <div className="w-6 h-6 rounded-lg bg-[#D0E36A] flex items-center justify-center shrink-0">
-        <div className="w-2.5 h-2.5 rounded-full border-2 border-[#0B0C0A]" />
-      </div>
-      <span className="font-display font-semibold text-lg text-white">Loopin</span>
-    </div>
-  );
+  return <LoopinLogo className={cn('text-[26px]', className)} />;
 }
 
 function Eyebrow({ icon: Icon, children }: { icon: React.ElementType; children: React.ReactNode }) {

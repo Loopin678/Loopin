@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220">
+  <title>Loopin</title>
+  <!-- Official wordmark "l∞pin" for use outside the app (docs, slides, social). Text is outlined via system fonts; prefer the in-app React component where possible. -->
+  <rect width="640" height="220" rx="36" fill="#0B0C0A"/>
+  <g font-family="'General Sans','Inter','Segoe UI',sans-serif" font-weight="600" font-size="150" fill="#F4F5EF">
+    <text x="70" y="160">l</text>
+    <text x="330" y="160">pin</text>
+  </g>
+  <g transform="translate(112 74) scale(1.75)">
+    <path d="M60 30 C 50 14, 36 8, 26 8 C 14 8, 6 18, 6 30 C 6 42, 14 52, 26 52 C 36 52, 50 46, 60 30 C 70 14, 84 8, 94 8 C 106 8, 114 18, 114 30 C 114 42, 106 52, 94 52 C 84 52, 70 46, 60 30 Z" fill="none" stroke="#D0E36A" stroke-width="10" stroke-linejoin="round"/>
+    <circle cx="28" cy="30" r="7" fill="#F4F5EF"/>
+    <circle cx="92" cy="30" r="7" fill="#F4F5EF"/>
+  </g>
+</svg>

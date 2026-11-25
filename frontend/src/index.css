@@ -171,6 +171,26 @@ h1, h2, h3 {
   50%      { box-shadow: 0 0 0 6px rgba(208,227,106, 0); }
 }
 
+/* Loading logo: the infinity loop draws itself, the two "teammate" dots pulse in turn */
+@keyframes loop-trace {
+  0% { stroke-dashoffset: 100; }
+  55%, 100% { stroke-dashoffset: 0; }
+}
+@keyframes loop-dot {
+  0%, 100% { opacity: 0.35; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+.loop-glyph-trace {
+  stroke-dasharray: 100;
+  animation: loop-trace 1.6s cubic-bezier(0.65, 0, 0.35, 1) infinite alternate;
+}
+.loop-glyph-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: loop-dot 1.2s ease-in-out infinite;
+}
+.loop-glyph-dot-2 { animation-delay: 0.6s; }
+
 @keyframes fill {
   from { width: 0%; }
   to { width: 100%; }
@@ -207,7 +227,10 @@ h1, h2, h3 {
   .animate-marquee,
   .animate-pulse-glow,
   .animate-fill,
+  .loop-glyph-trace,
+  .loop-glyph-dot,
   .dusk-sky::before { animation: none; }
+  .loop-glyph-trace { stroke-dasharray: none; }
   .animate-fill { width: 100%; }
 }
 

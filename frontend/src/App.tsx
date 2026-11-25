@@ -13,18 +13,13 @@ import { AppShell } from './components/layout/AppShell';
 import { Home } from './pages/Home';
 import { getPostLoginPath } from './utils/postLoginPath';
 import { Profile } from './pages/Profile';
+import { SplashScreen } from './components/common/SplashScreen';
 
 // Protected route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const location = useLocation();
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-[#0B0C0A] text-[#F4F5EF]">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#D0E36A]"></div>
-      </div>
-    );
-  }
+  if (loading) return <SplashScreen />;
   // Remember where they were heading, so signing in can send them back there
   if (!user) {
     return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
@@ -33,16 +28,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 // Auth route (redirect if already authenticated)
+// The landing, login and sign-up pages don't need the session, so they show right away
+// while it loads. Only a browser that was signed in last time waits on the logo,
+// so a returning user goes straight to Home without the landing page flashing first.
 function GuestRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, probablySignedIn } = useAuth();
   const location = useLocation();
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-[#0B0C0A] text-[#F4F5EF]">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#D0E36A]"></div>
-      </div>
-    );
-  }
+  if (loading) return probablySignedIn ? <SplashScreen /> : <>{children}</>;
   if (user) return <Navigate to={getPostLoginPath(location.state)} replace />;
   return <>{children}</>;
 }
