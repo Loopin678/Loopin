@@ -17,6 +17,20 @@ function authCookieOptions() {
     };
 }
 
+// Google/GitHub sign-in is a full-page round trip (site → API → provider → API), so the
+// callbacks finish by sending the browser back to the site, never by returning JSON.
+function frontendUrl(): string {
+    return (process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/+$/, "");
+}
+
+function redirectToApp(res: Response): void {
+    res.redirect(`${frontendUrl()}/home`);
+}
+
+function redirectWithOAuthError(res: Response, code: string): void {
+    res.redirect(`${frontendUrl()}/login?error=${encodeURIComponent(code)}`);
+}
+
 function setAuthCookie(res: Response, token: string): void{
     res.cookie("auth_token", token, {
         ...authCookieOptions(),
@@ -142,6 +156,11 @@ try {
   }
 }
 export function googleLogin(req: Request, res: Response):void{
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET || !process.env.GOOGLE_REDIRECT_URL) {
+        console.error("Google sign-in is not configured (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REDIRECT_URL)");
+        redirectWithOAuthError(res, "oauth_unavailable");
+        return;
+    }
     const authUrl = getGoogleAuthUrl();
 
     // this sends the authUrl from googleService toward google
@@ -149,12 +168,15 @@ export function googleLogin(req: Request, res: Response):void{
 }
 export async function googleCallback(req: Request,res: Response): Promise<void>{
   try {
-    const { code } = req.query;
+    const { code, error: oauthError } = req.query;
+
+    if (oauthError) {
+      redirectWithOAuthError(res, "oauth_cancelled");
+      return;
+    }
 
     if (typeof code !== "string") {
-      res.status(400).json({
-        message: "Google authorization code is required",
-      });
+      redirectWithOAuthError(res, "oauth_failed");
       return;
     }
 
@@ -168,26 +190,19 @@ export async function googleCallback(req: Request,res: Response): Promise<void>{
 
     setAuthCookie(res, token);
 
-    res.status(200).json({
-      message: "Google authentication successful",
-    });
+    redirectToApp(res);
   } catch (error) {
     if (
       error instanceof Error &&
       error.message === "EMAIL_ALREADY_REGISTERED"
     ) {
-      res.status(409).json({
-        message:
-          "An account exists already with this email. Please use email/password login",
-      });
+      redirectWithOAuthError(res, "email_exists");
       return;
     }
 
-    console.error(error);
+    console.error("Google callback failed:", error);
 
-    res.status(500).json({
-      message: "Google authentication failed",
-    });
+    redirectWithOAuthError(res, "oauth_failed");
   }
 }
 
@@ -205,9 +220,7 @@ try {
 
 }catch(err){
     console.error("Github login initialization failed", err);
-    res.status(500).json({
-      message: "Could not start github authentication"
-    });
+    redirectWithOAuthError(res, "oauth_unavailable");
 }
 }
 
@@ -224,49 +237,35 @@ try{
         path:"/"
     })
     if(oautherror){
-        res.status(401).json({
-            message: "GitHub authentication was cancelled or denied",
-        })
+        redirectWithOAuthError(res, "oauth_cancelled");
         return;
     }
     if(typeof state !== "string" || typeof savedState !== "string" || state !== savedState){
-        res.status(400).json({
-            message:"Invalid OAuth state",
-        });
+        redirectWithOAuthError(res, "oauth_state");
         return;
     }
     if(typeof code !== "string"){
-        res.status(400).json({
-            message:"Github authorization code is required"
-        });
+        redirectWithOAuthError(res, "oauth_failed");
         return;
     }
     const githubUser= await getGitHubUser(code);
 
-    const { user, token } = await loginWithGithub(githubUser);
-    
+    const { token } = await loginWithGithub(githubUser);
+
     setAuthCookie(res, token);
 
-    res.status(200).json({
-        message:"Github authentication successful", user
-    });
+    redirectToApp(res);
 }catch(error){
     if(error instanceof Error && error.message ==="EMAIL_ALREADY_REGISTERED"){
-        res.status(409).json({
-            message:"An account already exists with this email. Login to that account first."
-        });
+        redirectWithOAuthError(res, "email_exists");
         return;
     }
     if(error instanceof Error && error.message === "GITHUB_VERIFIED_EMAIL_REQUIRED"){
-        res.status(400).json({
-            message:"Your github account needs a verified email address to sign in"
-        })
+        redirectWithOAuthError(res, "github_email");
         return;
     }
     console.error("Github callback failed:", error);
 
-    res.status(500).json({
-        message:"Github Authentication failed"
-    });
+    redirectWithOAuthError(res, "oauth_failed");
 }
 }
